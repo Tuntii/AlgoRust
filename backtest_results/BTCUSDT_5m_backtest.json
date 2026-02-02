@@ -1,0 +1,851 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "5m",
+  "total_trades": 42,
+  "wins": 12,
+  "losses": 30,
+  "win_rate": 28.57142857142857,
+  "total_pnl_r": "-12.0",
+  "signals": [
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "84769.56000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.141496600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "84769.56000000",
+      "sl_price": "85150.00000000",
+      "tp_price": "84198.900000000",
+      "exit_price": "85150.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "84519.52000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.141551Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "84519.52000000",
+      "sl_price": "84929.00000000",
+      "tp_price": "83905.300000000",
+      "exit_price": "84929.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "83881.48000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.141735600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "83881.48000000",
+      "sl_price": "84630.55000000",
+      "tp_price": "82757.875000000",
+      "exit_price": "84630.55000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "83477.02000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.141795300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "83477.02000000",
+      "sl_price": "84109.33000000",
+      "tp_price": "82528.555000000",
+      "exit_price": "84109.33000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "84083.23000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.142566Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "84083.23000000",
+      "sl_price": "84519.92000000",
+      "tp_price": "83428.195000000",
+      "exit_price": "83428.195000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82519.89000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.143791300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82519.89000000",
+      "sl_price": "82995.41000000",
+      "tp_price": "81806.610000000",
+      "exit_price": "82995.41000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82561.95000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.143945500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82561.95000000",
+      "sl_price": "82834.19000000",
+      "tp_price": "82153.590000000",
+      "exit_price": "82834.19000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82363.72000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.144076200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82363.72000000",
+      "sl_price": "82649.80000000",
+      "tp_price": "81934.600000000",
+      "exit_price": "82649.80000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82684.06000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.144724500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82684.06000000",
+      "sl_price": "82928.20000000",
+      "tp_price": "82317.850000000",
+      "exit_price": "82928.20000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82731.51000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.144899200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82731.51000000",
+      "sl_price": "83087.34000000",
+      "tp_price": "82197.765000000",
+      "exit_price": "83087.34000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82620.28000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.145240700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82620.28000000",
+      "sl_price": "83616.46000000",
+      "tp_price": "81126.010000000",
+      "exit_price": "83616.46000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82883.94000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.145358700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82883.94000000",
+      "sl_price": "83361.80000000",
+      "tp_price": "82167.150000000",
+      "exit_price": "83361.80000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82653.03000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.145462700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82653.03000000",
+      "sl_price": "83157.05000000",
+      "tp_price": "81897.000000000",
+      "exit_price": "83157.05000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82029.96000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.145929400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82029.96000000",
+      "sl_price": "83236.70000000",
+      "tp_price": "80219.850000000",
+      "exit_price": "83236.70000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "84264.38000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.146668400Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "84264.38000000",
+      "sl_price": "83790.44000000",
+      "tp_price": "84975.290000000",
+      "exit_price": "83790.44000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "84371.55000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.146783900Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "84371.55000000",
+      "sl_price": "84044.74000000",
+      "tp_price": "84861.765000000",
+      "exit_price": "84044.74000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "84112.68000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.148115300Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "84112.68000000",
+      "sl_price": "83815.02000000",
+      "tp_price": "84559.170000000",
+      "exit_price": "83815.02000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "84152.91000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.148368400Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "84152.91000000",
+      "sl_price": "83732.14545000000",
+      "tp_price": "84784.056825000000",
+      "exit_price": "83732.14545000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "84108.18000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.148739200Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "84108.18000000",
+      "sl_price": "83687.63910000000",
+      "tp_price": "84738.991350000000",
+      "exit_price": "83687.63910000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "83250.40000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.149873Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "83250.40000000",
+      "sl_price": "83629.08000000",
+      "tp_price": "82682.380000000",
+      "exit_price": "82682.380000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "83019.99000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.150857300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "83019.99000000",
+      "sl_price": "83194.44000000",
+      "tp_price": "82758.315000000",
+      "exit_price": "82758.315000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "83009.90000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.151262200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "83009.90000000",
+      "sl_price": "83424.94950000000",
+      "tp_price": "82387.325750000000",
+      "exit_price": "82387.325750000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "82536.33000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.151668900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "82536.33000000",
+      "sl_price": "82919.29000000",
+      "tp_price": "81961.890000000",
+      "exit_price": "82919.29000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "81967.60000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.151966500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "81967.60000000",
+      "sl_price": "82928.20000000",
+      "tp_price": "80526.700000000",
+      "exit_price": "80526.700000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "81160.48000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.152335200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "81160.48000000",
+      "sl_price": "81789.68000000",
+      "tp_price": "80216.680000000",
+      "exit_price": "81789.68000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "81338.07000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.152579300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "81338.07000000",
+      "sl_price": "81522.83000000",
+      "tp_price": "81060.930000000",
+      "exit_price": "81060.930000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "81038.59000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.152798200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "81038.59000000",
+      "sl_price": "82200.00000000",
+      "tp_price": "79296.475000000",
+      "exit_price": "79296.475000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78354.66000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.153419400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78354.66000000",
+      "sl_price": "79143.64000000",
+      "tp_price": "77171.190000000",
+      "exit_price": "77171.190000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78008.27000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.153617600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78008.27000000",
+      "sl_price": "78729.43000000",
+      "tp_price": "76926.530000000",
+      "exit_price": "78729.43000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77982.54000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.153873700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77982.54000000",
+      "sl_price": "78576.30000000",
+      "tp_price": "77091.900000000",
+      "exit_price": "78576.30000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77532.16000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.154166700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77532.16000000",
+      "sl_price": "78000.00000000",
+      "tp_price": "76830.400000000",
+      "exit_price": "78000.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77255.60000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.154379400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77255.60000000",
+      "sl_price": "78141.95000000",
+      "tp_price": "75926.075000000",
+      "exit_price": "78141.95000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78640.01000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.156162Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78640.01000000",
+      "sl_price": "79123.67000000",
+      "tp_price": "77914.520000000",
+      "exit_price": "79123.67000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78343.50000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.156426300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78343.50000000",
+      "sl_price": "78873.57000000",
+      "tp_price": "77548.395000000",
+      "exit_price": "78873.57000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78581.34000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.158163500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78581.34000000",
+      "sl_price": "78986.00000000",
+      "tp_price": "77974.350000000",
+      "exit_price": "77974.350000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78526.02000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.158652400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78526.02000000",
+      "sl_price": "78824.10000000",
+      "tp_price": "78078.900000000",
+      "exit_price": "78078.900000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78414.91000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.160838400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78414.91000000",
+      "sl_price": "78806.98455000000",
+      "tp_price": "77826.798175000000",
+      "exit_price": "78806.98455000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "78414.20000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.161522200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "78414.20000000",
+      "sl_price": "78667.15000000",
+      "tp_price": "78034.775000000",
+      "exit_price": "78667.15000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77924.36000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.162626900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77924.36000000",
+      "sl_price": "78520.00000000",
+      "tp_price": "77030.900000000",
+      "exit_price": "77030.900000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77242.29000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.163415200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77242.29000000",
+      "sl_price": "77838.48000000",
+      "tp_price": "76348.005000000",
+      "exit_price": "77838.48000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77788.99000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.164721300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77788.99000000",
+      "sl_price": "78106.10000000",
+      "tp_price": "77313.325000000",
+      "exit_price": "77313.325000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "77103.04000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.165593800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "77103.04000000",
+      "sl_price": "77740.91000000",
+      "tp_price": "76146.235000000",
+      "exit_price": "77740.91000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    }
+  ]
+}

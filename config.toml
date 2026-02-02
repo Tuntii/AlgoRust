@@ -1,0 +1,18 @@
+[app]
+# Başlangıç modu: "live" veya "backtest"
+mode = "backtest" 
+bootstrap_limit = 1000
+auto_reconnect = true
+
+[backtest]
+output_dir = "backtest_results"
+days = 30
+
+[trading]
+symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+timeframes = ["5m", "15m"]
+
+[indicators]
+ema_fast = [5, 8, 13]
+ema_trend = 50
+ema_macro = 200

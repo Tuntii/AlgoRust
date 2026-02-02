@@ -1,0 +1,951 @@
+{
+  "symbol": "ETHUSDT",
+  "timeframe": "5m",
+  "total_trades": 47,
+  "wins": 27,
+  "losses": 20,
+  "win_rate": 57.446808510638306,
+  "total_pnl_r": "20.5",
+  "signals": [
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2810.83000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.933519400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2810.83000000",
+      "sl_price": "2843.19000000",
+      "tp_price": "2762.290000000",
+      "exit_price": "2843.19000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2817.92000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.933578200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2817.92000000",
+      "sl_price": "2833.65000000",
+      "tp_price": "2794.325000000",
+      "exit_price": "2833.65000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2763.98000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.933845800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2763.98000000",
+      "sl_price": "2812.82000000",
+      "tp_price": "2690.720000000",
+      "exit_price": "2812.82000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2804.75000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.934584900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2804.75000000",
+      "sl_price": "2817.19000000",
+      "tp_price": "2786.090000000",
+      "exit_price": "2786.090000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2804.09000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.934667300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2804.09000000",
+      "sl_price": "2813.31000000",
+      "tp_price": "2790.260000000",
+      "exit_price": "2790.260000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2725.87000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.935734500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2725.87000000",
+      "sl_price": "2748.41000000",
+      "tp_price": "2692.060000000",
+      "exit_price": "2748.41000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2730.79000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.935884100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2730.79000000",
+      "sl_price": "2743.91000000",
+      "tp_price": "2711.110000000",
+      "exit_price": "2711.110000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2721.93000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.936014Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2721.93000000",
+      "sl_price": "2731.97000000",
+      "tp_price": "2706.870000000",
+      "exit_price": "2731.97000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2729.43000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.936774100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2729.43000000",
+      "sl_price": "2751.24000000",
+      "tp_price": "2696.715000000",
+      "exit_price": "2751.24000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2710.35000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.937109600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2710.35000000",
+      "sl_price": "2752.84000000",
+      "tp_price": "2646.615000000",
+      "exit_price": "2646.615000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2729.47000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.937224800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2729.47000000",
+      "sl_price": "2744.73000000",
+      "tp_price": "2706.580000000",
+      "exit_price": "2706.580000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2712.72000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.937323900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2712.72000000",
+      "sl_price": "2738.01000000",
+      "tp_price": "2674.785000000",
+      "exit_price": "2738.01000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2727.83000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.937443200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2727.83000000",
+      "sl_price": "2744.55000000",
+      "tp_price": "2702.750000000",
+      "exit_price": "2702.750000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2721.38000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.937636900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2721.38000000",
+      "sl_price": "2740.99000000",
+      "tp_price": "2691.965000000",
+      "exit_price": "2691.965000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2703.40000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.939550200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2703.40000000",
+      "sl_price": "2714.53000000",
+      "tp_price": "2686.705000000",
+      "exit_price": "2686.705000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2698.98000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.940121500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2698.98000000",
+      "sl_price": "2706.47000000",
+      "tp_price": "2687.745000000",
+      "exit_price": "2687.745000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2698.16000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.940855Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2698.16000000",
+      "sl_price": "2711.65080000000",
+      "tp_price": "2677.923800000000",
+      "exit_price": "2677.923800000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2691.11000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.941113200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2691.11000000",
+      "sl_price": "2704.56555000000",
+      "tp_price": "2670.926675000000",
+      "exit_price": "2670.926675000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2675.04000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.941304500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2675.04000000",
+      "sl_price": "2693.44000000",
+      "tp_price": "2647.440000000",
+      "exit_price": "2647.440000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2668.68000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.941490300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2668.68000000",
+      "sl_price": "2683.49000000",
+      "tp_price": "2646.465000000",
+      "exit_price": "2646.465000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2635.05000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.941835300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2635.05000000",
+      "sl_price": "2651.14000000",
+      "tp_price": "2610.915000000",
+      "exit_price": "2651.14000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2644.28000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.942631100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2644.28000000",
+      "sl_price": "2650.34000000",
+      "tp_price": "2635.190000000",
+      "exit_price": "2635.190000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2638.92000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.942964Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2638.92000000",
+      "sl_price": "2644.43000000",
+      "tp_price": "2630.655000000",
+      "exit_price": "2630.655000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2632.93000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.943195900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2632.93000000",
+      "sl_price": "2643.45000000",
+      "tp_price": "2617.150000000",
+      "exit_price": "2617.150000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2619.62000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.943372400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2619.62000000",
+      "sl_price": "2636.97000000",
+      "tp_price": "2593.595000000",
+      "exit_price": "2593.595000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2578.58000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.943664800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2578.58000000",
+      "sl_price": "2636.16000000",
+      "tp_price": "2492.210000000",
+      "exit_price": "2492.210000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2538.81000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.944016700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2538.81000000",
+      "sl_price": "2554.89000000",
+      "tp_price": "2514.690000000",
+      "exit_price": "2514.690000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2523.85000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.944525200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2523.85000000",
+      "sl_price": "2551.26000000",
+      "tp_price": "2482.735000000",
+      "exit_price": "2482.735000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2369.51000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.945317100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2369.51000000",
+      "sl_price": "2406.88000000",
+      "tp_price": "2313.455000000",
+      "exit_price": "2406.88000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2361.93000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.945997600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2361.93000000",
+      "sl_price": "2407.24000000",
+      "tp_price": "2293.965000000",
+      "exit_price": "2407.24000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2436.94000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.948051Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2436.94000000",
+      "sl_price": "2454.00000000",
+      "tp_price": "2411.350000000",
+      "exit_price": "2454.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2440.75000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.949437100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2440.75000000",
+      "sl_price": "2454.25000000",
+      "tp_price": "2420.500000000",
+      "exit_price": "2420.500000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2427.11000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.949732300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2427.11000000",
+      "sl_price": "2448.80000000",
+      "tp_price": "2394.575000000",
+      "exit_price": "2394.575000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2415.80000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.950159700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2415.80000000",
+      "sl_price": "2440.00000000",
+      "tp_price": "2379.500000000",
+      "exit_price": "2379.500000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2399.47000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.950474400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2399.47000000",
+      "sl_price": "2423.21000000",
+      "tp_price": "2363.860000000",
+      "exit_price": "2423.21000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2387.37000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.952387600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2387.37000000",
+      "sl_price": "2394.04000000",
+      "tp_price": "2377.365000000",
+      "exit_price": "2394.04000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2394.89000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.953051600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2394.89000000",
+      "sl_price": "2408.75000000",
+      "tp_price": "2374.100000000",
+      "exit_price": "2408.75000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2369.65000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.953764200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2369.65000000",
+      "sl_price": "2389.57000000",
+      "tp_price": "2339.770000000",
+      "exit_price": "2339.770000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2356.65000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.954133100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2356.65000000",
+      "sl_price": "2387.83000000",
+      "tp_price": "2309.880000000",
+      "exit_price": "2309.880000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2310.58000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.954663100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2310.58000000",
+      "sl_price": "2336.34000000",
+      "tp_price": "2271.940000000",
+      "exit_price": "2336.34000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2305.35000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.954918900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2305.35000000",
+      "sl_price": "2333.15000000",
+      "tp_price": "2263.650000000",
+      "exit_price": "2333.15000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2312.93000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.955292700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2312.93000000",
+      "sl_price": "2321.94000000",
+      "tp_price": "2299.415000000",
+      "exit_price": "2299.415000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2315.10000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.956504300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2315.10000000",
+      "sl_price": "2347.99000000",
+      "tp_price": "2265.765000000",
+      "exit_price": "2347.99000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2300.54000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.956861800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2300.54000000",
+      "sl_price": "2329.96000000",
+      "tp_price": "2256.410000000",
+      "exit_price": "2329.96000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2316.36000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.957126700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2316.36000000",
+      "sl_price": "2349.24000000",
+      "tp_price": "2267.040000000",
+      "exit_price": "2267.040000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2290.58000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.957686800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2290.58000000",
+      "sl_price": "2319.57000000",
+      "tp_price": "2247.095000000",
+      "exit_price": "2319.57000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "2268.88000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:44.958715100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "2268.88000000",
+      "sl_price": "2302.57000000",
+      "tp_price": "2218.345000000",
+      "exit_price": "2302.57000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    }
+  ]
+}

@@ -1,0 +1,747 @@
+{
+  "symbol": "SOLUSDT",
+  "timeframe": "5m",
+  "total_trades": 37,
+  "wins": 12,
+  "losses": 25,
+  "win_rate": 32.432432432432435,
+  "total_pnl_r": "-7.0",
+  "signals": [
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "117.94000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:13:45.646328600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200"
+      ],
+      "entry_price": "117.94000000",
+      "sl_price": "118.52970000000",
+      "tp_price": "117.055450000000",
+      "exit_price": "117.055450000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "117.42000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.647670700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "117.42000000",
+      "sl_price": "117.95000000",
+      "tp_price": "116.625000000",
+      "exit_price": "116.625000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "117.28000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.647762500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "117.28000000",
+      "sl_price": "117.91000000",
+      "tp_price": "116.335000000",
+      "exit_price": "116.335000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "113.95000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.648018Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "113.95000000",
+      "sl_price": "114.40000000",
+      "tp_price": "113.275000000",
+      "exit_price": "114.40000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "115.37000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.649243500Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "115.37000000",
+      "sl_price": "116.04000000",
+      "tp_price": "114.365000000",
+      "exit_price": "116.04000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "115.68000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.650084200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "115.68000000",
+      "sl_price": "116.40000000",
+      "tp_price": "114.600000000",
+      "exit_price": "116.40000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "116.48000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:13:45.650389500Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200"
+      ],
+      "entry_price": "116.48000000",
+      "sl_price": "115.93000000",
+      "tp_price": "117.305000000",
+      "exit_price": "115.93000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "115.82000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.650439800Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "115.82000000",
+      "sl_price": "117.14000000",
+      "tp_price": "113.840000000",
+      "exit_price": "117.14000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "117.05000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.650661700Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "117.05000000",
+      "sl_price": "116.38000000",
+      "tp_price": "118.055000000",
+      "exit_price": "116.38000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "117.77000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.650775Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "117.77000000",
+      "sl_price": "116.21000000",
+      "tp_price": "120.110000000",
+      "exit_price": "116.21000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "117.52000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.650942800Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "117.52000000",
+      "sl_price": "116.58000000",
+      "tp_price": "118.930000000",
+      "exit_price": "116.58000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "118.66000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.651544500Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "118.66000000",
+      "sl_price": "118.23000000",
+      "tp_price": "119.305000000",
+      "exit_price": "118.23000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "117.42000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.652586900Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "117.42000000",
+      "sl_price": "116.90000000",
+      "tp_price": "118.200000000",
+      "exit_price": "118.200000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "117.75000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.652760Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "117.75000000",
+      "sl_price": "117.39000000",
+      "tp_price": "118.290000000",
+      "exit_price": "118.290000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "118.15000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.653028100Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "118.15000000",
+      "sl_price": "117.47000000",
+      "tp_price": "119.170000000",
+      "exit_price": "117.47000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "118.16000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.653231400Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "118.16000000",
+      "sl_price": "117.87000000",
+      "tp_price": "118.595000000",
+      "exit_price": "117.87000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "118.49000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.653488600Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200",
+        "Price above EMA13 & EMA50"
+      ],
+      "entry_price": "118.49000000",
+      "sl_price": "117.60000000",
+      "tp_price": "119.825000000",
+      "exit_price": "117.60000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "118.27000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:13:45.653729600Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200"
+      ],
+      "entry_price": "118.27000000",
+      "sl_price": "117.67865000000",
+      "tp_price": "119.157025000000",
+      "exit_price": "117.67865000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "LONG",
+      "price": "118.55000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:13:45.654651900Z",
+      "reasons": [
+        "Bullish market structure confirmed",
+        "Fractal HL detected (Pivot Low confirmed)",
+        "EMA Alignment: 5>8>13>50>200"
+      ],
+      "entry_price": "118.55000000",
+      "sl_price": "117.95725000000",
+      "tp_price": "119.439125000000",
+      "exit_price": "117.95725000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "115.51000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.655641400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "115.51000000",
+      "sl_price": "116.03000000",
+      "tp_price": "114.730000000",
+      "exit_price": "116.03000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "111.06000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.657434600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "111.06000000",
+      "sl_price": "114.43000000",
+      "tp_price": "106.005000000",
+      "exit_price": "106.005000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "108.94000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.657843100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "108.94000000",
+      "sl_price": "110.20000000",
+      "tp_price": "107.050000000",
+      "exit_price": "107.050000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "107.93000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.658326200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "107.93000000",
+      "sl_price": "109.83000000",
+      "tp_price": "105.080000000",
+      "exit_price": "105.080000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "103.11000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.658814300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "103.11000000",
+      "sl_price": "104.52000000",
+      "tp_price": "100.995000000",
+      "exit_price": "100.995000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "102.74000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.658993300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "102.74000000",
+      "sl_price": "103.88000000",
+      "tp_price": "101.030000000",
+      "exit_price": "101.030000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "101.92000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.659201400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "101.92000000",
+      "sl_price": "103.75000000",
+      "tp_price": "99.175000000",
+      "exit_price": "103.75000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "102.10000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.659505300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "102.10000000",
+      "sl_price": "103.49000000",
+      "tp_price": "100.015000000",
+      "exit_price": "103.49000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "100.86000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.659961700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "100.86000000",
+      "sl_price": "102.58000000",
+      "tp_price": "98.280000000",
+      "exit_price": "102.58000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "104.90000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.663113900Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "104.90000000",
+      "sl_price": "105.42450000000",
+      "tp_price": "104.113250000000",
+      "exit_price": "105.42450000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "105.02000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.664324100Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "105.02000000",
+      "sl_price": "105.44000000",
+      "tp_price": "104.390000000",
+      "exit_price": "104.390000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "104.38000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.664600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "104.38000000",
+      "sl_price": "105.31000000",
+      "tp_price": "102.985000000",
+      "exit_price": "105.31000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "103.86000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.668173200Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "103.86000000",
+      "sl_price": "104.81000000",
+      "tp_price": "102.435000000",
+      "exit_price": "102.435000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "102.23000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.669131700Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "102.23000000",
+      "sl_price": "103.60000000",
+      "tp_price": "100.175000000",
+      "exit_price": "103.60000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "101.31000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.670335600Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "101.31000000",
+      "sl_price": "102.20000000",
+      "tp_price": "99.975000000",
+      "exit_price": "102.20000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "100.27000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.671969300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "100.27000000",
+      "sl_price": "101.99000000",
+      "tp_price": "97.690000000",
+      "exit_price": "101.99000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "101.59000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.672251300Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "101.59000000",
+      "sl_price": "102.87000000",
+      "tp_price": "99.670000000",
+      "exit_price": "102.87000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "5m",
+      "signal": "SHORT",
+      "price": "100.85000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:13:45.672814400Z",
+      "reasons": [
+        "Bearish market structure confirmed",
+        "Fractal LH detected (Pivot High confirmed)",
+        "EMA Alignment: 5<8<13<50<200",
+        "Price below EMA13 & EMA50"
+      ],
+      "entry_price": "100.85000000",
+      "sl_price": "101.71000000",
+      "tp_price": "99.560000000",
+      "exit_price": "101.71000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    }
+  ]
+}
