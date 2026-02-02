@@ -1,32 +1,32 @@
 {
   "symbol": "BTCUSDT",
   "timeframe": "30m",
-  "total_trades": 8,
+  "total_trades": 9,
   "wins": 4,
   "losses": 1,
-  "win_rate": 50.0,
+  "win_rate": 44.44444444444444,
   "total_pnl_r": "5.0",
   "advanced_metrics": {
-    "expectancy_r": 0.625,
+    "expectancy_r": 0.5555555555555555,
     "max_consecutive_losses": 2,
-    "max_consecutive_wins": 3,
-    "avg_r_per_trade": 0.625,
+    "max_consecutive_wins": 2,
+    "avg_r_per_trade": 0.5555555555555556,
     "avg_win_r": 1.5,
-    "avg_loss_r": 0.25,
+    "avg_loss_r": 0.2,
     "profit_factor": 6.0,
     "largest_win_r": 1.5,
     "largest_loss_r": 1.0,
-    "avg_trade_duration_candles": 3.5,
-    "sharpe_ratio_approx": 0.674199862463242,
-    "trade_count": 8,
+    "avg_trade_duration_candles": 4.333333333333333,
+    "sharpe_ratio_approx": 0.6201736729460423,
+    "trade_count": 9,
     "max_concurrent_trades": 1,
     "avg_concurrent_trades": 1.0,
     "overlap_trade_count": 0,
     "overlap_win_rate": 0.0,
     "overlap_pnl_r": 0.0,
     "context_based_expectancy": {
-      "liquidity_sweep": 0.5833333333333334,
-      "bos": 0.75
+      "bos": 0.5,
+      "liquidity_sweep": 0.5833333333333334
     },
     "pnl_by_overlap_count": {
       "1": 5.0
@@ -39,35 +39,43 @@
   "regime_report": {
     "by_atr_regime": {
       "normal": {
-        "trades": 8,
+        "trades": 9,
         "wins": 4,
-        "win_rate": 50.0,
+        "win_rate": 44.44444444444444,
         "total_r": 5.0,
-        "avg_r": 0.625,
-        "expectancy": 0.625
+        "avg_r": 0.5555555555555556,
+        "expectancy": 0.5555555555555555
       }
     },
     "by_slope_regime": {
       "trending_down": {
-        "trades": 8,
+        "trades": 9,
         "wins": 4,
-        "win_rate": 50.0,
+        "win_rate": 44.44444444444444,
         "total_r": 5.0,
-        "avg_r": 0.625,
-        "expectancy": 0.625
+        "avg_r": 0.5555555555555556,
+        "expectancy": 0.5555555555555555
       }
     },
     "by_session": {
       "asia": {
-        "trades": 8,
+        "trades": 9,
         "wins": 4,
-        "win_rate": 50.0,
+        "win_rate": 44.44444444444444,
         "total_r": 5.0,
-        "avg_r": 0.625,
-        "expectancy": 0.625
+        "avg_r": 0.5555555555555556,
+        "expectancy": 0.5555555555555555
       }
     },
     "by_confidence_tier": {
+      "medium": {
+        "trades": 1,
+        "wins": 0,
+        "win_rate": 0.0,
+        "total_r": 0.0,
+        "avg_r": 0.0,
+        "expectancy": 0.0
+      },
       "high": {
         "trades": 8,
         "wins": 4,
@@ -80,22 +88,23 @@
   },
   "signals": [
     {
-      "signal_id": "7fff7472-9c7b-4dbb-8879-5b8bf66465f7",
+      "signal_id": "a694cc0d-5aaa-4de8-827e-8a35aa871920",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
       "direction": "SHORT",
       "price": "87956.01000000",
-      "confidence": 80,
+      "confidence": 90,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.377135500Z",
+      "timestamp": "2026-02-02T05:12:38.569972800Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0036 (threshold: 0.0012, median: 0.0041) (-15)",
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ BOS with liquidity sweep (+10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
       ],
       "context_id": null,
       "regime_context": {
@@ -110,30 +119,30 @@
       "exit_price": "87956.01000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 818,
-      "exit_candle_idx": 824,
+      "entry_candle_idx": 817,
+      "exit_candle_idx": 823,
       "duration_candles": 6,
       "context_id": {
         "context_type": "liquidity_sweep",
-        "identifier": "88500.00000000_819",
-        "created_at_candle": 819
+        "identifier": "88500.00000000_818",
+        "created_at_candle": 818
       },
-      "adjusted_confidence": 80,
+      "adjusted_confidence": 90,
       "was_concurrent": false,
-      "context_score": 80,
-      "ema50_slope_at_entry": "-0.0018514591736822777939440698",
+      "context_score": 90,
+      "ema50_slope_at_entry": "-0.0018514591736822754784393332",
       "is_be_applied": true
     },
     {
-      "signal_id": "05974a7f-8010-46a1-9a44-e98af617b766",
+      "signal_id": "7bebced7-44ae-4ae1-b7b8-dd366b289a9b",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
       "direction": "SHORT",
       "price": "87014.40000000",
-      "confidence": 95,
+      "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.377300900Z",
+      "timestamp": "2026-02-02T05:12:38.571941Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0037 (threshold: 0.0012, median: 0.0041) (-15)",
         "✅ Bearish market structure confirmed",
@@ -141,7 +150,8 @@
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ Strong BOS: Liquidity sweep + Displacement (+15)",
         "✅ Strong displacement: body/range 86.5% (+10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 2/3 aligned (HTF:✓ MTF:✓ LTF:✗) Score:30"
       ],
       "context_id": null,
       "regime_context": {
@@ -156,36 +166,37 @@
       "exit_price": "85262.565000000",
       "pnl_r": "1.5",
       "outcome": "WIN",
-      "entry_candle_idx": 827,
-      "exit_candle_idx": 828,
+      "entry_candle_idx": 826,
+      "exit_candle_idx": 827,
       "duration_candles": 1,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_828",
-        "created_at_candle": 828
+        "identifier": "bear_827",
+        "created_at_candle": 827
       },
-      "adjusted_confidence": 95,
+      "adjusted_confidence": 100,
       "was_concurrent": false,
-      "context_score": 95,
-      "ema50_slope_at_entry": "-0.0018961368522655886270650629",
+      "context_score": 100,
+      "ema50_slope_at_entry": "-0.0018961368522655870072379892",
       "is_be_applied": false
     },
     {
-      "signal_id": "473b95b7-f905-47b6-bfa6-95a8ae8738cc",
+      "signal_id": "43eef2d8-1750-4015-b995-835eb3ecd79e",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
       "direction": "SHORT",
       "price": "83477.02000000",
-      "confidence": 95,
+      "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.377515Z",
+      "timestamp": "2026-02-02T05:12:38.573444200Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ BOS with liquidity sweep (+10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
       ],
       "context_id": null,
       "regime_context": {
@@ -200,36 +211,37 @@
       "exit_price": "83477.02000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 835,
-      "exit_candle_idx": 841,
+      "entry_candle_idx": 834,
+      "exit_candle_idx": 840,
       "duration_candles": 6,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_836",
-        "created_at_candle": 836
+        "identifier": "bear_835",
+        "created_at_candle": 835
       },
-      "adjusted_confidence": 95,
+      "adjusted_confidence": 100,
       "was_concurrent": false,
-      "context_score": 95,
-      "ema50_slope_at_entry": "-0.0092621899398111088173898989",
+      "context_score": 100,
+      "ema50_slope_at_entry": "-0.0092621899398111076767738048",
       "is_be_applied": true
     },
     {
-      "signal_id": "e233206f-6c9c-4beb-9e97-7b8a2bd5db23",
+      "signal_id": "a2987982-d0b6-4cb4-bb86-13b4c0644cde",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
       "direction": "SHORT",
       "price": "83772.92000000",
-      "confidence": 95,
+      "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.377767600Z",
+      "timestamp": "2026-02-02T05:12:38.575851500Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ BOS with liquidity sweep (+10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
       ],
       "context_id": null,
       "regime_context": {
@@ -244,22 +256,22 @@
       "exit_price": "82325.765000000",
       "pnl_r": "1.5",
       "outcome": "WIN",
-      "entry_candle_idx": 848,
-      "exit_candle_idx": 849,
+      "entry_candle_idx": 847,
+      "exit_candle_idx": 848,
       "duration_candles": 1,
       "context_id": {
         "context_type": "liquidity_sweep",
-        "identifier": "84737.69000000_849",
-        "created_at_candle": 849
+        "identifier": "84737.69000000_848",
+        "created_at_candle": 848
       },
-      "adjusted_confidence": 95,
+      "adjusted_confidence": 100,
       "was_concurrent": false,
-      "context_score": 95,
-      "ema50_slope_at_entry": "-0.0056055027712899515622962743",
+      "context_score": 100,
+      "ema50_slope_at_entry": "-0.0056055027712899508593946394",
       "is_be_applied": false
     },
     {
-      "signal_id": "6b54b3f2-10c8-4b70-85ec-b333acc2016f",
+      "signal_id": "2c036c37-e424-4bf0-8b0e-d7c03db2661d",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
@@ -267,14 +279,15 @@
       "price": "82914.19000000",
       "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.377939200Z",
+      "timestamp": "2026-02-02T05:12:38.577522400Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ BOS with liquidity sweep (+10)",
         "✅ Strong displacement: body/range 85.9% (+10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
       ],
       "context_id": null,
       "regime_context": {
@@ -289,35 +302,82 @@
       "exit_price": "82287.175000000",
       "pnl_r": "1.5",
       "outcome": "WIN",
-      "entry_candle_idx": 857,
-      "exit_candle_idx": 859,
+      "entry_candle_idx": 856,
+      "exit_candle_idx": 858,
       "duration_candles": 2,
       "context_id": {
         "context_type": "liquidity_sweep",
-        "identifier": "83332.20000000_858",
-        "created_at_candle": 858
+        "identifier": "83332.20000000_857",
+        "created_at_candle": 857
       },
       "adjusted_confidence": 100,
       "was_concurrent": false,
       "context_score": 100,
-      "ema50_slope_at_entry": "-0.0069344986186665450326961712",
+      "ema50_slope_at_entry": "-0.0069344986186665445400610932",
       "is_be_applied": false
     },
     {
-      "signal_id": "fd04b913-23ab-4b4f-b67e-63a05b01db44",
+      "signal_id": "f2633e01-4937-4f87-892f-3fdcd5fab427",
+      "engine_version": "2.1.0",
+      "symbol": "BTCUSDT",
+      "tf": "30m",
+      "direction": "SHORT",
+      "price": "78893.92000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T05:12:38.590734600Z",
+      "reason": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "⚠️ Weak displacement/indecision: body/range 28.7% (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
+      ],
+      "context_id": null,
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "78893.92000000",
+      "sl_price": "78893.92000000",
+      "original_sl_price": "82200.00000000",
+      "tp_price": "73934.800000000",
+      "exit_price": "78893.92000000",
+      "pnl_r": "0",
+      "outcome": "BE",
+      "entry_candle_idx": 928,
+      "exit_candle_idx": 939,
+      "duration_candles": 11,
+      "context_id": {
+        "context_type": "bos",
+        "identifier": "bear_929",
+        "created_at_candle": 929
+      },
+      "adjusted_confidence": 75,
+      "was_concurrent": false,
+      "context_score": 75,
+      "ema50_slope_at_entry": "-0.0079129280475388958262618591",
+      "is_be_applied": true
+    },
+    {
+      "signal_id": "3daab265-2180-4240-86e9-183459c46eea",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
       "direction": "SHORT",
       "price": "78743.56000000",
-      "confidence": 85,
+      "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.380030500Z",
+      "timestamp": "2026-02-02T05:12:38.597580300Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
-        "✅ BOS with liquidity sweep (+10)"
+        "✅ BOS with liquidity sweep (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
       ],
       "context_id": null,
       "regime_context": {
@@ -332,22 +392,22 @@
       "exit_price": "78027.820000000",
       "pnl_r": "1.5",
       "outcome": "WIN",
-      "entry_candle_idx": 965,
-      "exit_candle_idx": 970,
+      "entry_candle_idx": 964,
+      "exit_candle_idx": 969,
       "duration_candles": 5,
       "context_id": {
         "context_type": "liquidity_sweep",
-        "identifier": "79220.72000000_966",
-        "created_at_candle": 966
+        "identifier": "79220.72000000_965",
+        "created_at_candle": 965
       },
-      "adjusted_confidence": 85,
+      "adjusted_confidence": 95,
       "was_concurrent": false,
-      "context_score": 85,
-      "ema50_slope_at_entry": "-0.0029755233046293442696647819",
+      "context_score": 95,
+      "ema50_slope_at_entry": "-0.0029755233046293442625007643",
       "is_be_applied": false
     },
     {
-      "signal_id": "d937aca7-d2b5-4f3b-977f-1498adfe260d",
+      "signal_id": "13c815c9-5692-40f7-961c-03083d8a7cfd",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
@@ -355,14 +415,15 @@
       "price": "77174.78000000",
       "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.380358300Z",
+      "timestamp": "2026-02-02T05:12:38.600679800Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ BOS with liquidity sweep (+10)",
         "✅ Strong displacement: body/range 65.7% (+10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 1/3 aligned (HTF:✓ MTF:✗ LTF:✗) Score:10"
       ],
       "context_id": null,
       "regime_context": {
@@ -377,37 +438,38 @@
       "exit_price": "77174.78000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 981,
-      "exit_candle_idx": 987,
+      "entry_candle_idx": 980,
+      "exit_candle_idx": 986,
       "duration_candles": 6,
       "context_id": {
         "context_type": "liquidity_sweep",
-        "identifier": "78443.10000000_982",
-        "created_at_candle": 982
+        "identifier": "78443.10000000_981",
+        "created_at_candle": 981
       },
       "adjusted_confidence": 100,
       "was_concurrent": false,
       "context_score": 100,
-      "ema50_slope_at_entry": "-0.003508482857851968034570622",
+      "ema50_slope_at_entry": "-0.0035084828578519680307656614",
       "is_be_applied": true
     },
     {
-      "signal_id": "7d73fc6e-3d67-43d7-9766-7226453829f8",
+      "signal_id": "5f7f4014-be50-4f5f-a3e2-6d262cd9fcd2",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "30m",
       "direction": "SHORT",
       "price": "76968.21000000",
-      "confidence": 85,
+      "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:44:20.380524500Z",
+      "timestamp": "2026-02-02T05:12:38.602572600Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
         "✅ EMA Alignment: 5<8<13<50<200",
         "✅ BOS with liquidity sweep (+10)",
         "⚠️ Weak displacement/indecision: body/range 18.5% (-10)",
-        "✅ Price below EMA13 & EMA50 (+10)"
+        "✅ Price below EMA13 & EMA50 (+10)",
+        "MTF Confluence: 2/3 aligned (HTF:✓ MTF:✗ LTF:✓) Score:25"
       ],
       "context_id": null,
       "regime_context": {
@@ -422,18 +484,18 @@
       "exit_price": "77779.63000000",
       "pnl_r": "-1",
       "outcome": "LOSS",
-      "entry_candle_idx": 989,
-      "exit_candle_idx": 990,
+      "entry_candle_idx": 988,
+      "exit_candle_idx": 989,
       "duration_candles": 1,
       "context_id": {
         "context_type": "liquidity_sweep",
-        "identifier": "77779.63000000_990",
-        "created_at_candle": 990
+        "identifier": "77779.63000000_989",
+        "created_at_candle": 989
       },
-      "adjusted_confidence": 85,
+      "adjusted_confidence": 100,
       "was_concurrent": false,
-      "context_score": 85,
-      "ema50_slope_at_entry": "-0.0044568754131529808013517386",
+      "context_score": 100,
+      "ema50_slope_at_entry": "-0.0044568754131529807985867177",
       "is_be_applied": false
     }
   ]

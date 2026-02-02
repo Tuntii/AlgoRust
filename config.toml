@@ -1,6 +1,6 @@
 [app]
 # Başlangıç modu: "live" veya "backtest"
-mode = "live" 
+mode = "backtest" 
 bootstrap_limit = 10000
 auto_reconnect = true
 
@@ -8,9 +8,9 @@ auto_reconnect = true
 output_dir = "backtest_results"
 days = 120
 # Local CSV backtest (optional - comment out to use Binance API)
-# csv_file = "backtest_results/bitcoin_prices_all_time.csv"
-# csv_symbol = "BTCUSDT"
-# csv_timeframe = "1h"
+csv_file = "backtest_results/bitcoin_prices_all_time.csv"
+csv_symbol = "BTCUSDT"
+csv_timeframe = "1h"
 
 [trading]
 # PHASE A: Only Active pairs (BTC 1h/4h, ETH 30m/1h)

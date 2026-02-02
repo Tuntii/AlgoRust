@@ -543,20 +543,20 @@ impl PenaltyReason {
         match self {
             // Hard blocks
             PenaltyReason::LowATR => -1000,
-            PenaltyReason::FlatSlope => -1000,
             PenaltyReason::RecentSignal => -1000,
             PenaltyReason::WickTrap => -1000,
             PenaltyReason::BootstrapIncomplete => -1000,
             
-            // Soft penalties
-            PenaltyReason::NoDisplacement => -15,
-            PenaltyReason::NoLiquiditySweep => -10,
-            PenaltyReason::AgainstMajorTrend => -20,
-            PenaltyReason::WeakStructure => -12,
-            PenaltyReason::LowVolume => -8,
-            PenaltyReason::SessionOverlap => -5,
-            PenaltyReason::HighSpread => -10,
-            PenaltyReason::RecentVolatilitySpike => -15,
+            // Soft penalties (optimized for more signals)
+            PenaltyReason::FlatSlope => -25,           // Was hard block, now soft
+            PenaltyReason::NoDisplacement => -8,       // Was -15
+            PenaltyReason::NoLiquiditySweep => -5,     // Was -10
+            PenaltyReason::AgainstMajorTrend => -20,   // Unchanged (important)
+            PenaltyReason::WeakStructure => -6,        // Was -12
+            PenaltyReason::LowVolume => -4,            // Was -8
+            PenaltyReason::SessionOverlap => 0,        // Disabled
+            PenaltyReason::HighSpread => -10,          // Unchanged (important)
+            PenaltyReason::RecentVolatilitySpike => -8, // Was -15
         }
     }
     
@@ -627,15 +627,16 @@ pub struct ScoreThreshold;
 
 impl ScoreThreshold {
     /// Returns minimum score required for a signal on given timeframe
+    /// OPTIMIZED: Lowered thresholds to allow more signals while maintaining quality
     pub fn min_score_for_tf(timeframe: &str) -> i32 {
         match timeframe {
-            "5m" => 80,     // Highest bar for noise
-            "15m" => 75,    // High bar
-            "30m" => 70,    // Medium-high
-            "1h" => 65,     // Standard
-            "4h" => 65,     // Standard  
-            "1d" => 60,     // Lower bar for high-quality setups
-            _ => 70,        // Default
+            "5m" => 70,     // Was 80 - still high for noise
+            "15m" => 65,    // Was 75
+            "30m" => 60,    // Was 70
+            "1h" => 55,     // Was 65
+            "4h" => 55,     // Was 65  
+            "1d" => 50,     // Was 60
+            _ => 60,        // Was 70
         }
     }
     
