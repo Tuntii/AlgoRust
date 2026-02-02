@@ -1,9 +1,9 @@
-use rust_decimal::Decimal;
-use rust_decimal::prelude::FromStr;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use std::fmt;
+use rust_decimal::prelude::FromStr;
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 
 // =============================================================================
 // MULTI-POSITION TRADING TYPES
@@ -29,16 +29,20 @@ impl ContextId {
             created_at_candle: candle_idx,
         }
     }
-    
+
     /// Create context ID from BOS event
     pub fn from_bos(candle_idx: usize, is_bullish: bool) -> Self {
         Self::new(
             "bos",
-            &format!("{}_{}", if is_bullish { "bull" } else { "bear" }, candle_idx),
+            &format!(
+                "{}_{}",
+                if is_bullish { "bull" } else { "bear" },
+                candle_idx
+            ),
             candle_idx,
         )
     }
-    
+
     /// Create context ID from liquidity sweep
     pub fn from_liquidity_sweep(candle_idx: usize, level: Decimal) -> Self {
         Self::new(
@@ -47,7 +51,7 @@ impl ContextId {
             candle_idx,
         )
     }
-    
+
     /// Create context ID from pivot confirmation
     pub fn from_pivot(candle_idx: usize, is_high: bool) -> Self {
         Self::new(
@@ -117,10 +121,10 @@ impl ActiveTrade {
         opened_at_candle: usize,
     ) -> Self {
         use uuid::Uuid;
-        
+
         let direction = signal.signal.clone();
         let confidence = signal.confidence;
-        
+
         Self {
             trade_id: Uuid::new_v4().to_string(),
             signal,
@@ -137,25 +141,25 @@ impl ActiveTrade {
             exit_candle_idx: None,
             duration_candles: None,
             adjusted_confidence: confidence,
-            context_score: 0,        // Will be set externally
+            context_score: 0,           // Will be set externally
             ema50_slope_at_entry: None, // Will be set externally
             is_be_applied: false,
             partial_tp_taken: false,
         }
     }
-    
+
     /// Create with context score (T8.2)
     pub fn with_context_score(mut self, score: i32) -> Self {
         self.context_score = score;
         self
     }
-    
+
     /// Set EMA50 slope at entry (T8.3)
     pub fn with_ema50_slope(mut self, slope: Decimal) -> Self {
         self.ema50_slope_at_entry = Some(slope);
         self
     }
-    
+
     /// Apply break-even to this trade (T9.2)
     pub fn apply_be(&mut self) {
         if !self.is_be_applied {
@@ -163,12 +167,12 @@ impl ActiveTrade {
             self.is_be_applied = true;
         }
     }
-    
+
     /// Check if trade is still open
     pub fn is_open(&self) -> bool {
         self.outcome.is_none()
     }
-    
+
     /// Get current duration in candles
     pub fn current_duration(&self, current_candle_idx: usize) -> u32 {
         if self.opened_at_candle <= current_candle_idx {
@@ -177,22 +181,28 @@ impl ActiveTrade {
             0
         }
     }
-    
+
     /// Calculate unrealized R at given price
     pub fn unrealized_r(&self, current_price: Decimal) -> Decimal {
         let risk = (self.entry_price - self.original_sl_price).abs();
         if risk.is_zero() {
             return Decimal::ZERO;
         }
-        
+
         match self.direction {
             SignalType::LONG => (current_price - self.entry_price) / risk,
             SignalType::SHORT => (self.entry_price - current_price) / risk,
         }
     }
-    
+
     /// Close the trade with given outcome
-    pub fn close(&mut self, exit_price: Decimal, pnl_r: Decimal, outcome: &str, exit_candle_idx: usize) {
+    pub fn close(
+        &mut self,
+        exit_price: Decimal,
+        pnl_r: Decimal,
+        outcome: &str,
+        exit_candle_idx: usize,
+    ) {
         self.exit_price = Some(exit_price);
         self.pnl_r = Some(pnl_r);
         self.outcome = Some(outcome.to_string());
@@ -257,22 +267,27 @@ impl KillSwitchState {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Activate kill switch
-    pub fn activate(&mut self, candle_idx: usize, ema50_slope: Option<Decimal>, atr: Option<Decimal>) {
+    pub fn activate(
+        &mut self,
+        candle_idx: usize,
+        ema50_slope: Option<Decimal>,
+        atr: Option<Decimal>,
+    ) {
         self.active = true;
         self.activated_at_candle = Some(candle_idx);
         self.consecutive_wins_after_activation = 0;
         self.ema50_slope_at_activation = ema50_slope;
         self.atr_at_activation = atr;
     }
-    
+
     /// Check if kill switch can be reset based on conditions
     /// T11.2: Requires: min duration passed, 2+ consecutive wins, improved conditions
     pub fn can_reset(
-        &self, 
-        current_candle: usize, 
-        min_duration: u32, 
+        &self,
+        current_candle: usize,
+        min_duration: u32,
         required_wins: u32,
         current_ema50_slope: Option<Decimal>,
         current_atr: Option<Decimal>,
@@ -281,28 +296,30 @@ impl KillSwitchState {
         if !self.active {
             return false; // Nothing to reset
         }
-        
+
         // Condition 1: Minimum duration must have passed
         let duration_passed = match self.activated_at_candle {
             Some(activated) => (current_candle.saturating_sub(activated)) as u32 >= min_duration,
             None => false,
         };
-        
+
         // Condition 2: Required consecutive wins after activation
         let wins_met = self.consecutive_wins_after_activation >= required_wins;
-        
+
         // Condition 3: EMA50 slope must be positive (trending)
-        let slope_positive = current_ema50_slope.map(|s| s > Decimal::ZERO).unwrap_or(false);
-        
+        let slope_positive = current_ema50_slope
+            .map(|s| s > Decimal::ZERO)
+            .unwrap_or(false);
+
         // Condition 4: ATR > median ATR (volatility returned)
         let atr_ok = match (current_atr, median_atr) {
             (Some(curr), Some(med)) => curr > med,
             _ => true, // If we don't have ATR data, skip this check
         };
-        
+
         duration_passed && wins_met && slope_positive && atr_ok
     }
-    
+
     /// Reset kill switch
     pub fn reset(&mut self) {
         self.active = false;
@@ -312,7 +329,7 @@ impl KillSwitchState {
         self.atr_at_activation = None;
         // Note: consecutive_losses is NOT reset here - only on individual wins
     }
-    
+
     /// Record trade result
     pub fn record_result(&mut self, is_win: bool) {
         if is_win {
@@ -330,19 +347,19 @@ impl KillSwitchState {
 impl Default for PositionPoolConfig {
     fn default() -> Self {
         Self {
-            max_active_trades_per_symbol_tf: 3,  // Max 3 trades per symbol/TF (T8.1 HARD CAP)
-            allow_same_direction: true,           // LONG + LONG allowed (continuation)
-            allow_hedge: false,                   // LONG + SHORT NOT allowed
-            confidence_reduction_per_trade: 0.3,  // 30% reduction per additional trade
-            min_score_improvement: 10,            // T8.2: Need +10 score to replace weak trade
-            max_trade_duration_candles: 14,       // T9.1: Force exit after 14 candles
-            be_threshold_candles: 6,              // T9.2: Apply BE after 6 candles
+            max_active_trades_per_symbol_tf: 3, // Max 3 trades per symbol/TF (T8.1 HARD CAP)
+            allow_same_direction: true,         // LONG + LONG allowed (continuation)
+            allow_hedge: false,                 // LONG + SHORT NOT allowed
+            confidence_reduction_per_trade: 0.3, // 30% reduction per additional trade
+            min_score_improvement: 10,          // T8.2: Need +10 score to replace weak trade
+            max_trade_duration_candles: 14,     // T9.1: Force exit after 14 candles
+            be_threshold_candles: 6,            // T9.2: Apply BE after 6 candles
             be_min_profit_r: Decimal::from_str_exact("0.5").unwrap(), // T9.2: Don't apply BE if > 0.5R profit
-            partial_tp_enabled: false,            // T9.3: Disabled by default
-            partial_tp_ratio: 0.5,                // T9.3: Close 50% at 1R
-            kill_switch_consec_losses: 7,         // T10.2: Pause after 7 consecutive losses
-            kill_switch_min_duration: 20,         // T11.1: DEFAULT - use get_kill_switch_duration_for_tf()
-            kill_switch_reset_wins: 2,            // T11.2: Need 2 consecutive wins to reset
+            partial_tp_enabled: false,                                // T9.3: Disabled by default
+            partial_tp_ratio: 0.5,                                    // T9.3: Close 50% at 1R
+            kill_switch_consec_losses: 7, // T10.2: Pause after 7 consecutive losses
+            kill_switch_min_duration: 20, // T11.1: DEFAULT - use get_kill_switch_duration_for_tf()
+            kill_switch_reset_wins: 2,    // T11.2: Need 2 consecutive wins to reset
         }
     }
 }
@@ -356,26 +373,26 @@ impl Default for PositionPoolConfig {
 pub fn get_kill_switch_duration_for_tf(timeframe: &str) -> u32 {
     match timeframe {
         // Lower timeframes: faster reset (more candles per day)
-        "1m" => 60,    // 1 hour worth of candles
-        "3m" => 40,    // ~2 hours
-        "5m" => 30,    // ~2.5 hours (BLOCKED but kept for reference)
-        "15m" => 24,   // 6 hours (BLOCKED but kept for reference)
-        "30m" => 16,   // 8 hours
-        
+        "1m" => 60,  // 1 hour worth of candles
+        "3m" => 40,  // ~2 hours
+        "5m" => 30,  // ~2.5 hours (BLOCKED but kept for reference)
+        "15m" => 24, // 6 hours (BLOCKED but kept for reference)
+        "30m" => 16, // 8 hours
+
         // Medium timeframes: standard reset
-        "1h" => 12,    // 12 hours
-        "2h" => 10,    // 20 hours
-        "4h" => 8,     // 32 hours (~1.3 days)
-        
+        "1h" => 12, // 12 hours
+        "2h" => 10, // 20 hours
+        "4h" => 8,  // 32 hours (~1.3 days)
+
         // Higher timeframes: slower reset (fewer candles)
-        "6h" => 6,     // 36 hours
-        "8h" => 5,     // 40 hours
-        "12h" => 4,    // 48 hours (2 days)
-        "1d" => 3,     // 3 days (BLOCKED but kept for reference)
-        "3d" => 2,     // 6 days
-        "1w" => 2,     // 2 weeks
-        
-        _ => 20,       // Default fallback
+        "6h" => 6,  // 36 hours
+        "8h" => 5,  // 40 hours
+        "12h" => 4, // 48 hours (2 days)
+        "1d" => 3,  // 3 days (BLOCKED but kept for reference)
+        "3d" => 2,  // 6 days
+        "1w" => 2,  // 2 weeks
+
+        _ => 20, // Default fallback
     }
 }
 
@@ -392,76 +409,86 @@ impl PositionPool {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn with_config(config: PositionPoolConfig) -> Self {
         Self {
             trades: Vec::new(),
             config,
         }
     }
-    
+
     /// Get all active (open) trades for a symbol/timeframe
     pub fn active_trades(&self, symbol: &str, timeframe: &str) -> Vec<&ActiveTrade> {
-        self.trades.iter()
+        self.trades
+            .iter()
             .filter(|t| t.is_open() && t.signal.symbol == symbol && t.signal.timeframe == timeframe)
             .collect()
     }
-    
+
     /// Get count of active trades for symbol/timeframe
     pub fn active_count(&self, symbol: &str, timeframe: &str) -> usize {
         self.active_trades(symbol, timeframe).len()
     }
-    
+
     /// Check if we can open a new trade (all guards)
     pub fn can_open_trade(
-        &self, 
-        symbol: &str, 
-        timeframe: &str, 
+        &self,
+        symbol: &str,
+        timeframe: &str,
         direction: &SignalType,
         context_id: &ContextId,
     ) -> (bool, Option<String>) {
         let active = self.active_trades(symbol, timeframe);
-        
+
         // Guard 1: Max active trades
         if active.len() >= self.config.max_active_trades_per_symbol_tf {
-            return (false, Some(format!(
-                "Max active trades ({}) reached for {} {}",
-                self.config.max_active_trades_per_symbol_tf, symbol, timeframe
-            )));
+            return (
+                false,
+                Some(format!(
+                    "Max active trades ({}) reached for {} {}",
+                    self.config.max_active_trades_per_symbol_tf, symbol, timeframe
+                )),
+            );
         }
-        
+
         // Guard 2: Context uniqueness - no duplicate context_id
         for trade in &active {
             if trade.context_id == *context_id {
-                return (false, Some(format!(
-                    "Context ID {} already has an active trade",
-                    context_id
-                )));
+                return (
+                    false,
+                    Some(format!(
+                        "Context ID {} already has an active trade",
+                        context_id
+                    )),
+                );
             }
         }
-        
+
         // Guard 3: No hedge (opposite direction)
         if !self.config.allow_hedge {
             for trade in &active {
                 if trade.direction != *direction {
-                    return (false, Some(format!(
-                        "Hedge not allowed: existing {:?} trade, attempted {:?}",
-                        trade.direction, direction
-                    )));
+                    return (
+                        false,
+                        Some(format!(
+                            "Hedge not allowed: existing {:?} trade, attempted {:?}",
+                            trade.direction, direction
+                        )),
+                    );
                 }
             }
         }
-        
+
         (true, None)
     }
-    
+
     /// T8.2: Find the weakest trade (lowest context_score) among active trades
     pub fn find_weakest_trade(&self, symbol: &str, timeframe: &str) -> Option<&ActiveTrade> {
         self.active_trades(symbol, timeframe)
             .into_iter()
             .min_by_key(|t| t.context_score)
     }
-    
+
     /// T8.2: Check if new trade can replace a weaker trade
     pub fn can_replace_weak_trade(
         &self,
@@ -477,7 +504,7 @@ impl PositionPool {
         }
         None
     }
-    
+
     /// T8.2: Remove a trade by ID (for replacing weak trades)
     pub fn remove_trade(&mut self, trade_id: &str) -> Option<ActiveTrade> {
         if let Some(pos) = self.trades.iter().position(|t| t.trade_id == trade_id) {
@@ -486,7 +513,7 @@ impl PositionPool {
             None
         }
     }
-    
+
     /// T8.3: Check for trend saturation (slope weakening)
     /// Returns true if new entry should be blocked due to saturation
     pub fn is_trend_saturated(
@@ -500,78 +527,89 @@ impl PositionPool {
         if active.is_empty() {
             return false;
         }
-        
+
         // Check if slope is weakening compared to existing trades
         for trade in &active {
             if let Some(entry_slope) = trade.ema50_slope_at_entry {
                 match direction {
                     SignalType::LONG => {
                         // For LONG, slope should still be positive and not significantly weaker
-                        if current_slope < entry_slope * Decimal::from_str_exact("0.5").unwrap_or(Decimal::ONE / Decimal::from(2)) {
+                        if current_slope
+                            < entry_slope
+                                * Decimal::from_str_exact("0.5")
+                                    .unwrap_or(Decimal::ONE / Decimal::from(2))
+                        {
                             return true; // Slope dropped by more than 50%
                         }
-                    },
+                    }
                     SignalType::SHORT => {
                         // For SHORT, slope should still be negative and not significantly weaker
-                        if current_slope > entry_slope * Decimal::from_str_exact("0.5").unwrap_or(Decimal::ONE / Decimal::from(2)) {
+                        if current_slope
+                            > entry_slope
+                                * Decimal::from_str_exact("0.5")
+                                    .unwrap_or(Decimal::ONE / Decimal::from(2))
+                        {
                             return true; // Slope weakened (became less negative)
                         }
                     }
                 }
             }
         }
-        
+
         false
     }
-    
+
     /// Calculate adjusted confidence based on active trades
-    pub fn calculate_adjusted_confidence(&self, symbol: &str, timeframe: &str, base_confidence: u8) -> u8 {
+    pub fn calculate_adjusted_confidence(
+        &self,
+        symbol: &str,
+        timeframe: &str,
+        base_confidence: u8,
+    ) -> u8 {
         let active_count = self.active_count(symbol, timeframe);
-        
+
         if active_count == 0 {
             return base_confidence;
         }
-        
+
         // Reduce confidence by configured amount per active trade
         // With 2 trades: confidence = base * 0.6
         let multiplier = 1.0 - (active_count as f64 * self.config.confidence_reduction_per_trade);
         let adjusted = (base_confidence as f64 * multiplier.max(0.2)) as u8;
         adjusted.max(1)
     }
-    
+
     /// Add a new trade to the pool
     pub fn add_trade(&mut self, trade: ActiveTrade) {
         self.trades.push(trade);
     }
-    
+
     /// Get mutable reference to active trades for exit processing
     pub fn active_trades_mut(&mut self) -> Vec<&mut ActiveTrade> {
-        self.trades.iter_mut()
-            .filter(|t| t.is_open())
-            .collect()
+        self.trades.iter_mut().filter(|t| t.is_open()).collect()
     }
-    
+
     /// Get all completed trades
     pub fn completed_trades(&self) -> Vec<&ActiveTrade> {
-        self.trades.iter()
-            .filter(|t| !t.is_open())
-            .collect()
+        self.trades.iter().filter(|t| !t.is_open()).collect()
     }
-    
+
     /// Get max concurrent trades (for metrics)
     pub fn max_concurrent_trades(&self) -> usize {
         if self.trades.is_empty() {
             return 0;
         }
-        
+
         // Find the maximum number of overlapping trades
         let mut max_concurrent = 0;
-        
+
         for trade in &self.trades {
             let start = trade.opened_at_candle;
             let end = trade.exit_candle_idx.unwrap_or(usize::MAX);
-            
-            let concurrent = self.trades.iter()
+
+            let concurrent = self
+                .trades
+                .iter()
                 .filter(|t| {
                     let t_start = t.opened_at_candle;
                     let t_end = t.exit_candle_idx.unwrap_or(usize::MAX);
@@ -579,26 +617,28 @@ impl PositionPool {
                     t_start <= end && t_end >= start
                 })
                 .count();
-            
+
             max_concurrent = max_concurrent.max(concurrent);
         }
-        
+
         max_concurrent
     }
-    
+
     /// Get average concurrent trades (for metrics)
     pub fn avg_concurrent_trades(&self) -> f64 {
         let completed = self.completed_trades();
         if completed.is_empty() {
             return 0.0;
         }
-        
-        let total_overlap: usize = completed.iter()
+
+        let total_overlap: usize = completed
+            .iter()
             .map(|t| {
                 let start = t.opened_at_candle;
                 let end = t.exit_candle_idx.unwrap_or(start);
-                
-                completed.iter()
+
+                completed
+                    .iter()
                     .filter(|other| {
                         let o_start = other.opened_at_candle;
                         let o_end = other.exit_candle_idx.unwrap_or(o_start);
@@ -607,7 +647,7 @@ impl PositionPool {
                     .count()
             })
             .sum();
-        
+
         1.0 + (total_overlap as f64 / (completed.len() as f64 * 2.0))
     }
 }
@@ -621,7 +661,7 @@ pub struct Candle {
     pub low: Decimal,
     pub close: Decimal,
     pub volume: Decimal,
-    #[serde(default)] 
+    #[serde(default)]
     pub close_time: Option<DateTime<Utc>>,
 }
 
@@ -653,20 +693,20 @@ pub const ENGINE_VERSION: &str = "2.1.0"; // FT3: Updated version
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TradeSignal {
     // Required API fields (FT3)
-    pub signal_id: String,           // Unique signal ID
-    pub engine_version: String,      // Engine version for compatibility
-    pub symbol: String,              // e.g., "BTCUSDT"
+    pub signal_id: String,      // Unique signal ID
+    pub engine_version: String, // Engine version for compatibility
+    pub symbol: String,         // e.g., "BTCUSDT"
     #[serde(rename = "tf")]
-    pub timeframe: String,           // e.g., "1h"
+    pub timeframe: String, // e.g., "1h"
     #[serde(rename = "direction")]
-    pub signal: SignalType,          // LONG or SHORT
-    pub price: Decimal,              // Entry price
-    pub confidence: u8,              // 0-100 normalized score
-    pub confidence_tier: String,     // "high", "medium", "low"
-    pub timestamp: DateTime<Utc>,    // Signal generation time
+    pub signal: SignalType, // LONG or SHORT
+    pub price: Decimal,         // Entry price
+    pub confidence: u8,         // 0-100 normalized score
+    pub confidence_tier: String, // "high", "medium", "low"
+    pub timestamp: DateTime<Utc>, // Signal generation time
     #[serde(rename = "reason")]
-    pub reasons: Vec<String>,        // ["Liquidity BOS", "EMA trend", ...]
-    pub context_id: Option<String>,  // FT3: Context identifier
+    pub reasons: Vec<String>, // ["Liquidity BOS", "EMA trend", ...]
+    pub context_id: Option<String>, // FT3: Context identifier
     pub regime_context: Option<RegimeContext>, // Regime info
 }
 
@@ -676,10 +716,10 @@ pub struct SignalApiOutput {
     pub symbol: String,
     pub tf: String,
     pub direction: String,
-    pub confidence: f64,              // 0.0-1.0 normalized
+    pub confidence: f64, // 0.0-1.0 normalized
     pub context_id: String,
     pub engine_version: String,
-    pub timestamp: String,            // ISO 8601 format
+    pub timestamp: String, // ISO 8601 format
     pub reason: Vec<String>,
 }
 
@@ -697,7 +737,7 @@ impl TradeSignal {
             reason: self.reasons.clone(),
         }
     }
-    
+
     /// FT3: Serialize to JSON for API consumption
     pub fn to_api_json(&self) -> String {
         serde_json::to_string_pretty(&self.to_api_output()).unwrap_or_default()
@@ -707,9 +747,9 @@ impl TradeSignal {
 // T5.2 — Regime Context for reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegimeContext {
-    pub atr_regime: String,          // "low", "normal", "high"
-    pub slope_regime: String,        // "flat", "trending_up", "trending_down"
-    pub session: String,             // UTC hour bucket: "asia", "london", "ny"
+    pub atr_regime: String,   // "low", "normal", "high"
+    pub slope_regime: String, // "flat", "trending_up", "trending_down"
+    pub session: String,      // UTC hour bucket: "asia", "london", "ny"
 }
 
 impl TradeSignal {
@@ -723,14 +763,15 @@ impl TradeSignal {
         regime: Option<RegimeContext>,
     ) -> Self {
         use uuid::Uuid;
-        
+
         let confidence = score.clamp(0, 100) as u8;
         let confidence_tier = match confidence {
             80..=100 => "high",
             65..=79 => "medium",
             _ => "low",
-        }.to_string();
-        
+        }
+        .to_string();
+
         Self {
             signal_id: Uuid::new_v4().to_string(),
             engine_version: ENGINE_VERSION.to_string(),
@@ -742,7 +783,7 @@ impl TradeSignal {
             confidence_tier,
             timestamp: Utc::now(),
             reasons,
-            context_id: None,  // FT3: Set by caller if needed
+            context_id: None, // FT3: Set by caller if needed
             regime_context: regime,
         }
     }
@@ -751,10 +792,15 @@ impl TradeSignal {
 impl fmt::Display for TradeSignal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
-            f, 
-            "SIGNAL [{}]: {} [{}] {:?} @ {} (Conf: {}% - {})", 
-            &self.signal_id[..8], self.symbol, self.timeframe, self.signal, 
-            self.price, self.confidence, self.confidence_tier
+            f,
+            "SIGNAL [{}]: {} [{}] {:?} @ {} (Conf: {}% - {})",
+            &self.signal_id[..8],
+            self.symbol,
+            self.timeframe,
+            self.signal,
+            self.price,
+            self.confidence,
+            self.confidence_tier
         )
     }
 }
@@ -772,11 +818,11 @@ pub struct MarketStructure {
     pub last_pivot_low: Option<Decimal>,
     pub trend: TrendState,
     pub bos_confirmed: bool,
-    
+
     // Liquidity-aware BOS tracking
-    pub has_equal_highs: bool,       // Likidite havuzu: eşit high'lar
-    pub has_equal_lows: bool,        // Likidite havuzu: eşit low'lar
-    pub last_bos_displacement: bool, // Son BOS displacement ile mi oldu?
+    pub has_equal_highs: bool,             // Likidite havuzu: eşit high'lar
+    pub has_equal_lows: bool,              // Likidite havuzu: eşit low'lar
+    pub last_bos_displacement: bool,       // Son BOS displacement ile mi oldu?
     pub bos_candle_range: Option<Decimal>, // BOS mumunun range'i
 }
 
@@ -839,7 +885,7 @@ impl WsKline {
         Ok(Candle {
             open_time: DateTime::<Utc>::from_utc(
                 chrono::NaiveDateTime::from_timestamp_millis(self.start_time).unwrap(),
-                Utc
+                Utc,
             ),
             open: Decimal::from_str_exact(&self.open)?,
             high: Decimal::from_str_exact(&self.high)?,
@@ -848,9 +894,8 @@ impl WsKline {
             volume: Decimal::from_str_exact(&self.volume)?,
             close_time: Some(DateTime::<Utc>::from_utc(
                 chrono::NaiveDateTime::from_timestamp_millis(self.end_time).unwrap(),
-                Utc
+                Utc,
             )),
         })
     }
 }
-

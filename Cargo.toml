@@ -20,3 +20,4 @@ clap = { version = "4", features = ["derive"] }
 anyhow = "1.0"
 url = "2.4"
 uuid = { version = "1.6", features = ["v4"] }
+dotenv = "0.15.0"

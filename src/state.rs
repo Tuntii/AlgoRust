@@ -1,5 +1,5 @@
 use crate::types::{Candle, MarketStructure, TrendState, ContextId};
-use crate::indicators::{Ema, Atr, is_pivot_high, is_pivot_low};
+use crate::indicators::{Ema, Atr, Rsi, is_pivot_high, is_pivot_low, check_divergence, DivergenceType};
 use crate::policy::BootstrapState;
 use std::collections::VecDeque;
 use rust_decimal::Decimal;
@@ -19,8 +19,11 @@ pub struct SymbolContext {
     pub ema_200: Ema,
 
     pub atr_14: Atr,
+    pub rsi_14: Rsi, // RSI Indicator
+
     pub atr_ratio_history: VecDeque<Decimal>, // Median ATR hesaplamak için tarihçe
     pub ema_50_slope_history: VecDeque<Decimal>, // EMA50 tarihçesi eğim hesabı için
+    pub rsi_history: VecDeque<(usize, Decimal)>, // RSI history (index, value)
 
     // Events
     pub just_confirmed_pivot_high: bool,
@@ -33,6 +36,11 @@ pub struct SymbolContext {
     pub pivot_high_history: VecDeque<Decimal>, // Son pivot high'lar (equal high tespiti için)
     pub pivot_low_history: VecDeque<Decimal>,  // Son pivot low'lar (equal low tespiti için)
     
+    // Pivot History with Index for Divergence
+    pub pivot_highs_with_idx: Vec<(usize, Decimal)>,
+    pub pivot_lows_with_idx: Vec<(usize, Decimal)>,
+    pub current_divergence: DivergenceType,
+
     // T0.2 — Bootstrap Integrity Gate
     pub bootstrap: BootstrapState,
     
@@ -59,14 +67,19 @@ impl SymbolContext {
             atr_ratio_history: VecDeque::new(),
             pivot_high_history: VecDeque::new(),
             pivot_low_history: VecDeque::new(),
+            pivot_highs_with_idx: Vec::new(),
+            pivot_lows_with_idx: Vec::new(),
+            rsi_history: VecDeque::new(),
             ema_5: Ema::new(5),
             ema_8: Ema::new(8),
             ema_13: Ema::new(13),
             ema_50: Ema::new(50),
             ema_200: Ema::new(200),
             atr_14: Atr::new(14),
+            rsi_14: Rsi::new(14),
             just_confirmed_pivot_high: false,
             just_confirmed_pivot_low: false,
+            current_divergence: DivergenceType::None,
             last_signal_candle: None,
             just_broke_high: false,
             just_broke_low: false,
@@ -202,6 +215,13 @@ impl SymbolContext {
         self.ema_50_slope_history.push_back(cur_ema50);
         if self.ema_50_slope_history.len() > 20 { self.ema_50_slope_history.pop_front(); }
 
+        // Update RSI
+        if let Some(rsi_val) = self.rsi_14.update(candle.close) {
+             self.rsi_history.push_back((self.total_candles_processed, rsi_val));
+             // Keep history manageable (e.g., last 300)
+             if self.rsi_history.len() > 300 { self.rsi_history.pop_front(); }
+        }
+
         // Store Candle - HTF needs more history
         self.candles.push_back(candle);
         let max_candles = BootstrapState::min_candles_for_tf(&self.timeframe).max(1500);
@@ -230,6 +250,16 @@ impl SymbolContext {
 
         // Check Pivot at index len - 4
         let idx = self.candles.len().saturating_sub(4);
+        // Index conversion to total_processed (approximate for history, precise for current candle)
+        // Correct index relative to history start is tricky with popping. 
+        // Better to use total_candles_processed offset.
+        // Pivot detected at Candle[idx]. Wait, `idx` is index in `self.candles`.
+        // The real candle index is `total_candles_processed - (self.candles.len() - idx) + 1`?
+        // Let's simplify: 
+        // `total_candles_processed` is the index of the JUST ADDED candle (last one).
+        // `idx` is `len - 4`. So it is 3 candles ago properly.
+        let pivot_real_idx = self.total_candles_processed - 3;
+        
         if idx < 3 { return; } 
 
         let highs: Vec<_> = self.candles.iter().map(|c| c.high).collect();
@@ -239,28 +269,48 @@ impl SymbolContext {
             let pivot_val = highs[idx];
             self.structure.last_pivot_high = Some(pivot_val);
             self.just_confirmed_pivot_high = true;
-            self.last_pivot_high_idx = Some(self.total_candles_processed); // Track pivot index
+            self.last_pivot_high_idx = Some(pivot_real_idx); // Track pivot index
             
             // Pivot history'e ekle (equal high tespiti için)
             self.pivot_high_history.push_back(pivot_val);
             if self.pivot_high_history.len() > 5 { self.pivot_high_history.pop_front(); }
             
+            self.pivot_highs_with_idx.push((pivot_real_idx, pivot_val));
+            if self.pivot_highs_with_idx.len() > 10 { self.pivot_highs_with_idx.remove(0); }
+
             // Equal High kontrolü: Son 5 pivot high içinde %0.15 toleransla eşit var mı?
             self.structure.has_equal_highs = self.check_equal_levels(&self.pivot_high_history.clone());
+
+            // Check Bearish Divergence (HH price, LH RSI)
+            let rsi_vec: Vec<_> = self.rsi_history.iter().cloned().collect();
+            let divergence = check_divergence(&self.pivot_highs_with_idx, &self.pivot_lows_with_idx, &rsi_vec);
+            if divergence == DivergenceType::Bearish {
+                self.current_divergence = DivergenceType::Bearish;
+            }
         }
         
         if is_pivot_low(&lows, idx) {
             let pivot_val = lows[idx];
             self.structure.last_pivot_low = Some(pivot_val);
             self.just_confirmed_pivot_low = true;
-            self.last_pivot_low_idx = Some(self.total_candles_processed); // Track pivot index
+            self.last_pivot_low_idx = Some(pivot_real_idx); // Track pivot index
             
             // Pivot history'e ekle
             self.pivot_low_history.push_back(pivot_val);
             if self.pivot_low_history.len() > 5 { self.pivot_low_history.pop_front(); }
             
+            self.pivot_lows_with_idx.push((pivot_real_idx, pivot_val));
+            if self.pivot_lows_with_idx.len() > 10 { self.pivot_lows_with_idx.remove(0); }
+
             // Equal Low kontrolü
             self.structure.has_equal_lows = self.check_equal_levels(&self.pivot_low_history.clone());
+
+            // Check Bullish Divergence (LL price, HL RSI)
+            let rsi_vec: Vec<_> = self.rsi_history.iter().cloned().collect();
+            let divergence = check_divergence(&self.pivot_highs_with_idx, &self.pivot_lows_with_idx, &rsi_vec);
+            if divergence == DivergenceType::Bullish {
+                self.current_divergence = DivergenceType::Bullish;
+            }
         }
         
         // Update Trend

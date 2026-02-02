@@ -1,4 +1,5 @@
 use crate::analytics::{BlockStats, ScoreThreshold};
+use crate::indicators::DivergenceType;
 use crate::mtf_analysis::MTFConfluenceAnalyzer;
 use crate::policy::PolicyEngine;
 use crate::state::SymbolContext;
@@ -468,6 +469,12 @@ impl SignalEngine {
                         reasons.push(reason);
                     }
 
+                    // RSI Divergence Boost
+                    if ctx.current_divergence == DivergenceType::Bullish {
+                        score += 15;
+                        reasons.push("🔥 Bullish RSI Divergence Confirmed (+15)".to_string());
+                    }
+
                     signal_type = Some(SignalType::LONG);
                 }
             }
@@ -534,6 +541,12 @@ impl SignalEngine {
                     score += eth_bonus;
                     if let Some(reason) = eth_reason {
                         reasons.push(reason);
+                    }
+
+                    // RSI Divergence Boost
+                    if ctx.current_divergence == DivergenceType::Bearish {
+                        score += 15;
+                        reasons.push("🔥 Bearish RSI Divergence Confirmed (+15)".to_string());
                     }
 
                     signal_type = Some(SignalType::SHORT);

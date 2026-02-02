@@ -9,6 +9,7 @@ use crate::state::SymbolContext;
 use crate::engine::SignalEngine;
 use crate::connect::BinanceClient;
 use crate::policy::TimeframePolicy;
+use crate::alpaca::{AlpacaClient, OrderRequest, Side, OrderType, TimeInForce}; // Added Alpaca types
 use crate::analytics::{
     AdvancedMetrics, TradeRecord, RegimeReport, ExtendedBacktestResult, BlockStats
 };
@@ -110,6 +111,22 @@ pub async fn run_backtest(
     let client = BinanceClient::new();
     let mut engine = SignalEngine::new_backtest_mode(); // Backtest mode: bypasses policy
     let policy = TimeframePolicy::new();
+
+    // Alpaca Client (Optional) - .env yüklü ise aktif olur
+    let alpaca_client = if std::env::var("ALPACA_API_KEY").is_ok() {
+        match AlpacaClient::new() {
+            Ok(c) => {
+                info!("🦙 Alpaca entegrasyonu aktif (Backtest Sinyalleri İletilecek)");
+                Some(c)
+            },
+            Err(e) => {
+                warn!("⚠️ Alpaca başlatılamadı: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
     
     // Summary tracking
     let mut summary = BacktestSummary::default();
@@ -140,7 +157,8 @@ pub async fn run_backtest(
             // Veri Çekme (REST)
             // Gerçek bir backtest için pagination gerekir (döngü ile start_time geriye giderek).
             // Şimdilik bootstrap mantığıyla son 1000 mumu test ediyoruz.
-            match client.fetch_candles(symbol, interval, limit).await {
+            // Modified: Use fetch_historical_candles for full range
+            match client.fetch_historical_candles(symbol, interval, days).await {
                 Ok(candles) => {
                     info!("Data loaded: {} candles", candles.len());
                     
@@ -187,6 +205,48 @@ pub async fn run_backtest(
                                 .with_context_score(context_score)
                                 .with_ema50_slope(ema50_slope);
                                 engine.add_trade_to_pool(active_trade);
+
+                                // 🦙 Alpaca Entegrasyonu: Backtest sırasında da çalıştırma
+                                if let Some(client) = &alpaca_client {
+                                    // Sadece son 1 saat içindeki sinyalleri yolla (Koruma)
+                                    // VEYA tüm sinyalleri yolla (Kullanıcı isteği - "backtestte yollasın")
+                                    // Sorumluluk kullanıcıda. Rate limit yiyebilir.
+                                    let is_recent = match (signal.timestamp - Utc::now()).num_hours().abs() {
+                                        0 => true,
+                                        _ => false, // Eğer çok eski ise yollama? Hayır, backtest replay olabilir.
+                                    };
+                                    
+                                    // Kullanıcı explicit olarak istediği için, zaman kontrolünü es geçiyoruz veya
+                                    // basit bir log ile uyarıyoruz.
+                                    
+                                    let side = match signal.signal {
+                                        SignalType::LONG => Side::Buy,
+                                        SignalType::SHORT => Side::Sell,
+                                    };
+
+                                    let order_req = OrderRequest {
+                                        symbol: symbol.clone(), // BTCUSDT formatında, Alpaca BTC/USD isteyebilir. Düzenlenmeli.
+                                        qty: Decimal::from_str("0.001").unwrap(), // Test Miktarı
+                                        side,
+                                        order_type: OrderType::Market,
+                                        time_in_force: TimeInForce::Gtc,
+                                        limit_price: None,
+                                        stop_price: None,
+                                    };
+                                    
+                                    // Alpaca sembol dönüşümü (Binance -> Alpaca)
+                                    // BTCUSDT -> BTC/USD
+                                    let mut alpaca_symbol = order_req.symbol.clone();
+                                    if alpaca_symbol.ends_with("USDT") {
+                                        alpaca_symbol = format!("{}/USD", alpaca_symbol.replace("USDT", ""));
+                                    }
+                                    let final_req = OrderRequest { symbol: alpaca_symbol, ..order_req };
+
+                                    match client.submit_order(final_req).await {
+                                        Ok(resp) => info!("🦙 Alpaca Sinyal İletildi: {} -> ID: {}", symbol, resp.id),
+                                        Err(e) => warn!("⚠️ Alpaca Sinyal Hatası: {}", e),
+                                    }
+                                }
                             }
                             
                             trades.push(SimulatedTrade {
@@ -584,8 +644,9 @@ fn print_summary(summary: &BacktestSummary) {
 }
 
 fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) -> (Decimal, Decimal) {
-    let rr = Decimal::from_f64(1.5).unwrap();
-    
+    let default_rr = Decimal::from_f64(1.5).unwrap();
+    let min_profit_pct = Decimal::from_f64(0.005).unwrap(); // Hedef en az %0.5 uzakta olmalı
+
     match signal.signal {
         SignalType::LONG => {
             // SL = Last Swing Low. Eğer yoksa %1 altı.
@@ -598,7 +659,29 @@ fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) ->
             };
             
             let risk = entry - safe_sl;
-            let tp = entry + (risk * rr);
+
+            // TP STRATEGY: Pivot-Based Target
+            // Hedef: Entry üzerinde olan en yakın Pivot High seviyesi
+            // Eğer pivot history boşsa veya hepsi entry'nin altındaysa -> Fallback 1.5R
+            let mut target_tp = None;
+            let mut best_tp = Decimal::MAX; 
+            
+            for &pivot in &ctx.pivot_high_history {
+                // Pivot entry'den en az %0.5 yukarıda olmalı ki R/R mantıklı olsun
+                if pivot > entry * (Decimal::ONE + min_profit_pct) {
+                     // En yakın (en düşük) pivotu bul
+                     if pivot < best_tp {
+                         best_tp = pivot;
+                         target_tp = Some(pivot);
+                     }
+                }
+            }
+            
+            let tp = target_tp.unwrap_or_else(|| {
+                 // Pivot bulunamazsa default RR kullan
+                 entry + (risk * default_rr)
+            });
+
             (safe_sl, tp)
         },
         SignalType::SHORT => {
@@ -610,7 +693,27 @@ fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) ->
             };
             
             let risk = safe_sl - entry;
-            let tp = entry - (risk * rr);
+
+            // TP STRATEGY: Pivot-Based Target
+            // Hedef: Entry altında olan en yakın Pivot Low seviyesi
+            let mut target_tp = None;
+            let mut best_tp = Decimal::MIN; // En yüksek 'düşük' seviyeyi arıyoruz (entry'e en yakın destek)
+
+            for &pivot in &ctx.pivot_low_history {
+                 // Pivot entry'den en az %0.5 aşağıda olmalı
+                 if pivot < entry * (Decimal::ONE - min_profit_pct) {
+                     // Entry'e en yakın olanı (en yüksek değeri) seç
+                     if pivot > best_tp {
+                         best_tp = pivot;
+                         target_tp = Some(pivot);
+                     }
+                 }
+            }
+
+            let tp = target_tp.unwrap_or_else(|| {
+                 entry - (risk * default_rr)
+             });
+
             (safe_sl, tp)
         }
     }

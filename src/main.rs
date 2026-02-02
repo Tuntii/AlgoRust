@@ -8,6 +8,7 @@ mod policy;
 mod safemode;
 mod state;
 mod types;
+mod alpaca;
 
 use crate::engine::SignalEngine;
 use crate::safemode::{CanaryDeployment, DeploymentMode, SafeMode};
@@ -20,6 +21,8 @@ use std::collections::HashMap;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
+use dotenv::dotenv;
+use std::env;
 
 #[derive(Debug, Deserialize)]
 struct AppSettings {
@@ -68,6 +71,9 @@ struct TradingConfig {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load .env file if it exists
+    dotenv().ok();
+
     // Loglamayı başlat (stderr)
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)

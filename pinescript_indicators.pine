@@ -1,0 +1,312 @@
+//@version=5
+indicator("EBU Algo - Multi-Timeframe Trading System", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// =============================================================================
+// INPUT PARAMETERS
+// =============================================================================
+
+// EMA Settings
+ema13_length = input.int(13, "EMA Fast", minval=1, group="EMA Settings")
+ema50_length = input.int(50, "EMA Medium", minval=1, group="EMA Settings")
+ema200_length = input.int(200, "EMA Slow", minval=1, group="EMA Settings")
+show_emas = input.bool(true, "Show EMAs", group="EMA Settings")
+
+// RSI Settings
+rsi_length = input.int(14, "RSI Period", minval=1, group="RSI Settings")
+rsi_overbought = input.float(70, "RSI Overbought", minval=50, maxval=100, group="RSI Settings")
+rsi_oversold = input.float(30, "RSI Oversold", minval=0, maxval=50, group="RSI Settings")
+
+// ATR Settings
+atr_length = input.int(14, "ATR Period", minval=1, group="ATR Settings")
+atr_multiplier = input.float(1.5, "ATR Multiplier", minval=0.1, maxval=5, group="ATR Settings")
+
+// Pivot Settings
+pivot_lookback = input.int(3, "Pivot Lookback/Lookahead", minval=1, maxval=10, group="Pivot Settings")
+show_pivots = input.bool(true, "Show Pivot Points", group="Pivot Settings")
+
+// Divergence Settings
+show_divergence = input.bool(true, "Show Divergences", group="Divergence Detection")
+check_bullish_div = input.bool(true, "Check Bullish Divergence", group="Divergence Detection")
+check_bearish_div = input.bool(true, "Check Bearish Divergence", group="Divergence Detection")
+
+// MTF Settings
+htf_timeframe = input.timeframe("4h", "Higher Timeframe (HTF)", group="Multi-Timeframe")
+mtf_timeframe = input.timeframe("1h", "Mid Timeframe (MTF)", group="Multi-Timeframe")
+show_htf_bias = input.bool(true, "Show HTF Trend Bias", group="Multi-Timeframe")
+
+// =============================================================================
+// INDICATOR CALCULATIONS
+// =============================================================================
+
+// EMA Calculations
+ema13 = ta.ema(close, ema13_length)
+ema50 = ta.ema(close, ema50_length)
+ema200 = ta.ema(close, ema200_length)
+
+// RSI Calculation
+rsi = ta.rsi(close, rsi_length)
+
+// ATR Calculation
+atr = ta.atr(atr_length)
+
+// =============================================================================
+// PIVOT DETECTION (3-bar lookback/lookahead)
+// =============================================================================
+
+// Pivot High Detection
+pivotHigh = ta.pivothigh(high, pivot_lookback, pivot_lookback)
+isPivotHigh = not na(pivotHigh)
+
+// Pivot Low Detection
+pivotLow = ta.pivotlow(low, pivot_lookback, pivot_lookback)
+isPivotLow = not na(pivotLow)
+
+// Store pivot values and RSI at pivot points
+var pivotHighValues = array.new_float(0)
+var pivotHighRSI = array.new_float(0)
+var pivotHighBars = array.new_int(0)
+
+var pivotLowValues = array.new_float(0)
+var pivotLowRSI = array.new_float(0)
+var pivotLowBars = array.new_int(0)
+
+// Track pivot highs
+if isPivotHigh
+    array.push(pivotHighValues, pivotHigh)
+    array.push(pivotHighRSI, rsi[pivot_lookback])
+    array.push(pivotHighBars, bar_index - pivot_lookback)
+    
+    // Keep only last 10 pivots
+    if array.size(pivotHighValues) > 10
+        array.shift(pivotHighValues)
+        array.shift(pivotHighRSI)
+        array.shift(pivotHighBars)
+
+// Track pivot lows
+if isPivotLow
+    array.push(pivotLowValues, pivotLow)
+    array.push(pivotLowRSI, rsi[pivot_lookback])
+    array.push(pivotLowBars, bar_index - pivot_lookback)
+    
+    // Keep only last 10 pivots
+    if array.size(pivotLowValues) > 10
+        array.shift(pivotLowValues)
+        array.shift(pivotLowRSI)
+        array.shift(pivotLowBars)
+
+// =============================================================================
+// DIVERGENCE DETECTION
+// =============================================================================
+
+// Bullish Divergence: Price Lower Low + RSI Higher Low
+bullishDivergence = false
+if check_bullish_div and array.size(pivotLowValues) >= 2
+    currPriceLow = array.get(pivotLowValues, array.size(pivotLowValues) - 1)
+    prevPriceLow = array.get(pivotLowValues, array.size(pivotLowValues) - 2)
+    
+    currRSILow = array.get(pivotLowRSI, array.size(pivotLowRSI) - 1)
+    prevRSILow = array.get(pivotLowRSI, array.size(pivotLowRSI) - 2)
+    
+    // Price making lower low AND RSI making higher low
+    if currPriceLow < prevPriceLow and currRSILow > prevRSILow
+        bullishDivergence := true
+
+// Bearish Divergence: Price Higher High + RSI Lower High
+bearishDivergence = false
+if check_bearish_div and array.size(pivotHighValues) >= 2
+    currPriceHigh = array.get(pivotHighValues, array.size(pivotHighValues) - 1)
+    prevPriceHigh = array.get(pivotHighValues, array.size(pivotHighValues) - 2)
+    
+    currRSIHigh = array.get(pivotHighRSI, array.size(pivotHighRSI) - 1)
+    prevRSIHigh = array.get(pivotHighRSI, array.size(pivotHighRSI) - 2)
+    
+    // Price making higher high AND RSI making lower high
+    if currPriceHigh > prevPriceHigh and currRSIHigh < prevRSIHigh
+        bearishDivergence := true
+
+// =============================================================================
+// EMA STACK ANALYSIS
+// =============================================================================
+
+// Determine EMA Stack Configuration
+emaStackStrongBull = ema13 > ema50 and ema50 > ema200 and close > ema13
+emaStackBull = close > ema200 and not emaStackStrongBull
+emaStackStrongBear = ema13 < ema50 and ema50 < ema200 and close < ema13
+emaStackBear = close < ema200 and not emaStackStrongBear
+emaStackNeutral = not emaStackStrongBull and not emaStackBull and not emaStackStrongBear and not emaStackBear
+
+// EMA200 Slope (trend strength)
+ema200_slope = (ema200 - ema200[10]) / 10
+
+// =============================================================================
+// HTF TREND BIAS (Higher Timeframe)
+// =============================================================================
+
+// Check if HTF timeframe is valid (must be higher than current timeframe)
+htf_is_valid = timeframe.in_seconds(htf_timeframe) > timeframe.in_seconds(timeframe.period)
+
+// Get HTF data with proper security function parameters (only if valid)
+htf_close = htf_is_valid ? request.security(syminfo.tickerid, htf_timeframe, close, barmerge.gaps_off, barmerge.lookahead_off) : close
+htf_ema13 = htf_is_valid ? request.security(syminfo.tickerid, htf_timeframe, ta.ema(close, ema13_length), barmerge.gaps_off, barmerge.lookahead_off) : ema13
+htf_ema50 = htf_is_valid ? request.security(syminfo.tickerid, htf_timeframe, ta.ema(close, ema50_length), barmerge.gaps_off, barmerge.lookahead_off) : ema50
+htf_ema200 = htf_is_valid ? request.security(syminfo.tickerid, htf_timeframe, ta.ema(close, ema200_length), barmerge.gaps_off, barmerge.lookahead_off) : ema200
+
+// HTF EMA Stack
+htf_strong_bull = htf_ema13 > htf_ema50 and htf_ema50 > htf_ema200 and htf_close > htf_ema13
+htf_bull = htf_close > htf_ema200 and not htf_strong_bull
+htf_strong_bear = htf_ema13 < htf_ema50 and htf_ema50 < htf_ema200 and htf_close < htf_ema13
+htf_bear = htf_close < htf_ema200 and not htf_strong_bear
+htf_neutral = not htf_strong_bull and not htf_bull and not htf_strong_bear and not htf_bear
+
+// HTF Trend Bias
+htf_bias = htf_strong_bull ? "Strong Bullish" : (htf_bull ? "Bullish" : (htf_strong_bear ? "Strong Bearish" : (htf_bear ? "Bearish" : "Neutral")))
+
+// =============================================================================
+// SWING STRUCTURE (Higher High / Lower Low)
+// =============================================================================
+
+// Track swing highs and lows for structure
+var float lastSwingHigh = na
+var float lastSwingLow = na
+
+if isPivotHigh
+    if na(lastSwingHigh) or pivotHigh > lastSwingHigh
+        lastSwingHigh := pivotHigh
+
+if isPivotLow
+    if na(lastSwingLow) or pivotLow < lastSwingLow
+        lastSwingLow := pivotLow
+
+// Determine swing position with safe array access
+isHigherHighs = false
+if not na(lastSwingHigh) and array.size(pivotHighValues) >= 2
+    isHigherHighs := array.get(pivotHighValues, array.size(pivotHighValues) - 1) > array.get(pivotHighValues, array.size(pivotHighValues) - 2)
+
+isLowerLows = false
+if not na(lastSwingLow) and array.size(pivotLowValues) >= 2
+    isLowerLows := array.get(pivotLowValues, array.size(pivotLowValues) - 1) < array.get(pivotLowValues, array.size(pivotLowValues) - 2)
+
+swingPosition = isHigherHighs ? "HH" : (isLowerLows ? "LL" : "Ranging")
+
+// =============================================================================
+// TRADING SIGNALS
+// =============================================================================
+
+// Long Signal Conditions
+longCondition = bullishDivergence and rsi < rsi_oversold and close > ema200 and htf_strong_bull
+
+// Short Signal Conditions
+shortCondition = bearishDivergence and rsi > rsi_overbought and close < ema200 and htf_strong_bear
+
+// Stop Loss and Take Profit levels
+longStopLoss = close - (atr * atr_multiplier)
+longTakeProfit = close + (atr * atr_multiplier * 2)
+
+shortStopLoss = close + (atr * atr_multiplier)
+shortTakeProfit = close - (atr * atr_multiplier * 2)
+
+// =============================================================================
+// VISUALIZATION
+// =============================================================================
+
+// Plot EMAs
+plot(show_emas ? ema13 : na, "EMA 13", color=color.new(color.blue, 0), linewidth=2)
+plot(show_emas ? ema50 : na, "EMA 50", color=color.new(color.orange, 0), linewidth=2)
+plot(show_emas ? ema200 : na, "EMA 200", color=color.new(color.red, 0), linewidth=3)
+
+// Plot Pivot Points
+plotshape(show_pivots and isPivotHigh, "Pivot High", shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.small)
+plotshape(show_pivots and isPivotLow, "Pivot Low", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small)
+
+// Draw Divergence Lines with safe array access
+if show_divergence and bullishDivergence and array.size(pivotLowBars) >= 2
+    prevBar = array.get(pivotLowBars, array.size(pivotLowBars) - 2)
+    currBar = array.get(pivotLowBars, array.size(pivotLowBars) - 1)
+    prevPrice = array.get(pivotLowValues, array.size(pivotLowValues) - 2)
+    currPrice = array.get(pivotLowValues, array.size(pivotLowValues) - 1)
+    line.new(prevBar, prevPrice, currBar, currPrice, color=color.new(color.green, 0), width=2, style=line.style_dashed)
+    label.new(currBar, currPrice, "Bull Div", color=color.new(color.green, 80), textcolor=color.white, style=label.style_label_up, size=size.small)
+
+if show_divergence and bearishDivergence and array.size(pivotHighBars) >= 2
+    prevBar = array.get(pivotHighBars, array.size(pivotHighBars) - 2)
+    currBar = array.get(pivotHighBars, array.size(pivotHighBars) - 1)
+    prevPrice = array.get(pivotHighValues, array.size(pivotHighValues) - 2)
+    currPrice = array.get(pivotHighValues, array.size(pivotHighValues) - 1)
+    line.new(prevBar, prevPrice, currBar, currPrice, color=color.new(color.red, 0), width=2, style=line.style_dashed)
+    label.new(currBar, currPrice, "Bear Div", color=color.new(color.red, 80), textcolor=color.white, style=label.style_label_down, size=size.small)
+
+// Plot Trading Signals
+plotshape(longCondition, "Long Signal", shape.labelup, location.belowbar, color.new(color.green, 0), text="LONG", textcolor=color.white, size=size.normal)
+plotshape(shortCondition, "Short Signal", shape.labeldown, location.abovebar, color.new(color.red, 0), text="SHORT", textcolor=color.white, size=size.normal)
+
+// Background coloring based on EMA stack
+bgcolor(emaStackStrongBull ? color.new(color.green, 95) : (emaStackStrongBear ? color.new(color.red, 95) : na))
+
+// =============================================================================
+// INDICATOR PANEL (RSI)
+// =============================================================================
+
+hline(rsi_overbought, "RSI Overbought", color=color.red, linestyle=hline.style_dashed)
+hline(rsi_oversold, "RSI Oversold", color=color.green, linestyle=hline.style_dashed)
+hline(50, "RSI Middle", color=color.gray, linestyle=hline.style_dotted)
+
+// RSI color based on value
+rsi_color = rsi > rsi_overbought ? color.red : (rsi < rsi_oversold ? color.green : color.yellow)
+
+plot(rsi, "RSI", color=rsi_color, linewidth=2)
+
+// =============================================================================
+// INFO TABLE
+// =============================================================================
+
+if show_htf_bias and barstate.islast
+    var table info_table = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    
+    // Header
+    table.cell(info_table, 0, 0, "Metric", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(info_table, 1, 0, "Value", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    
+    // HTF Bias
+    bias_color = htf_strong_bull or htf_bull ? color.green : (htf_strong_bear or htf_bear ? color.red : color.yellow)
+    table.cell(info_table, 0, 1, "HTF Bias", text_color=color.white)
+    table.cell(info_table, 1, 1, htf_bias, text_color=bias_color)
+    
+    // Current TF EMA Stack
+    stack_text = emaStackStrongBull ? "Strong Bull" : (emaStackBull ? "Bull" : (emaStackStrongBear ? "Strong Bear" : (emaStackBear ? "Bear" : "Neutral")))
+    stack_color = emaStackStrongBull or emaStackBull ? color.green : (emaStackStrongBear or emaStackBear ? color.red : color.yellow)
+    table.cell(info_table, 0, 2, "EMA Stack", text_color=color.white)
+    table.cell(info_table, 1, 2, stack_text, text_color=stack_color)
+    
+    // RSI
+    table.cell(info_table, 0, 3, "RSI", text_color=color.white)
+    table.cell(info_table, 1, 3, str.tostring(rsi, "#.##"), text_color=rsi_color)
+    
+    // ATR
+    table.cell(info_table, 0, 4, "ATR", text_color=color.white)
+    table.cell(info_table, 1, 4, str.tostring(atr, "#.##"), text_color=color.white)
+    
+    // Swing Position
+    swing_color = swingPosition == "HH" ? color.green : (swingPosition == "LL" ? color.red : color.yellow)
+    table.cell(info_table, 0, 5, "Structure", text_color=color.white)
+    table.cell(info_table, 1, 5, swingPosition, text_color=swing_color)
+    
+    // Divergence Status
+    div_text = bullishDivergence ? "Bullish Div" : (bearishDivergence ? "Bearish Div" : "None")
+    div_color = bullishDivergence ? color.green : (bearishDivergence ? color.red : color.gray)
+    table.cell(info_table, 0, 6, "Divergence", text_color=color.white)
+    table.cell(info_table, 1, 6, div_text, text_color=div_color)
+    
+    // Last Signal
+    last_signal = longCondition ? "LONG" : shortCondition ? "SHORT" : "None"
+    signal_color = longCondition ? color.green : shortCondition ? color.red : color.gray
+    table.cell(info_table, 0, 7, "Signal", text_color=color.white)
+    table.cell(info_table, 1, 7, last_signal, text_color=signal_color)
+
+// =============================================================================
+// ALERTS
+// =============================================================================
+
+alertcondition(longCondition, "Long Signal", "EBU Algo: Long entry signal detected!")
+alertcondition(shortCondition, "Short Signal", "EBU Algo: Short entry signal detected!")
+alertcondition(bullishDivergence, "Bullish Divergence", "EBU Algo: Bullish divergence detected!")
+alertcondition(bearishDivergence, "Bearish Divergence", "EBU Algo: Bearish divergence detected!")
