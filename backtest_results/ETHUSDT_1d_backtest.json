@@ -1,0 +1,352 @@
+{
+  "symbol": "ETHUSDT",
+  "timeframe": "1d",
+  "total_trades": 16,
+  "wins": 3,
+  "losses": 12,
+  "win_rate": 20.0,
+  "total_pnl_r": "-7.5",
+  "signals": [
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "1583.94000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:31:52.507878800Z",
+      "reasons": [
+        "⚠️ Low volatility regime (-15)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Liquidity sweep: Equal highs swept (+15)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "1583.94000000",
+      "sl_price": "1669.50000000",
+      "tp_price": "1455.600000000",
+      "exit_price": "1669.50000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "1566.57000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:31:52.510810400Z",
+      "reasons": [
+        "⚠️ Low volatility regime (-15)",
+        "⚠️ Weak candle body/indecision (-10)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Liquidity sweep: Equal highs swept (+15)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "1566.57000000",
+      "sl_price": "1639.43000000",
+      "tp_price": "1457.280000000",
+      "exit_price": "1639.43000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "LONG",
+      "price": "2051.96000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:31:52.516166500Z",
+      "reasons": [
+        "⚠️ Weak BOS (no displacement, no liquidity) (-10)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2051.96000000",
+      "sl_price": "1985.78000000",
+      "tp_price": "2151.230000000",
+      "exit_price": "2151.230000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "LONG",
+      "price": "3883.36000000",
+      "confidence": 90,
+      "timestamp": "2026-02-02T02:31:52.530256900Z",
+      "reasons": [
+        "⚠️ Weak candle body/indecision (-10)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Liquidity sweep: Equal lows swept (+15)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "3883.36000000",
+      "sl_price": "3200.00000000",
+      "tp_price": "4908.400000000",
+      "exit_price": "3200.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "LONG",
+      "price": "3881.70000000",
+      "confidence": 110,
+      "timestamp": "2026-02-02T02:31:52.530879600Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Liquidity sweep: Equal lows swept (+15)",
+        "✅ Strong displacement on BOS (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "3881.70000000",
+      "sl_price": "3722.95000000",
+      "tp_price": "4119.825000000",
+      "exit_price": "3722.95000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "LONG",
+      "price": "3780.91000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:31:52.542439200Z",
+      "reasons": [
+        "⚠️ Low volatility regime (-15)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Liquidity sweep: Equal lows swept (+15)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "3780.91000000",
+      "sl_price": "3702.58000000",
+      "tp_price": "3898.405000000",
+      "exit_price": "3702.58000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2614.51000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:31:52.554124500Z",
+      "reasons": [
+        "⚠️ Weak BOS (no displacement, no liquidity) (-10)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2614.51000000",
+      "sl_price": "2780.00000000",
+      "tp_price": "2366.275000000",
+      "exit_price": "2780.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2457.33000000",
+      "confidence": 95,
+      "timestamp": "2026-02-02T02:31:52.555435200Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Strong displacement on BOS (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2457.33000000",
+      "sl_price": "2820.00000000",
+      "tp_price": "1913.325000000",
+      "exit_price": "2820.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2368.81000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:31:52.556629700Z",
+      "reasons": [
+        "⚠️ Weak BOS (no displacement, no liquidity) (-10)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2368.81000000",
+      "sl_price": "2564.83000000",
+      "tp_price": "2074.780000000",
+      "exit_price": "2564.83000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "LONG",
+      "price": "3998.87000000",
+      "confidence": 95,
+      "timestamp": "2026-02-02T02:31:52.571162900Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Strong displacement on BOS (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "3998.87000000",
+      "sl_price": "3500.00000000",
+      "tp_price": "4747.175000000",
+      "exit_price": "3500.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2693.04000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:31:52.582632Z",
+      "reasons": [
+        "⚠️ Weak BOS (no displacement, no liquidity) (-10)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2693.04000000",
+      "sl_price": "2795.45000000",
+      "tp_price": "2539.425000000",
+      "exit_price": "2795.45000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2336.37000000",
+      "confidence": 95,
+      "timestamp": "2026-02-02T02:31:52.584176500Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Strong displacement on BOS (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2336.37000000",
+      "sl_price": "2857.34000000",
+      "tp_price": "1554.915000000",
+      "exit_price": "1554.915000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2241.59000000",
+      "confidence": 75,
+      "timestamp": "2026-02-02T02:31:52.585056500Z",
+      "reasons": [
+        "⚠️ Weak BOS (no displacement, no liquidity) (-10)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2241.59000000",
+      "sl_price": "2550.58000000",
+      "tp_price": "1778.105000000",
+      "exit_price": "1778.105000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "LONG",
+      "price": "3872.10000000",
+      "confidence": 70,
+      "timestamp": "2026-02-02T02:31:52.608506100Z",
+      "reasons": [
+        "⚠️ Low volatility regime (-15)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "3872.10000000",
+      "sl_price": "3502.85000000",
+      "tp_price": "4425.975000000",
+      "exit_price": "3502.85000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2799.07000000",
+      "confidence": 85,
+      "timestamp": "2026-02-02T02:31:52.629578300Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2799.07000000",
+      "sl_price": "3099.00000000",
+      "tp_price": "2349.175000000",
+      "exit_price": "3099.00000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "signal": "SHORT",
+      "price": "2451.95000000",
+      "confidence": 95,
+      "timestamp": "2026-02-02T02:31:52.640157100Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ Strong displacement on BOS (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "entry_price": "2451.95000000",
+      "sl_price": "3045.78000000",
+      "tp_price": "1561.205000000",
+      "exit_price": null,
+      "pnl_r": null,
+      "outcome": null
+    }
+  ]
+}

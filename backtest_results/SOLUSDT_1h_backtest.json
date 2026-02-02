@@ -1,0 +1,811 @@
+{
+  "symbol": "SOLUSDT",
+  "timeframe": "1h",
+  "total_trades": 22,
+  "wins": 11,
+  "losses": 10,
+  "win_rate": 52.38095238095239,
+  "total_pnl_r": "6.5",
+  "advanced_metrics": {
+    "expectancy_r": 0.30952380952380965,
+    "max_consecutive_losses": 4,
+    "max_consecutive_wins": 4,
+    "avg_r_per_trade": 0.30952380952380953,
+    "avg_win_r": 1.5,
+    "avg_loss_r": 1.0,
+    "profit_factor": 1.65,
+    "largest_win_r": 1.5,
+    "largest_loss_r": 1.0,
+    "avg_trade_duration_candles": 20.19047619047619,
+    "sharpe_ratio_approx": 0.247900273203854,
+    "trade_count": 21
+  },
+  "regime_report": {
+    "by_atr_regime": {
+      "normal": {
+        "trades": 21,
+        "wins": 11,
+        "win_rate": 52.38095238095239,
+        "total_r": 6.5,
+        "avg_r": 0.30952380952380953,
+        "expectancy": 0.30952380952380965
+      }
+    },
+    "by_slope_regime": {
+      "flat": {
+        "trades": 1,
+        "wins": 1,
+        "win_rate": 100.0,
+        "total_r": 1.5,
+        "avg_r": 1.5,
+        "expectancy": 1.5
+      },
+      "trending_down": {
+        "trades": 9,
+        "wins": 5,
+        "win_rate": 55.55555555555556,
+        "total_r": 3.5,
+        "avg_r": 0.3888888888888889,
+        "expectancy": 0.38888888888888895
+      },
+      "trending_up": {
+        "trades": 11,
+        "wins": 5,
+        "win_rate": 45.45454545454545,
+        "total_r": 1.5,
+        "avg_r": 0.13636363636363635,
+        "expectancy": 0.13636363636363635
+      }
+    },
+    "by_session": {
+      "asia": {
+        "trades": 21,
+        "wins": 11,
+        "win_rate": 52.38095238095239,
+        "total_r": 6.5,
+        "avg_r": 0.30952380952380953,
+        "expectancy": 0.30952380952380965
+      }
+    },
+    "by_confidence_tier": {
+      "high": {
+        "trades": 8,
+        "wins": 5,
+        "win_rate": 62.5,
+        "total_r": 4.5,
+        "avg_r": 0.5625,
+        "expectancy": 0.5625
+      },
+      "medium": {
+        "trades": 13,
+        "wins": 6,
+        "win_rate": 46.15384615384615,
+        "total_r": 2.0,
+        "avg_r": 0.15384615384615385,
+        "expectancy": 0.15384615384615385
+      }
+    }
+  },
+  "signals": [
+    {
+      "signal_id": "139c6fdd-414c-4267-9bde-d8fac6b811c1",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "133.37000000",
+      "confidence": 70,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.640166500Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0065 (threshold: 0.0010, median: 0.0070) (-15)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ BOS with liquidity sweep (+10)",
+        "⚠️ Weak displacement/indecision: body/range 9.0% (-10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "133.37000000",
+      "sl_price": "131.35000000",
+      "tp_price": "136.400000000",
+      "exit_price": "136.400000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 300,
+      "exit_candle_idx": 326,
+      "duration_candles": 26
+    },
+    {
+      "signal_id": "fe61f9cd-d296-4415-ac0d-aab5bf1b5004",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "136.52000000",
+      "confidence": 100,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.649835500Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ Strong BOS: Liquidity sweep + Displacement (+15)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "136.52000000",
+      "sl_price": "133.18000000",
+      "tp_price": "141.530000000",
+      "exit_price": "141.530000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 342,
+      "exit_candle_idx": 363,
+      "duration_candles": 21
+    },
+    {
+      "signal_id": "ccfb833b-19d6-4d45-a5c3-c6591be8e141",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "138.38000000",
+      "confidence": 100,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.652362900Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ BOS with liquidity sweep (+10)",
+        "✅ Strong displacement: body/range 73.5% (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "138.38000000",
+      "sl_price": "136.89000000",
+      "tp_price": "140.615000000",
+      "exit_price": "140.615000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 352,
+      "exit_candle_idx": 363,
+      "duration_candles": 11
+    },
+    {
+      "signal_id": "52ccb850-15ef-48a6-be32-3aa9a982855e",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "138.37000000",
+      "confidence": 95,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.667399300Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ BOS with liquidity sweep (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "138.37000000",
+      "sl_price": "136.52000000",
+      "tp_price": "141.145000000",
+      "exit_price": "141.145000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 420,
+      "exit_candle_idx": 424,
+      "duration_candles": 4
+    },
+    {
+      "signal_id": "fee2ea59-c372-4225-9382-df8f58324821",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "139.76000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.667914300Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "139.76000000",
+      "sl_price": "137.74000000",
+      "tp_price": "142.790000000",
+      "exit_price": "137.74000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 425,
+      "exit_candle_idx": 429,
+      "duration_candles": 4
+    },
+    {
+      "signal_id": "aef4729d-9d9c-4308-acfd-cee522fa4d1e",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "142.42000000",
+      "confidence": 90,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.686044500Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0087 (threshold: 0.0010, median: 0.0092) (-15)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ BOS with strong displacement (+10)",
+        "✅ Strong displacement: body/range 75.5% (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "142.42000000",
+      "sl_price": "137.49000000",
+      "tp_price": "149.815000000",
+      "exit_price": "137.49000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 495,
+      "exit_candle_idx": 661,
+      "duration_candles": 166
+    },
+    {
+      "signal_id": "ba3ceea6-5ac0-465f-878c-b1897b98701b",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "141.94000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.689714100Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "141.94000000",
+      "sl_price": "138.69000000",
+      "tp_price": "146.815000000",
+      "exit_price": "138.69000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 510,
+      "exit_candle_idx": 514,
+      "duration_candles": 4
+    },
+    {
+      "signal_id": "77999983-7efe-4b2e-9468-1da7f232b18e",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "143.47000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.696887200Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "143.47000000",
+      "sl_price": "141.21000000",
+      "tp_price": "146.860000000",
+      "exit_price": "146.860000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 535,
+      "exit_candle_idx": 539,
+      "duration_candles": 4
+    },
+    {
+      "signal_id": "39cfb974-639e-4bad-a283-75bbaaa6b71d",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "145.50000000",
+      "confidence": 70,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.700672900Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0094 (threshold: 0.0010, median: 0.0098) (-15)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Strong displacement: body/range 76.6% (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "145.50000000",
+      "sl_price": "143.92000000",
+      "tp_price": "147.870000000",
+      "exit_price": "143.92000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 550,
+      "exit_candle_idx": 552,
+      "duration_candles": 2
+    },
+    {
+      "signal_id": "ea6cf4ac-4c27-4ba9-bc49-c37e446cf3a0",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "147.07000000",
+      "confidence": 65,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.701397100Z",
+      "reasons": [
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "⚠️ Weak displacement/indecision: body/range 26.8% (-10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "147.07000000",
+      "sl_price": "143.37000000",
+      "tp_price": "152.620000000",
+      "exit_price": "143.37000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 556,
+      "exit_candle_idx": 568,
+      "duration_candles": 12
+    },
+    {
+      "signal_id": "35f0890a-1fd2-4740-9819-6576a22f0470",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "LONG",
+      "price": "144.37000000",
+      "confidence": 80,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.718841500Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0067 (threshold: 0.0010, median: 0.0092) (-15)",
+        "✅ Bullish market structure confirmed",
+        "✅ Fractal HL detected (Pivot Low confirmed)",
+        "✅ EMA Alignment: 5>8>13>50>200",
+        "✅ BOS with liquidity sweep (+10)",
+        "✅ Price above EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_up",
+        "session": "asia"
+      },
+      "entry_price": "144.37000000",
+      "sl_price": "143.64815000000",
+      "tp_price": "145.452775000000",
+      "exit_price": "143.64815000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 616,
+      "exit_candle_idx": 620,
+      "duration_candles": 4
+    },
+    {
+      "signal_id": "dd8144a6-f91a-4fb5-b04d-9a205e072f61",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "133.51000000",
+      "confidence": 80,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.735490700Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0066 (threshold: 0.0010, median: 0.0084) (-15)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ BOS with liquidity sweep (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "133.51000000",
+      "sl_price": "134.37000000",
+      "tp_price": "132.220000000",
+      "exit_price": "134.37000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 675,
+      "exit_candle_idx": 677,
+      "duration_candles": 2
+    },
+    {
+      "signal_id": "7465a382-04ed-467d-bcb3-abd67b457f1e",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "133.44000000",
+      "confidence": 70,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.737654100Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0064 (threshold: 0.0010, median: 0.0084) (-15)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ BOS with liquidity sweep (+10)",
+        "⚠️ Weak displacement/indecision: body/range 39.1% (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "133.44000000",
+      "sl_price": "135.16000000",
+      "tp_price": "130.860000000",
+      "exit_price": "130.860000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 684,
+      "exit_candle_idx": 692,
+      "duration_candles": 8
+    },
+    {
+      "signal_id": "0cad97c6-c667-4975-a94c-49e95c1f0153",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "131.23000000",
+      "confidence": 90,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.739127200Z",
+      "reasons": [
+        "⚠️ Low volatility regime: ATR ratio 0.0075 (threshold: 0.0010, median: 0.0084) (-15)",
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ BOS with strong displacement (+10)",
+        "✅ Strong displacement: body/range 91.8% (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "131.23000000",
+      "sl_price": "134.63000000",
+      "tp_price": "126.130000000",
+      "exit_price": "126.130000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 691,
+      "exit_candle_idx": 707,
+      "duration_candles": 16
+    },
+    {
+      "signal_id": "c039475e-282e-43c3-9be1-e62fd7a79de6",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "125.80000000",
+      "confidence": 65,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.743258400Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "⚠️ Weak displacement/indecision: body/range 32.2% (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "125.80000000",
+      "sl_price": "128.08000000",
+      "tp_price": "122.380000000",
+      "exit_price": "128.08000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 708,
+      "exit_candle_idx": 714,
+      "duration_candles": 6
+    },
+    {
+      "signal_id": "a65196cd-de2e-463f-aea8-9f926becdeb6",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "127.62000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.746693600Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "127.62000000",
+      "sl_price": "131.18000000",
+      "tp_price": "122.280000000",
+      "exit_price": "131.18000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 727,
+      "exit_candle_idx": 728,
+      "duration_candles": 1
+    },
+    {
+      "signal_id": "8f92b9bf-2e59-47ce-a9b0-6169a32449dc",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "127.90000000",
+      "confidence": 65,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.752304200Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "⚠️ Weak displacement/indecision: body/range 34.0% (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "127.90000000",
+      "sl_price": "130.94000000",
+      "tp_price": "123.340000000",
+      "exit_price": "123.340000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 749,
+      "exit_candle_idx": 821,
+      "duration_candles": 72
+    },
+    {
+      "signal_id": "d8da4435-1612-49d5-9757-22ec7153ac1a",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "126.97000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.758296500Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "flat",
+        "session": "asia"
+      },
+      "entry_price": "126.97000000",
+      "sl_price": "130.20000000",
+      "tp_price": "122.125000000",
+      "exit_price": "122.125000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 777,
+      "exit_candle_idx": 822,
+      "duration_candles": 45
+    },
+    {
+      "signal_id": "b5ee0214-ca80-490d-8c8d-32d4c69823bf",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "118.96000000",
+      "confidence": 95,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.802314500Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ BOS with strong displacement (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "118.96000000",
+      "sl_price": "123.34000000",
+      "tp_price": "112.390000000",
+      "exit_price": "112.390000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 917,
+      "exit_candle_idx": 926,
+      "duration_candles": 9
+    },
+    {
+      "signal_id": "238a4a0c-32ef-45c3-b98e-cd345ca7d5c6",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "105.56000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.820730300Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "105.56000000",
+      "sl_price": "106.55000000",
+      "tp_price": "104.075000000",
+      "exit_price": "104.075000000",
+      "pnl_r": "1.5",
+      "outcome": "WIN",
+      "entry_candle_idx": 975,
+      "exit_candle_idx": 980,
+      "duration_candles": 5
+    },
+    {
+      "signal_id": "af0e0a85-95b6-47b3-a17f-052d5434f14f",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "105.05000000",
+      "confidence": 75,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-02T02:56:35.822654300Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "⚠️ Weak BOS: No displacement, no liquidity sweep (-10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "105.05000000",
+      "sl_price": "106.06000000",
+      "tp_price": "103.535000000",
+      "exit_price": "106.06000000",
+      "pnl_r": "-1",
+      "outcome": "LOSS",
+      "entry_candle_idx": 984,
+      "exit_candle_idx": 986,
+      "duration_candles": 2
+    },
+    {
+      "signal_id": "58b53bc9-0498-4b0f-b456-4fd78ffe5a4e",
+      "engine_version": "2.0.0",
+      "symbol": "SOLUSDT",
+      "timeframe": "1h",
+      "signal": "SHORT",
+      "price": "100.85000000",
+      "confidence": 95,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-02T02:56:35.825327500Z",
+      "reasons": [
+        "✅ Bearish market structure confirmed",
+        "✅ Fractal LH detected (Pivot High confirmed)",
+        "✅ EMA Alignment: 5<8<13<50<200",
+        "✅ BOS with liquidity sweep (+10)",
+        "✅ Price below EMA13 & EMA50 (+10)"
+      ],
+      "regime_context": {
+        "atr_regime": "normal",
+        "slope_regime": "trending_down",
+        "session": "asia"
+      },
+      "entry_price": "100.85000000",
+      "sl_price": "104.27000000",
+      "tp_price": "95.720000000",
+      "exit_price": null,
+      "pnl_r": null,
+      "outcome": null,
+      "entry_candle_idx": 994,
+      "exit_candle_idx": null,
+      "duration_candles": null
+    }
+  ]
+}

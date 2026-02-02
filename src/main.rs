@@ -4,6 +4,9 @@ mod state;
 mod engine;
 mod connect;
 mod backtest;
+mod policy;
+mod analytics;
+mod safemode;
 
 use tracing::{info, warn, error, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -12,6 +15,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use crate::state::SymbolContext;
 use crate::engine::SignalEngine;
+use crate::safemode::{SafeMode, CanaryDeployment, DeploymentMode};
 use futures_util::StreamExt;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use crate::types::WsStreamMessage;
@@ -38,7 +42,16 @@ fn default_mode() -> String { "live".to_string() }
 struct BacktestConfig {
     output_dir: String,
     days: i64,
+    #[serde(default)]
+    csv_file: Option<String>,
+    #[serde(default = "default_csv_symbol")]
+    csv_symbol: String,
+    #[serde(default = "default_csv_timeframe")]
+    csv_timeframe: String,
 }
+
+fn default_csv_symbol() -> String { "BTCUSDT".to_string() }
+fn default_csv_timeframe() -> String { "1h".to_string() }
 
 #[derive(Debug, Deserialize)]
 struct TradingConfig {
@@ -67,6 +80,18 @@ async fn main() -> anyhow::Result<()> {
 
     if conf.app.mode == "backtest" {
         if let Some(bt_conf) = conf.backtest {
+            // Check if CSV file is specified for local backtest
+            if let Some(csv_file) = bt_conf.csv_file {
+                info!("🗂️  Local CSV backtest mode");
+                return backtest::runner::run_csv_backtest(
+                    &csv_file,
+                    &bt_conf.csv_symbol,
+                    &bt_conf.csv_timeframe,
+                    &bt_conf.output_dir
+                ).await;
+            }
+            
+            // Default: API-based backtest
             return backtest::runner::run_backtest(
                 &conf.trading.symbols,
                 &conf.trading.timeframes,
@@ -81,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Live Mode devamı...
     // Init Engine & State
-    let engine = SignalEngine::new();
+    let mut engine = SignalEngine::new();
     let mut contexts: HashMap<String, SymbolContext> = HashMap::new();
     let client = connect::BinanceClient::new();
     

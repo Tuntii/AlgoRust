@@ -1,77 +1,416 @@
-use crate::types::{TradeSignal, SignalType, TrendState};
+use crate::types::{TradeSignal, SignalType, TrendState, RegimeContext, PositionPool, PositionPoolConfig, ContextId, ActiveTrade};
 use crate::state::SymbolContext;
+use crate::policy::PolicyEngine;
+use crate::analytics::{ScoreThreshold, BlockStats};
 use chrono::Utc;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
+use tracing::warn;
 
-pub struct SignalEngine;
+pub struct SignalEngine {
+    policy: PolicyEngine,
+    pub block_stats: BlockStats,
+    /// Multi-position pool for tracking active trades
+    pub position_pool: PositionPool,
+    /// Multi-position mode enabled
+    pub multi_position_enabled: bool,
+}
 
 impl SignalEngine {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            policy: PolicyEngine::new(),
+            block_stats: BlockStats::new(),
+            position_pool: PositionPool::new(),
+            multi_position_enabled: true, // Enable by default
+        }
+    }
+    
+    /// Create engine configured for backtest mode (shorter cooldowns)
+    pub fn new_backtest_mode() -> Self {
+        Self {
+            policy: PolicyEngine::new_backtest_mode(),
+            block_stats: BlockStats::new(),
+            position_pool: PositionPool::new(),
+            multi_position_enabled: true,
+        }
+    }
+    
+    /// Create engine with custom position pool config
+    pub fn with_position_config(config: PositionPoolConfig) -> Self {
+        Self {
+            policy: PolicyEngine::new(),
+            block_stats: BlockStats::new(),
+            position_pool: PositionPool::with_config(config),
+            multi_position_enabled: true,
+        }
+    }
+    
+    pub fn reset_stats(&mut self) {
+        self.block_stats = BlockStats::new();
+    }
+    
+    pub fn get_stats(&self) -> &BlockStats {
+        &self.block_stats
+    }
+    
+    /// Get the position pool
+    pub fn get_position_pool(&self) -> &PositionPool {
+        &self.position_pool
+    }
+    
+    /// Get mutable position pool
+    pub fn get_position_pool_mut(&mut self) -> &mut PositionPool {
+        &mut self.position_pool
+    }
+    
+    /// T1.4 — Record trade open (signal generated, position entered)
+    /// This marks that a trade is active for this symbol/tf
+    pub fn record_trade_open(&mut self, symbol: &str, timeframe: &str, candle_idx: usize) {
+        let context_key = format!("{}_{}", symbol, timeframe);
+        // When a signal is generated, we record it as the last signal time
+        // But now with new lifecycle, the trade is "open" until it closes
+        self.policy.cooldown_manager.record_signal(&context_key, candle_idx);
+    }
+    
+    /// T1.5 — Record trade close (TP/SL/BE hit)
+    /// This is when cooldown actually starts
+    pub fn record_trade_close(&mut self, symbol: &str, timeframe: &str, candle_idx: usize) {
+        let context_key = format!("{}_{}", symbol, timeframe);
+        self.policy.cooldown_manager.record_trade_close(&context_key, candle_idx);
+    }
+    
+    /// Record context-based trade close (MULTI-POSITION)
+    pub fn record_context_close(&mut self, context_id: &ContextId, timeframe: &str, candle_idx: usize) {
+        self.policy.cooldown_manager.record_context_close(context_id, candle_idx);
+        let _ = timeframe; // Used for cooldown duration calculation in cooldown manager
+    }
+    
+    /// Add a trade to the position pool
+    pub fn add_trade_to_pool(&mut self, trade: ActiveTrade) {
+        self.position_pool.add_trade(trade);
     }
 
-    pub fn evaluate(&self, ctx: &SymbolContext) -> Option<TradeSignal> {
+    pub fn evaluate(&mut self, ctx: &mut SymbolContext) -> Option<TradeSignal> {
+        self.block_stats.total_evaluations += 1;
+        
         let mut reasons = Vec::new();
-        let mut score = 0;
+        let mut score: i32 = 0;
         let mut signal_type = None;
 
-        let last_close = ctx.candles.back()?.close;
+        let last_candle = ctx.candles.back()?.clone();
+        let last_close = last_candle.close;
+        let candle_count = ctx.candles.len();
+        // Use total_candles_processed for cooldown (tracks absolute candle index)
+        let absolute_candle_idx = ctx.total_candles_processed;
+        let context_key = format!("{}_{}", ctx.symbol, ctx.timeframe);
 
+        // ============================================================
+        // PHASE 0: Foundation Checks
+        // ============================================================
+        
+        // T0.1 — Timeframe Policy Enforcement
+        if !self.policy.timeframe_policy.is_allowed(&ctx.symbol, &ctx.timeframe) {
+            if let Some(reason) = self.policy.timeframe_policy.get_block_reason(&ctx.symbol, &ctx.timeframe) {
+                warn!("🚫 {}", reason);
+            }
+            self.block_stats.policy_blocked += 1;
+            return None;
+        }
+        
+        // T0.2 — Bootstrap Integrity Gate
+        if !ctx.bootstrap.is_complete() {
+            if let Some(ref reason) = ctx.bootstrap.suppression_reason {
+                // Log only occasionally to avoid spam
+                if candle_count % 50 == 0 {
+                    warn!("⏳ {} {} - {}", ctx.symbol, ctx.timeframe, reason);
+                }
+            }
+            self.block_stats.bootstrap_incomplete += 1;
+            return None;
+        }
+        
+        // Generate context ID for this potential signal
+        let context_id = ctx.generate_context_id();
+        
+        // ============================================================
+        // MULTI-POSITION GUARDS (TASK 2)
+        // ============================================================
+        if self.multi_position_enabled {
+            // Guard 1: Check if we can open a new trade in the position pool
+            let (can_open, block_reason) = self.position_pool.can_open_trade(
+                &ctx.symbol,
+                &ctx.timeframe,
+                // We need to determine direction first, so we'll do a preliminary check
+                // For now, check with current trend direction
+                &match ctx.structure.trend {
+                    TrendState::Bullish => SignalType::LONG,
+                    TrendState::Bearish => SignalType::SHORT,
+                    TrendState::Neutral => SignalType::LONG, // Default
+                },
+                &context_id,
+            );
+            
+            if !can_open {
+                if let Some(reason) = &block_reason {
+                    if reason.contains("Max active trades") {
+                        self.block_stats.max_trades_reached += 1;
+                    } else if reason.contains("Context ID") {
+                        self.block_stats.duplicate_context += 1;
+                    } else if reason.contains("Hedge not allowed") {
+                        self.block_stats.hedge_blocked += 1;
+                    }
+                }
+                return None;
+            }
+            
+            // Guard 2: Context-based cooldown check
+            if self.policy.cooldown_manager.is_context_on_cooldown(&context_id, &ctx.timeframe, absolute_candle_idx) {
+                self.block_stats.context_cooldown_blocks += 1;
+                return None;
+            }
+        } else {
+            // LEGACY: Single position mode
+            // STEP 1: Block if there's an open trade (signal sent, not yet closed)
+            let has_open = self.policy.cooldown_manager.has_open_trade(&context_key);
+            if has_open {
+                self.block_stats.open_trade_blocks += 1;
+                return None;
+            }
+            
+            // STEP 2: Check actual cooldown (only after trade close)
+            if self.policy.cooldown_manager.is_on_cooldown(&context_key, absolute_candle_idx) {
+                self.block_stats.cooldown_blocks += 1;
+                return None;
+            }
+        }
+
+        // ============================================================
+        // PHASE 1: Regime & Quality Filters
+        // ============================================================
+        
+        let current_atr = ctx.atr_14.current_value.unwrap_or_default();
+        let atr_ratio = if !last_close.is_zero() { current_atr / last_close } else { Decimal::ZERO };
+        let median_ratio = ctx.get_median_atr_ratio();
+        let slope = ctx.get_ema50_slope();
+        
+        // T1.1 — Volatility Regime Filter
+        let (vol_penalty, vol_hard_block, vol_reason) = 
+            self.policy.volatility_filter.evaluate(&ctx.timeframe, atr_ratio, median_ratio);
+        
+        if vol_hard_block {
+            // Stats tracked, but no log spam
+            self.block_stats.low_atr_blocks += 1;
+            return None;
+        }
+        
+        if vol_penalty != 0 {
+            score += vol_penalty;
+            if let Some(reason) = vol_reason {
+                reasons.push(reason);
+            }
+        }
+        
+        // T1.2 — EMA Slope Filter
+        let is_low_atr = vol_penalty < 0;
+        let (slope_penalty, slope_hard_block, slope_reason) = 
+            self.policy.slope_filter.evaluate(slope, is_low_atr);
+        
+        if slope_hard_block {
+            // Stats tracked, but no log spam
+            self.block_stats.flat_ema_blocks += 1;
+            return None;
+        }
+        
+        if slope_penalty != 0 {
+            score += slope_penalty;
+            if let Some(reason) = slope_reason {
+                reasons.push(reason);
+            }
+        }
+
+        // ============================================================
+        // PHASE 3: Asset-Specific Filters
+        // ============================================================
+        
+        // T3.1 — Wick Trap Filter (SOL-focused)
+        let (wick_hard_block, _wick_reason) = 
+            self.policy.wick_trap_filter.evaluate(&ctx.symbol, &last_candle);
+        
+        if wick_hard_block {
+            // Stats tracked, but no log spam - use trace! for debug if needed
+            self.block_stats.wick_trap_blocks += 1;
+            return None;
+        }
+
+        // ============================================================
+        // PHASE 2: Structure Intelligence
+        // ============================================================
+
+        // === POSITIVE SCORING (TREND DIRECTION) ===
         match ctx.structure.trend {
             TrendState::Bullish => {
+                // HTF/LTF conflict check: Slope negative while trend bullish
+                if slope < Decimal::ZERO {
+                    score -= 20;
+                    reasons.push("⚠️ Trend/Slope conflict: Bullish trend but negative slope (-20)".to_string());
+                }
+
                 if ctx.just_confirmed_pivot_low {
-                     reasons.push("Bullish market structure confirmed".to_string());
-                     reasons.push("Fractal HL detected (Pivot Low confirmed)".to_string());
-                     reasons.push("EMA Alignment: 5>8>13>50>200".to_string());
-                     
-                     score += 30; // Structure
-                     score += 25; // EMA
-                     score += 20; // Pivot
-                     
-                     // Entry verification: Close > EMA50? (Already checked in TrendState, but explicit check good)
-                     if let (Some(e50), Some(e13)) = (ctx.ema_50.current_value, ctx.ema_13.current_value) {
-                         if last_close > e50 && last_close > e13 {
-                             score += 10; // Context Confluence
-                             reasons.push("Price above EMA13 & EMA50".to_string());
-                         }
-                     }
-                     
-                     signal_type = Some(SignalType::LONG);
+                    reasons.push("✅ Bullish market structure confirmed".to_string());
+                    reasons.push("✅ Fractal HL detected (Pivot Low confirmed)".to_string());
+                    reasons.push("✅ EMA Alignment: 5>8>13>50>200".to_string());
+                    
+                    score += 30; // Structure
+                    score += 25; // EMA
+                    score += 20; // Pivot
+                    
+                    // T2.1 — Liquidity-aware BOS
+                    let (bos_adj, _is_strong, bos_reason) = self.policy.liquidity_bos.evaluate(
+                        ctx.structure.bos_confirmed,
+                        ctx.structure.has_equal_highs,
+                        ctx.structure.has_equal_lows,
+                        ctx.structure.last_bos_displacement,
+                        true, // bullish
+                    );
+                    score += bos_adj;
+                    if let Some(reason) = bos_reason {
+                        reasons.push(reason);
+                    }
+                    
+                    // T2.2 — Pivot + Displacement Validation
+                    let (disp_adj, disp_reason) = 
+                        self.policy.displacement_validator.evaluate(&last_candle, true);
+                    score += disp_adj;
+                    if let Some(reason) = disp_reason {
+                        reasons.push(reason);
+                    }
+                    
+                    if let (Some(e50), Some(e13)) = (ctx.ema_50.current_value, ctx.ema_13.current_value) {
+                        if last_close > e50 && last_close > e13 {
+                            score += 10;
+                            reasons.push("✅ Price above EMA13 & EMA50 (+10)".to_string());
+                        }
+                    }
+                    
+                    // T3.2 — ETH Micro-Boost
+                    let (eth_bonus, eth_reason) = self.policy.eth_micro_boost.evaluate(
+                        &ctx.symbol,
+                        ctx.structure.has_equal_lows,
+                        last_close,
+                        ctx.ema_13.current_value,
+                        ctx.ema_50.current_value,
+                        true,
+                    );
+                    score += eth_bonus;
+                    if let Some(reason) = eth_reason {
+                        reasons.push(reason);
+                    }
+                    
+                    signal_type = Some(SignalType::LONG);
                 }
             },
             TrendState::Bearish => {
-                if ctx.just_confirmed_pivot_high {
-                     reasons.push("Bearish market structure confirmed".to_string());
-                     reasons.push("Fractal LH detected (Pivot High confirmed)".to_string());
-                     reasons.push("EMA Alignment: 5<8<13<50<200".to_string());
-                     
-                     score += 30; // Structure
-                     score += 25; // EMA
-                     score += 20; // Pivot
-                     
-                     if let (Some(e50), Some(e13)) = (ctx.ema_50.current_value, ctx.ema_13.current_value) {
-                         if last_close < e50 && last_close < e13 {
-                             score += 10;
-                             reasons.push("Price below EMA13 & EMA50".to_string());
-                         }
-                     }
+                // HTF/LTF conflict check
+                if slope > Decimal::ZERO {
+                    score -= 20;
+                    reasons.push("⚠️ Trend/Slope conflict: Bearish trend but positive slope (-20)".to_string());
+                }
 
-                     signal_type = Some(SignalType::SHORT);
+                if ctx.just_confirmed_pivot_high {
+                    reasons.push("✅ Bearish market structure confirmed".to_string());
+                    reasons.push("✅ Fractal LH detected (Pivot High confirmed)".to_string());
+                    reasons.push("✅ EMA Alignment: 5<8<13<50<200".to_string());
+                    
+                    score += 30; // Structure
+                    score += 25; // EMA
+                    score += 20; // Pivot
+                    
+                    // T2.1 — Liquidity-aware BOS
+                    let (bos_adj, _is_strong, bos_reason) = self.policy.liquidity_bos.evaluate(
+                        ctx.structure.bos_confirmed,
+                        ctx.structure.has_equal_highs,
+                        ctx.structure.has_equal_lows,
+                        ctx.structure.last_bos_displacement,
+                        false, // bearish
+                    );
+                    score += bos_adj;
+                    if let Some(reason) = bos_reason {
+                        reasons.push(reason);
+                    }
+                    
+                    // T2.2 — Pivot + Displacement Validation
+                    let (disp_adj, disp_reason) = 
+                        self.policy.displacement_validator.evaluate(&last_candle, false);
+                    score += disp_adj;
+                    if let Some(reason) = disp_reason {
+                        reasons.push(reason);
+                    }
+                    
+                    if let (Some(e50), Some(e13)) = (ctx.ema_50.current_value, ctx.ema_13.current_value) {
+                        if last_close < e50 && last_close < e13 {
+                            score += 10;
+                            reasons.push("✅ Price below EMA13 & EMA50 (+10)".to_string());
+                        }
+                    }
+                    
+                    // T3.2 — ETH Micro-Boost
+                    let (eth_bonus, eth_reason) = self.policy.eth_micro_boost.evaluate(
+                        &ctx.symbol,
+                        ctx.structure.has_equal_highs,
+                        last_close,
+                        ctx.ema_13.current_value,
+                        ctx.ema_50.current_value,
+                        false,
+                    );
+                    score += eth_bonus;
+                    if let Some(reason) = eth_reason {
+                        reasons.push(reason);
+                    }
+
+                    signal_type = Some(SignalType::SHORT);
                 }
             },
             _ => {}
         }
 
+        // ============================================================
+        // FINAL DECISION
+        // ============================================================
         if let Some(sig) = signal_type {
-            if score >= 70 {
-                 return Some(TradeSignal {
-                     symbol: ctx.symbol.clone(),
-                     timeframe: ctx.timeframe.clone(),
-                     signal: sig,
-                     price: last_close,
-                     confidence: score,
-                     timestamp: Utc::now(),
-                     reasons,
-                 });
+            // T4.2: Use timeframe-based threshold
+            let min_score = ScoreThreshold::min_score_for_tf(&ctx.timeframe);
+            
+            if score >= min_score {
+                // Record cooldown
+                self.policy.cooldown_manager.record_signal(&context_key, candle_count);
+                ctx.last_signal_candle = Some(candle_count);
+                
+                // T5.2: Build regime context
+                let hour_utc = Utc::now().format("%H").to_string().parse::<u32>().unwrap_or(12);
+                let regime_context = RegimeContext::determine(
+                    current_atr,
+                    ctx.get_avg_atr(),
+                    slope,
+                    hour_utc,
+                );
+
+                // Track signal generation
+                self.block_stats.total_signals_generated += 1;
+
+                // T6.1 & T6.2: Use TradeSignal::new for proper ID and versioning
+                return Some(TradeSignal::new(
+                    ctx.symbol.clone(),
+                    ctx.timeframe.clone(),
+                    sig,
+                    last_close,
+                    score,
+                    reasons,
+                    Some(regime_context),
+                ));
+            } else {
+                // Score too low
+                self.block_stats.score_too_low += 1;
             }
         }
         

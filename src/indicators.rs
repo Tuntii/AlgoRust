@@ -67,3 +67,52 @@ pub fn is_pivot_low(lows: &[Decimal], idx: usize) -> bool {
     
     left && right
 }
+
+#[derive(Debug, Clone)]
+pub struct Atr {
+    period: usize,
+    prev_close: Option<Decimal>,
+    pub current_value: Option<Decimal>,
+    alpha: Decimal, // 1/period for Wilder's smoothing
+}
+
+impl Atr {
+    pub fn new(period: usize) -> Self {
+        Self {
+            period,
+            prev_close: None,
+            current_value: None,
+            alpha: Decimal::ONE / Decimal::from(period),
+        }
+    }
+
+    pub fn update(&mut self, high: Decimal, low: Decimal, close: Decimal) -> Option<Decimal> {
+        let tr = match self.prev_close {
+            Some(prev) => {
+                let hl = high - low;
+                let hc = (high - prev).abs();
+                let lc = (low - prev).abs();
+                hl.max(hc).max(lc)
+            },
+            None => high - low,
+        };
+
+        self.prev_close = Some(close);
+
+        match self.current_value {
+            Some(prev_atr) => {
+                // RMA (Wilder's Smoothing): (Prev * (period-1) + TR) / period
+                // Equivalent to: Prev + alpha * (TR - Prev)
+                let new_atr = prev_atr + self.alpha * (tr - prev_atr);
+                self.current_value = Some(new_atr);
+            },
+            None => {
+                // Seed with TR
+                self.current_value = Some(tr);
+            }
+        }
+        
+        self.current_value
+    }
+}
+
