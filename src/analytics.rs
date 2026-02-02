@@ -33,6 +33,18 @@ pub struct BlockStats {
     pub duplicate_context: u32,       // Blocked because same context_id already active
     pub hedge_blocked: u32,           // Blocked because opposite direction trade exists
     pub context_cooldown_blocks: u32, // Blocked due to context-specific cooldown
+    
+    // Phase 8 Block Stats
+    pub trend_saturation_blocks: u32, // T8.3: Blocked due to weakening trend
+    pub weak_trade_replaced: u32,     // T8.2: Count of weak trades replaced
+    
+    // Phase 9 Stats
+    pub max_duration_exits: u32,      // T9.1: Trades forced closed due to max duration
+    pub be_applied_count: u32,        // T9.2: Trades where BE was applied
+    pub partial_tp_count: u32,        // T9.3: Partial TPs taken
+    
+    // Phase 10 Stats
+    pub kill_switch_triggered: u32,   // T10.2: Times kill switch was triggered
 }
 
 impl BlockStats {
@@ -56,6 +68,15 @@ impl BlockStats {
         self.duplicate_context += other.duplicate_context;
         self.hedge_blocked += other.hedge_blocked;
         self.context_cooldown_blocks += other.context_cooldown_blocks;
+        // Phase 8 blocks
+        self.trend_saturation_blocks += other.trend_saturation_blocks;
+        self.weak_trade_replaced += other.weak_trade_replaced;
+        // Phase 9 stats
+        self.max_duration_exits += other.max_duration_exits;
+        self.be_applied_count += other.be_applied_count;
+        self.partial_tp_count += other.partial_tp_count;
+        // Phase 10 stats
+        self.kill_switch_triggered += other.kill_switch_triggered;
     }
     
     pub fn total_blocks(&self) -> u32 {
@@ -71,7 +92,9 @@ impl BlockStats {
         self.max_trades_reached +
         self.duplicate_context +
         self.hedge_blocked +
-        self.context_cooldown_blocks
+        self.context_cooldown_blocks +
+        // Phase 8 blocks
+        self.trend_saturation_blocks
     }
     
     pub fn signal_rate(&self) -> f64 {
@@ -109,6 +132,13 @@ pub struct AdvancedMetrics {
     pub overlap_win_rate: f64,        // Win rate of overlapping trades
     pub overlap_pnl_r: f64,           // Total PnL from overlapping trades
     pub context_based_expectancy: HashMap<String, f64>, // Expectancy by context type
+    
+    // T10.1: Overlap Risk Metrics
+    pub pnl_by_overlap_count: HashMap<u32, f64>, // PnL grouped by how many concurrent trades
+    pub worst_overlap_drawdown: f64,             // Worst drawdown during overlap periods
+    pub overlap_1_pnl: f64,                      // PnL when 1 trade active
+    pub overlap_2_pnl: f64,                      // PnL when 2 trades active
+    pub overlap_3_pnl: f64,                      // PnL when 3+ trades active
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -201,6 +231,10 @@ impl AdvancedMetrics {
         // Context-based expectancy
         let context_based_expectancy = Self::calc_context_expectancy(trades);
         
+        // T10.1: Overlap Risk Metrics
+        let (pnl_by_overlap, worst_drawdown, overlap_1, overlap_2, overlap_3) = 
+            Self::calc_overlap_risk_metrics(trades);
+        
         Self {
             expectancy_r,
             max_consecutive_losses,
@@ -220,6 +254,12 @@ impl AdvancedMetrics {
             overlap_win_rate,
             overlap_pnl_r: overlap_pnl,
             context_based_expectancy,
+            // T10.1: Overlap Risk
+            pnl_by_overlap_count: pnl_by_overlap,
+            worst_overlap_drawdown: worst_drawdown,
+            overlap_1_pnl: overlap_1,
+            overlap_2_pnl: overlap_2,
+            overlap_3_pnl: overlap_3,
         }
     }
     
@@ -312,6 +352,63 @@ impl AdvancedMetrics {
         }
         
         result
+    }
+    
+    /// T10.1: Calculate overlap risk metrics
+    fn calc_overlap_risk_metrics(trades: &[TradeRecord]) -> (HashMap<u32, f64>, f64, f64, f64, f64) {
+        let mut pnl_by_overlap: HashMap<u32, f64> = HashMap::new();
+        let mut overlap_1_pnl = 0.0;
+        let mut overlap_2_pnl = 0.0;
+        let mut overlap_3_pnl = 0.0;
+        
+        // Calculate concurrent count for each trade
+        for (i, trade) in trades.iter().enumerate() {
+            let t_start = trade.opened_at_candle.unwrap_or(0);
+            let t_end = trade.exit_candle_idx.unwrap_or(t_start);
+            
+            let mut concurrent_count = 1u32;
+            
+            for (j, other) in trades.iter().enumerate() {
+                if i == j { continue; }
+                
+                let o_start = other.opened_at_candle.unwrap_or(0);
+                let o_end = other.exit_candle_idx.unwrap_or(o_start);
+                
+                // Check for overlap
+                if o_start <= t_end && o_end >= t_start {
+                    concurrent_count += 1;
+                }
+            }
+            
+            // Add PnL to the appropriate bucket
+            *pnl_by_overlap.entry(concurrent_count).or_insert(0.0) += trade.pnl_r;
+            
+            match concurrent_count {
+                1 => overlap_1_pnl += trade.pnl_r,
+                2 => overlap_2_pnl += trade.pnl_r,
+                _ => overlap_3_pnl += trade.pnl_r,
+            }
+        }
+        
+        // Calculate worst overlap drawdown (worst consecutive losing streak during overlap)
+        let mut worst_overlap_drawdown: f64 = 0.0;
+        let mut current_drawdown: f64 = 0.0;
+        
+        // Filter to overlapping trades only
+        let overlap_trades: Vec<&TradeRecord> = trades.iter()
+            .filter(|t| t.was_concurrent)
+            .collect();
+        
+        for trade in &overlap_trades {
+            if trade.pnl_r < 0.0 {
+                current_drawdown += trade.pnl_r;
+                worst_overlap_drawdown = worst_overlap_drawdown.min(current_drawdown);
+            } else {
+                current_drawdown = 0.0; // Reset on win
+            }
+        }
+        
+        (pnl_by_overlap, worst_overlap_drawdown.abs(), overlap_1_pnl, overlap_2_pnl, overlap_3_pnl)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::types::{TradeSignal, SignalType, TrendState, RegimeContext, PositionPool, PositionPoolConfig, ContextId, ActiveTrade};
+use crate::types::{TradeSignal, SignalType, TrendState, RegimeContext, PositionPool, PositionPoolConfig, ContextId, ActiveTrade, KillSwitchState};
 use crate::state::SymbolContext;
 use crate::policy::PolicyEngine;
 use crate::analytics::{ScoreThreshold, BlockStats};
@@ -6,6 +6,7 @@ use chrono::Utc;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
 use tracing::warn;
+use std::collections::HashMap;
 
 pub struct SignalEngine {
     policy: PolicyEngine,
@@ -14,6 +15,8 @@ pub struct SignalEngine {
     pub position_pool: PositionPool,
     /// Multi-position mode enabled
     pub multi_position_enabled: bool,
+    /// T11.3: Kill switch states per symbol+timeframe
+    pub kill_switch_states: HashMap<String, KillSwitchState>,
 }
 
 impl SignalEngine {
@@ -23,6 +26,7 @@ impl SignalEngine {
             block_stats: BlockStats::new(),
             position_pool: PositionPool::new(),
             multi_position_enabled: true, // Enable by default
+            kill_switch_states: HashMap::new(),
         }
     }
     
@@ -33,6 +37,7 @@ impl SignalEngine {
             block_stats: BlockStats::new(),
             position_pool: PositionPool::new(),
             multi_position_enabled: true,
+            kill_switch_states: HashMap::new(),
         }
     }
     
@@ -43,6 +48,7 @@ impl SignalEngine {
             block_stats: BlockStats::new(),
             position_pool: PositionPool::with_config(config),
             multi_position_enabled: true,
+            kill_switch_states: HashMap::new(),
         }
     }
     
@@ -84,6 +90,86 @@ impl SignalEngine {
     pub fn record_context_close(&mut self, context_id: &ContextId, timeframe: &str, candle_idx: usize) {
         self.policy.cooldown_manager.record_context_close(context_id, candle_idx);
         let _ = timeframe; // Used for cooldown duration calculation in cooldown manager
+    }
+    
+    /// T11: Record trade result for kill switch tracking (per symbol+TF)
+    /// Now uses STICKY kill switch that doesn't auto-reset on profit
+    pub fn record_trade_result(
+        &mut self, 
+        symbol: &str, 
+        timeframe: &str, 
+        is_win: bool,
+        current_candle: usize,
+        ema50_slope: Option<Decimal>,
+        atr: Option<Decimal>,
+    ) {
+        let key = format!("{}_{}", symbol, timeframe);
+        let state = self.kill_switch_states.entry(key.clone()).or_insert_with(KillSwitchState::new);
+        let config = &self.position_pool.config;
+        
+        // Record the trade result
+        state.record_result(is_win);
+        
+        // Check if kill switch should be ACTIVATED
+        if !state.active && state.consecutive_losses >= config.kill_switch_consec_losses {
+            state.activate(current_candle, ema50_slope, atr);
+            self.block_stats.kill_switch_triggered += 1;
+            warn!("🔴 KILL SWITCH ACTIVATED for {} - {} consecutive losses (min {} candles before reset)", 
+                  key, state.consecutive_losses, config.kill_switch_min_duration);
+        }
+    }
+    
+    /// T11.2: Try to reset kill switch if conditions are met
+    /// Called every candle to check reset conditions
+    pub fn try_reset_kill_switch(
+        &mut self,
+        symbol: &str,
+        timeframe: &str,
+        current_candle: usize,
+        current_ema50_slope: Option<Decimal>,
+        current_atr: Option<Decimal>,
+        median_atr: Option<Decimal>,
+    ) -> bool {
+        let key = format!("{}_{}", symbol, timeframe);
+        let config = &self.position_pool.config;
+        
+        if let Some(state) = self.kill_switch_states.get_mut(&key) {
+            if state.can_reset(
+                current_candle,
+                config.kill_switch_min_duration,
+                config.kill_switch_reset_wins,
+                current_ema50_slope,
+                current_atr,
+                median_atr,
+            ) {
+                state.reset();
+                warn!("🟢 KILL SWITCH RESET for {} - conditions met ({}+ wins, slope positive, ATR OK)", 
+                      key, config.kill_switch_reset_wins);
+                return true;
+            }
+        }
+        false
+    }
+    
+    /// T11.3: Check if kill switch is active for specific symbol+TF
+    pub fn is_kill_switch_active(&self, symbol: &str, timeframe: &str) -> bool {
+        let key = format!("{}_{}", symbol, timeframe);
+        self.kill_switch_states.get(&key).map(|s| s.active).unwrap_or(false)
+    }
+    
+    /// T11: Get kill switch state for debugging/logging
+    pub fn get_kill_switch_state(&self, symbol: &str, timeframe: &str) -> Option<&KillSwitchState> {
+        let key = format!("{}_{}", symbol, timeframe);
+        self.kill_switch_states.get(&key)
+    }
+    
+    /// T11: Manually reset kill switch (for testing)
+    pub fn force_reset_kill_switch(&mut self, symbol: &str, timeframe: &str) {
+        let key = format!("{}_{}", symbol, timeframe);
+        if let Some(state) = self.kill_switch_states.get_mut(&key) {
+            state.reset();
+            state.consecutive_losses = 0;
+        }
     }
     
     /// Add a trade to the position pool
@@ -133,21 +219,25 @@ impl SignalEngine {
         // Generate context ID for this potential signal
         let context_id = ctx.generate_context_id();
         
+        // Get current EMA50 slope for T8.3 trend saturation check
+        let current_slope = ctx.get_ema50_slope();
+        
+        // Determine direction from current trend
+        let direction = match ctx.structure.trend {
+            TrendState::Bullish => SignalType::LONG,
+            TrendState::Bearish => SignalType::SHORT,
+            TrendState::Neutral => SignalType::LONG, // Default
+        };
+        
         // ============================================================
-        // MULTI-POSITION GUARDS (TASK 2)
+        // MULTI-POSITION GUARDS (TASK 2 + PHASE 8)
         // ============================================================
         if self.multi_position_enabled {
             // Guard 1: Check if we can open a new trade in the position pool
             let (can_open, block_reason) = self.position_pool.can_open_trade(
                 &ctx.symbol,
                 &ctx.timeframe,
-                // We need to determine direction first, so we'll do a preliminary check
-                // For now, check with current trend direction
-                &match ctx.structure.trend {
-                    TrendState::Bullish => SignalType::LONG,
-                    TrendState::Bearish => SignalType::SHORT,
-                    TrendState::Neutral => SignalType::LONG, // Default
-                },
+                &direction,
                 &context_id,
             );
             
@@ -167,6 +257,13 @@ impl SignalEngine {
             // Guard 2: Context-based cooldown check
             if self.policy.cooldown_manager.is_context_on_cooldown(&context_id, &ctx.timeframe, absolute_candle_idx) {
                 self.block_stats.context_cooldown_blocks += 1;
+                return None;
+            }
+            
+            // T8.3: Trend Saturation Guard
+            // Block new entries if slope is weakening compared to existing trades
+            if self.position_pool.is_trend_saturated(&ctx.symbol, &ctx.timeframe, current_slope, &direction) {
+                self.block_stats.trend_saturation_blocks += 1;
                 return None;
             }
         } else {
@@ -382,6 +479,9 @@ impl SignalEngine {
             let min_score = ScoreThreshold::min_score_for_tf(&ctx.timeframe);
             
             if score >= min_score {
+                // Store context ID in context for later use
+                ctx.current_context_id = Some(context_id.clone());
+                
                 // Record cooldown
                 self.policy.cooldown_manager.record_signal(&context_key, candle_count);
                 ctx.last_signal_candle = Some(candle_count);
@@ -394,20 +494,51 @@ impl SignalEngine {
                     slope,
                     hour_utc,
                 );
+                
+                // TASK 5: Risk normalization - adjust confidence based on active trades
+                let base_confidence = score.clamp(0, 100) as u8;
+                let adjusted_confidence = if self.multi_position_enabled {
+                    self.position_pool.calculate_adjusted_confidence(
+                        &ctx.symbol,
+                        &ctx.timeframe,
+                        base_confidence,
+                    )
+                } else {
+                    base_confidence
+                };
+                
+                // Add confidence adjustment reason if reduced
+                if adjusted_confidence < base_confidence {
+                    let active_count = self.position_pool.active_count(&ctx.symbol, &ctx.timeframe);
+                    reasons.push(format!(
+                        "⚠️ Confidence reduced: {} active trades ({}% → {}%)",
+                        active_count, base_confidence, adjusted_confidence
+                    ));
+                }
 
                 // Track signal generation
                 self.block_stats.total_signals_generated += 1;
 
                 // T6.1 & T6.2: Use TradeSignal::new for proper ID and versioning
-                return Some(TradeSignal::new(
+                let mut signal = TradeSignal::new(
                     ctx.symbol.clone(),
                     ctx.timeframe.clone(),
                     sig,
                     last_close,
-                    score,
+                    adjusted_confidence as i32, // Use adjusted confidence
                     reasons,
                     Some(regime_context),
-                ));
+                );
+                
+                // Override confidence with adjusted value
+                signal.confidence = adjusted_confidence;
+                signal.confidence_tier = match adjusted_confidence {
+                    80..=100 => "high",
+                    65..=79 => "medium",
+                    _ => "low",
+                }.to_string();
+                
+                return Some(signal);
             } else {
                 // Score too low
                 self.block_stats.score_too_low += 1;

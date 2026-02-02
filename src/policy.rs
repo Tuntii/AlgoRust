@@ -9,44 +9,139 @@ use crate::types::Candle;
 use crate::analytics::{PenaltyEngine, PenaltyReason, ScoreThreshold};
 
 // ============================================================
-// T0.1 — Timeframe Policy Enforcement
+// FINAL TASK 1 — Asset/TF Whitelist (Edge Preservation)
 // ============================================================
 
+/// Trading mode for a symbol/timeframe combination
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TradingMode {
+    /// Active: Signals can generate real trades
+    Active,
+    /// Shadow: Signals logged but no trades (research mode)
+    Shadow,
+    /// Blocked: No signal generation at all
+    Blocked,
+}
+
 /// Asset/Timeframe policy table
-/// Returns false for disallowed combinations
+/// Returns trading mode for each combination
 pub struct TimeframePolicy {
-    blocked: HashSet<(String, String)>, // (symbol, timeframe)
+    /// Active trading pairs (whitelist)
+    active_pairs: HashSet<(String, String)>,
+    /// Shadow mode pairs (research only)
+    shadow_pairs: HashSet<(String, String)>,
+    /// Explicitly blocked pairs
+    blocked_pairs: HashSet<(String, String)>,
 }
 
 impl TimeframePolicy {
     pub fn new() -> Self {
-        let mut blocked = HashSet::new();
+        let mut active_pairs = HashSet::new();
+        let mut shadow_pairs = HashSet::new();
+        let blocked_pairs = HashSet::new();
         
-        // BTC: ❌ 5m
-        blocked.insert(("BTCUSDT".to_string(), "5m".to_string()));
+        // ═══════════════════════════════════════════════════════
+        // FT1: ACTIVE WHITELIST (Edge-verified combinations)
+        // ═══════════════════════════════════════════════════════
         
-        // ETH: ❌ 1d
-        blocked.insert(("ETHUSDT".to_string(), "1d".to_string()));
+        // BTC: 1h, 4h only
+        active_pairs.insert(("BTCUSDT".to_string(), "1h".to_string()));
+        active_pairs.insert(("BTCUSDT".to_string(), "4h".to_string()));
         
-        // SOL: ❌ 5m, ❌ 30m
-        blocked.insert(("SOLUSDT".to_string(), "5m".to_string()));
-        blocked.insert(("SOLUSDT".to_string(), "30m".to_string()));
+        // ETH: 15m, 30m, 1h only
+        active_pairs.insert(("ETHUSDT".to_string(), "15m".to_string()));
+        active_pairs.insert(("ETHUSDT".to_string(), "30m".to_string()));
+        active_pairs.insert(("ETHUSDT".to_string(), "1h".to_string()));
         
-        Self { blocked }
+        // ═══════════════════════════════════════════════════════
+        // FT1: SHADOW MODE (Research/comparison only)
+        // ═══════════════════════════════════════════════════════
+        
+        // BTC shadow timeframes
+        shadow_pairs.insert(("BTCUSDT".to_string(), "5m".to_string()));
+        shadow_pairs.insert(("BTCUSDT".to_string(), "15m".to_string()));
+        shadow_pairs.insert(("BTCUSDT".to_string(), "30m".to_string()));
+        shadow_pairs.insert(("BTCUSDT".to_string(), "1d".to_string()));
+        
+        // ETH shadow timeframes
+        shadow_pairs.insert(("ETHUSDT".to_string(), "5m".to_string()));
+        shadow_pairs.insert(("ETHUSDT".to_string(), "4h".to_string()));
+        shadow_pairs.insert(("ETHUSDT".to_string(), "1d".to_string()));
+        
+        // SOL all shadow (not enough edge data)
+        shadow_pairs.insert(("SOLUSDT".to_string(), "5m".to_string()));
+        shadow_pairs.insert(("SOLUSDT".to_string(), "15m".to_string()));
+        shadow_pairs.insert(("SOLUSDT".to_string(), "30m".to_string()));
+        shadow_pairs.insert(("SOLUSDT".to_string(), "1h".to_string()));
+        shadow_pairs.insert(("SOLUSDT".to_string(), "4h".to_string()));
+        shadow_pairs.insert(("SOLUSDT".to_string(), "1d".to_string()));
+        
+        Self { active_pairs, shadow_pairs, blocked_pairs }
     }
     
-    /// Check if symbol/timeframe combination is allowed for trading
+    /// FT1: Backtest mode - all pairs are active (no policy filtering)
+    pub fn new_backtest() -> Self {
+        // In backtest mode, we allow ALL pairs to generate signals
+        Self {
+            active_pairs: HashSet::new(),   // Empty = allow all
+            shadow_pairs: HashSet::new(),
+            blocked_pairs: HashSet::new(),
+        }
+    }
+    
+    /// Check if in backtest mode (empty active_pairs means all allowed)
+    fn is_backtest_mode(&self) -> bool {
+        self.active_pairs.is_empty() && self.shadow_pairs.is_empty() && self.blocked_pairs.is_empty()
+    }
+    
+    /// Get trading mode for symbol/timeframe
+    pub fn get_mode(&self, symbol: &str, timeframe: &str) -> TradingMode {
+        // Backtest mode: all pairs are active
+        if self.is_backtest_mode() {
+            return TradingMode::Active;
+        }
+        
+        let key = (symbol.to_string(), timeframe.to_string());
+        
+        if self.blocked_pairs.contains(&key) {
+            TradingMode::Blocked
+        } else if self.active_pairs.contains(&key) {
+            TradingMode::Active
+        } else if self.shadow_pairs.contains(&key) {
+            TradingMode::Shadow
+        } else {
+            // Default: shadow mode for unknown pairs
+            TradingMode::Shadow
+        }
+    }
+    
+    /// Check if symbol/timeframe combination is allowed for trading (active only)
     pub fn is_allowed(&self, symbol: &str, timeframe: &str) -> bool {
-        !self.blocked.contains(&(symbol.to_string(), timeframe.to_string()))
+        self.get_mode(symbol, timeframe) == TradingMode::Active
+    }
+    
+    /// Check if signal generation is allowed (active or shadow)
+    pub fn can_generate_signal(&self, symbol: &str, timeframe: &str) -> bool {
+        matches!(self.get_mode(symbol, timeframe), TradingMode::Active | TradingMode::Shadow)
     }
     
     /// Get rejection reason if blocked
     pub fn get_block_reason(&self, symbol: &str, timeframe: &str) -> Option<String> {
-        if self.blocked.contains(&(symbol.to_string(), timeframe.to_string())) {
-            Some(format!("Policy violation: {} {} is blocked for trading", symbol, timeframe))
-        } else {
-            None
+        match self.get_mode(symbol, timeframe) {
+            TradingMode::Blocked => Some(format!("Policy violation: {} {} is blocked", symbol, timeframe)),
+            TradingMode::Shadow => Some(format!("Shadow mode: {} {} (research only, no trades)", symbol, timeframe)),
+            TradingMode::Active => None,
         }
+    }
+    
+    /// Get list of active pairs
+    pub fn get_active_pairs(&self) -> Vec<(String, String)> {
+        self.active_pairs.iter().cloned().collect()
+    }
+    
+    /// Get list of shadow pairs
+    pub fn get_shadow_pairs(&self) -> Vec<(String, String)> {
+        self.shadow_pairs.iter().cloned().collect()
     }
 }
 
@@ -700,9 +795,10 @@ impl PolicyEngine {
     }
     
     /// T1 Cooldown Fix: Create engine with backtest mode (shorter cooldowns)
+    /// FT1: In backtest mode, all pairs are active (no policy filtering)
     pub fn new_backtest_mode() -> Self {
         Self {
-            timeframe_policy: TimeframePolicy::new(),
+            timeframe_policy: TimeframePolicy::new_backtest(),
             volatility_filter: VolatilityFilter::new(),
             slope_filter: SlopeFilter::new(),
             cooldown_manager: CooldownManager::with_backtest_mode(true),

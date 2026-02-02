@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 use chrono::{DateTime, Utc, Duration};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
+use serde::{Serialize, Deserialize};
 use tracing::{warn, info, error};
 
 use crate::types::Candle;
@@ -497,6 +499,275 @@ impl std::fmt::Display for PaperSummary {
             self.wins,
             self.losses,
             self.total_r
+        )
+    }
+}
+
+// =============================================================================
+// FINAL TASK 2 — Live Safe Mode Guard
+// =============================================================================
+
+/// FT2: Live safety guard that blocks signals when data integrity is compromised
+#[derive(Debug, Clone, Default)]
+pub struct LiveSafeGuard {
+    /// Last candle timestamp per symbol+TF
+    last_candle_time: std::collections::HashMap<String, DateTime<Utc>>,
+    /// Missing candle count per symbol+TF
+    missing_candle_count: std::collections::HashMap<String, u32>,
+    /// WS lag detected per symbol+TF  
+    ws_lag_detected: std::collections::HashMap<String, bool>,
+    /// EMA seed status per symbol+TF
+    ema_seeded: std::collections::HashMap<String, bool>,
+    /// Max allowed missing candles before blocking
+    max_missing_candles: u32,
+    /// Max WS lag in seconds before blocking
+    max_ws_lag_seconds: i64,
+}
+
+impl LiveSafeGuard {
+    pub fn new() -> Self {
+        Self {
+            last_candle_time: std::collections::HashMap::new(),
+            missing_candle_count: std::collections::HashMap::new(),
+            ws_lag_detected: std::collections::HashMap::new(),
+            ema_seeded: std::collections::HashMap::new(),
+            max_missing_candles: 2,
+            max_ws_lag_seconds: 10,
+        }
+    }
+    
+    /// FT2: Check if signal generation is safe
+    /// Returns (is_safe, reason) - if not safe, reason explains why
+    pub fn is_signal_safe(&self, symbol: &str, timeframe: &str) -> (bool, Option<String>) {
+        let key = format!("{}_{}", symbol, timeframe);
+        
+        // Check 1: EMA seed status
+        if !self.ema_seeded.get(&key).copied().unwrap_or(false) {
+            return (false, Some("EMA indicators not seeded - NO SIGNAL".to_string()));
+        }
+        
+        // Check 2: Missing candles
+        let missing = self.missing_candle_count.get(&key).copied().unwrap_or(0);
+        if missing > self.max_missing_candles {
+            return (false, Some(format!("Missing {} candles - NO SIGNAL", missing)));
+        }
+        
+        // Check 3: WS lag
+        if self.ws_lag_detected.get(&key).copied().unwrap_or(false) {
+            return (false, Some("WebSocket lag detected - NO SIGNAL".to_string()));
+        }
+        
+        (true, None)
+    }
+    
+    /// Update candle arrival and check for gaps
+    pub fn record_candle(&mut self, symbol: &str, timeframe: &str, candle_time: DateTime<Utc>) {
+        let key = format!("{}_{}", symbol, timeframe);
+        
+        if let Some(last_time) = self.last_candle_time.get(&key) {
+            let expected_gap = Self::expected_gap_seconds(timeframe);
+            let actual_gap = candle_time.signed_duration_since(*last_time).num_seconds();
+            
+            // Check for missing candles (gap > 1.5x expected)
+            if actual_gap > (expected_gap as f64 * 1.5) as i64 {
+                let missing = ((actual_gap / expected_gap) - 1).max(0) as u32;
+                *self.missing_candle_count.entry(key.clone()).or_insert(0) += missing;
+                warn!("⚠️ Missing {} candle(s) on {} (gap: {}s, expected: {}s)", 
+                      missing, key, actual_gap, expected_gap);
+            } else {
+                // Reset missing count on successful candle
+                self.missing_candle_count.insert(key.clone(), 0);
+            }
+        }
+        
+        self.last_candle_time.insert(key, candle_time);
+    }
+    
+    /// Check for WS lag (called on each WS message)
+    pub fn check_ws_lag(&mut self, symbol: &str, timeframe: &str, server_time: DateTime<Utc>) {
+        let key = format!("{}_{}", symbol, timeframe);
+        let now = Utc::now();
+        let lag = now.signed_duration_since(server_time).num_seconds().abs();
+        
+        if lag > self.max_ws_lag_seconds {
+            warn!("⚠️ WS lag detected on {}: {}s", key, lag);
+            self.ws_lag_detected.insert(key, true);
+        } else {
+            self.ws_lag_detected.insert(key, false);
+        }
+    }
+    
+    /// Update EMA seed status
+    pub fn set_ema_seeded(&mut self, symbol: &str, timeframe: &str, seeded: bool) {
+        let key = format!("{}_{}", symbol, timeframe);
+        self.ema_seeded.insert(key, seeded);
+    }
+    
+    /// Reset WS lag flag (called after recovery)
+    pub fn reset_ws_lag(&mut self, symbol: &str, timeframe: &str) {
+        let key = format!("{}_{}", symbol, timeframe);
+        self.ws_lag_detected.insert(key, false);
+    }
+    
+    fn expected_gap_seconds(timeframe: &str) -> i64 {
+        match timeframe {
+            "1m" => 60,
+            "3m" => 180,
+            "5m" => 300,
+            "15m" => 900,
+            "30m" => 1800,
+            "1h" => 3600,
+            "2h" => 7200,
+            "4h" => 14400,
+            "6h" => 21600,
+            "8h" => 28800,
+            "12h" => 43200,
+            "1d" => 86400,
+            _ => 3600,
+        }
+    }
+}
+
+// =============================================================================
+// FINAL TASK 4 — Shadow Live Mode (2 weeks comparison)
+// =============================================================================
+
+/// FT4: Shadow signal for live/backtest comparison
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShadowSignal {
+    pub signal_id: String,
+    pub symbol: String,
+    pub timeframe: String,
+    pub direction: String,
+    pub entry_price: Decimal,
+    pub sl_price: Decimal,
+    pub tp_price: Decimal,
+    pub confidence: u8,
+    pub context_id: String,
+    pub reasons: Vec<String>,
+    pub timestamp: DateTime<Utc>,
+    pub candle_idx: usize,
+    /// Outcome tracking (filled after resolution)
+    pub outcome: Option<String>,
+    pub exit_price: Option<Decimal>,
+    pub pnl_r: Option<Decimal>,
+}
+
+/// FT4: Shadow mode tracker for live/backtest signal comparison
+#[derive(Debug, Clone, Default)]
+pub struct ShadowLiveTracker {
+    /// All shadow signals generated
+    pub signals: Vec<ShadowSignal>,
+    /// Start time of shadow period
+    pub started_at: Option<DateTime<Utc>>,
+    /// Whether shadow mode is active
+    pub is_active: bool,
+    /// Shadow period duration (default 2 weeks)
+    pub duration_days: i64,
+}
+
+impl ShadowLiveTracker {
+    pub fn new() -> Self {
+        Self {
+            signals: Vec::new(),
+            started_at: None,
+            is_active: false,
+            duration_days: 14, // 2 weeks
+        }
+    }
+    
+    /// Start shadow mode
+    pub fn start(&mut self) {
+        self.started_at = Some(Utc::now());
+        self.is_active = true;
+        info!("🌑 Shadow Live Mode STARTED - {} days comparison period", self.duration_days);
+    }
+    
+    /// Check if shadow period has ended
+    pub fn is_period_complete(&self) -> bool {
+        if let Some(started) = self.started_at {
+            let elapsed = Utc::now().signed_duration_since(started).num_days();
+            elapsed >= self.duration_days
+        } else {
+            false
+        }
+    }
+    
+    /// Record a shadow signal (no actual trade)
+    pub fn record_signal(&mut self, signal: ShadowSignal) {
+        if self.is_active {
+            info!("🌑 SHADOW SIGNAL: {} {} {:?} @ {} (conf: {})", 
+                  signal.symbol, signal.timeframe, signal.direction, 
+                  signal.entry_price, signal.confidence);
+            self.signals.push(signal);
+        }
+    }
+    
+    /// Update signal outcome (when SL/TP would have been hit)
+    pub fn update_outcome(&mut self, signal_id: &str, outcome: &str, exit_price: Decimal, pnl_r: Decimal) {
+        if let Some(sig) = self.signals.iter_mut().find(|s| s.signal_id == signal_id) {
+            sig.outcome = Some(outcome.to_string());
+            sig.exit_price = Some(exit_price);
+            sig.pnl_r = Some(pnl_r);
+        }
+    }
+    
+    /// Get shadow mode summary
+    pub fn summary(&self) -> ShadowSummary {
+        let completed: Vec<_> = self.signals.iter()
+            .filter(|s| s.outcome.is_some())
+            .collect();
+        
+        let wins = completed.iter().filter(|s| s.outcome.as_deref() == Some("WIN")).count();
+        let losses = completed.iter().filter(|s| s.outcome.as_deref() == Some("LOSS")).count();
+        let be = completed.iter().filter(|s| s.outcome.as_deref() == Some("BE")).count();
+        
+        let total_pnl: Decimal = completed.iter()
+            .filter_map(|s| s.pnl_r)
+            .sum();
+        
+        ShadowSummary {
+            total_signals: self.signals.len(),
+            completed: completed.len(),
+            wins,
+            losses,
+            be,
+            total_pnl_r: total_pnl.to_f64().unwrap_or(0.0),
+            started_at: self.started_at,
+            is_active: self.is_active,
+        }
+    }
+    
+    /// Export signals to JSON for comparison
+    pub fn export_json(&self) -> String {
+        serde_json::to_string_pretty(&self.signals).unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ShadowSummary {
+    pub total_signals: usize,
+    pub completed: usize,
+    pub wins: usize,
+    pub losses: usize,
+    pub be: usize,
+    pub total_pnl_r: f64,
+    pub started_at: Option<DateTime<Utc>>,
+    pub is_active: bool,
+}
+
+impl std::fmt::Display for ShadowSummary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "🌑 Shadow Mode: {} | Signals: {} | Completed: {} (W:{}/L:{}/BE:{}) | PnL: {:.2}R",
+            if self.is_active { "ACTIVE" } else { "INACTIVE" },
+            self.total_signals,
+            self.completed,
+            self.wins,
+            self.losses,
+            self.be,
+            self.total_pnl_r
         )
     }
 }

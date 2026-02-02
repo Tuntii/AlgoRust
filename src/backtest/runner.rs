@@ -4,7 +4,7 @@ use chrono::{DateTime, Duration, Utc, TimeZone, NaiveDateTime};
 use std::fs::{self, File};
 use std::io::{Write, BufRead, BufReader};
 use std::path::Path;
-use crate::types::{TradeSignal, Candle, SignalType, TrendState, RegimeContext};
+use crate::types::{TradeSignal, Candle, SignalType, TrendState, RegimeContext, ContextId, ActiveTrade, PositionPool, PositionPoolConfig};
 use crate::state::SymbolContext;
 use crate::engine::SignalEngine;
 use crate::connect::BinanceClient;
@@ -74,6 +74,7 @@ struct SimulatedTrade {
     signal: TradeSignal,
     entry_price: Decimal,
     sl_price: Decimal,
+    original_sl_price: Decimal, // T9.2: For BE tracking
     tp_price: Decimal,
     exit_price: Option<Decimal>,
     pnl_r: Option<Decimal>,
@@ -82,6 +83,16 @@ struct SimulatedTrade {
     entry_candle_idx: usize,
     exit_candle_idx: Option<usize>,
     duration_candles: Option<u32>,
+    // MULTI-POSITION: Context tracking
+    context_id: Option<ContextId>,
+    adjusted_confidence: u8,
+    was_concurrent: bool, // True if overlapped with another trade
+    // T8.2: Context score for ranking
+    context_score: i32,
+    // T8.3: EMA50 slope at entry
+    ema50_slope_at_entry: Option<Decimal>,
+    // T9.2: BE tracking
+    is_be_applied: bool,
 }
 
 pub async fn run_backtest(
@@ -97,7 +108,7 @@ pub async fn run_backtest(
     fs::create_dir_all(output_dir)?;
     
     let client = BinanceClient::new();
-    let mut engine = SignalEngine::new();
+    let mut engine = SignalEngine::new_backtest_mode(); // Backtest mode: bypasses policy
     let policy = TimeframePolicy::new();
     
     // Summary tracking
@@ -114,7 +125,8 @@ pub async fn run_backtest(
     for symbol in symbols {
         for interval in timeframes {
             // T0.1 — Timeframe Policy Enforcement
-            if !policy.is_allowed(symbol, interval) {
+            // Backtest: Allow both Active AND Shadow mode pairs for testing
+            if !policy.can_generate_signal(symbol, interval) {
                 warn!("🚫 Skipping {} {} - blocked by policy", symbol, interval);
                 continue;
             }
@@ -145,13 +157,43 @@ pub async fn run_backtest(
                             let entry = candle.close;
                             let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry);
                             
+                            // Get context ID from context (set during evaluate)
+                            let context_id = ctx.current_context_id.clone();
+                            let adjusted_confidence = signal.confidence;
+                            
+                            // T8.2: Get context score from signal
+                            let context_score = signal.confidence as i32;
+                            
+                            // T8.3: Get EMA50 slope at entry
+                            let ema50_slope = ctx.get_ema50_slope();
+                            
+                            // Check if this trade overlaps with existing trades
+                            let active_count = engine.get_position_pool().active_count(symbol, interval);
+                            let was_concurrent = active_count > 0;
+                            
                             // T1.4: Record trade open
                             engine.record_trade_open(symbol, interval, candle_idx);
+                            
+                            // Create ActiveTrade for position pool
+                            if let Some(ref ctx_id) = context_id {
+                                let active_trade = ActiveTrade::new(
+                                    signal.clone(),
+                                    entry,
+                                    sl,
+                                    tp,
+                                    ctx_id.clone(),
+                                    candle_idx,
+                                )
+                                .with_context_score(context_score)
+                                .with_ema50_slope(ema50_slope);
+                                engine.add_trade_to_pool(active_trade);
+                            }
                             
                             trades.push(SimulatedTrade {
                                 signal,
                                 entry_price: entry,
                                 sl_price: sl,
+                                original_sl_price: sl,
                                 tp_price: tp,
                                 exit_price: None,
                                 pnl_r: None,
@@ -159,10 +201,18 @@ pub async fn run_backtest(
                                 entry_candle_idx: candle_idx,
                                 exit_candle_idx: None,
                                 duration_candles: None,
+                                context_id,
+                                adjusted_confidence,
+                                was_concurrent,
+                                context_score,
+                                ema50_slope_at_entry: Some(ema50_slope),
+                                is_be_applied: false,
                             });
                         }
                         
                          // 3. Açık pozisyonları yönet (Simülasyon)
+                        let pool_config = engine.get_position_pool().config.clone();
+                        
                         for trade in trades.iter_mut() {
                             if trade.outcome.is_some() { continue; } // Zaten kapandı
 
@@ -172,41 +222,88 @@ pub async fn run_backtest(
                             }
                             
                             let mut just_closed = false;
+                            let current_duration = (candle_idx - trade.entry_candle_idx) as u32;
                             
-                            // High/Low kontrolü
-                            match trade.signal.signal {
-                                SignalType::LONG => {
-                                    if candle.low <= trade.sl_price {
-                                        trade.outcome = Some("LOSS".to_string());
-                                        trade.exit_price = Some(trade.sl_price);
-                                        trade.pnl_r = Some(Decimal::from(-1));
-                                        trade.exit_candle_idx = Some(candle_idx);
-                                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                                        just_closed = true;
-                                    } else if candle.high >= trade.tp_price {
-                                        trade.outcome = Some("WIN".to_string());
-                                        trade.exit_price = Some(trade.tp_price);
-                                        trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
-                                        trade.exit_candle_idx = Some(candle_idx);
-                                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                                        just_closed = true;
-                                    }
-                                },
-                                SignalType::SHORT => {
-                                    if candle.high >= trade.sl_price {
-                                        trade.outcome = Some("LOSS".to_string());
-                                        trade.exit_price = Some(trade.sl_price);
-                                        trade.pnl_r = Some(Decimal::from(-1));
-                                        trade.exit_candle_idx = Some(candle_idx);
-                                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                                        just_closed = true;
-                                    } else if candle.low <= trade.tp_price {
-                                        trade.outcome = Some("WIN".to_string());
-                                        trade.exit_price = Some(trade.tp_price);
-                                        trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
-                                        trade.exit_candle_idx = Some(candle_idx);
-                                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                                        just_closed = true;
+                            // T9.1: Max Duration HARD CAP
+                            if current_duration >= pool_config.max_trade_duration_candles {
+                                let risk = (trade.entry_price - trade.original_sl_price).abs();
+                                let unrealized_pnl = match trade.signal.signal {
+                                    SignalType::LONG => (candle.close - trade.entry_price) / risk,
+                                    SignalType::SHORT => (trade.entry_price - candle.close) / risk,
+                                };
+                                
+                                trade.outcome = Some("MAX_DURATION".to_string());
+                                trade.exit_price = Some(candle.close);
+                                trade.pnl_r = Some(unrealized_pnl);
+                                trade.exit_candle_idx = Some(candle_idx);
+                                trade.duration_candles = Some(current_duration);
+                                just_closed = true;
+                                engine.block_stats.max_duration_exits += 1;
+                            }
+                            
+                            // T9.2: Time-based BE
+                            if !just_closed && !trade.is_be_applied && current_duration >= pool_config.be_threshold_candles {
+                                let risk = (trade.entry_price - trade.original_sl_price).abs();
+                                let unrealized_r = match trade.signal.signal {
+                                    SignalType::LONG => (candle.close - trade.entry_price) / risk,
+                                    SignalType::SHORT => (trade.entry_price - candle.close) / risk,
+                                };
+                                
+                                if unrealized_r < pool_config.be_min_profit_r {
+                                    trade.sl_price = trade.entry_price;
+                                    trade.is_be_applied = true;
+                                    engine.block_stats.be_applied_count += 1;
+                                }
+                            }
+                            
+                            // Normal SL/TP checks
+                            if !just_closed {
+                                match trade.signal.signal {
+                                    SignalType::LONG => {
+                                        if candle.low <= trade.sl_price {
+                                            if trade.is_be_applied && trade.sl_price == trade.entry_price {
+                                                trade.outcome = Some("BE".to_string());
+                                                trade.exit_price = Some(trade.sl_price);
+                                                trade.pnl_r = Some(Decimal::ZERO);
+                                            } else {
+                                                trade.outcome = Some("LOSS".to_string());
+                                                trade.exit_price = Some(trade.sl_price);
+                                                trade.pnl_r = Some(Decimal::from(-1));
+                                            }
+                                            trade.exit_candle_idx = Some(candle_idx);
+                                            trade.duration_candles = Some(current_duration);
+                                            just_closed = true;
+                                        } else if candle.high >= trade.tp_price {
+                                            trade.outcome = Some("WIN".to_string());
+                                            trade.exit_price = Some(trade.tp_price);
+                                            trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
+                                            trade.exit_candle_idx = Some(candle_idx);
+                                            trade.duration_candles = Some(current_duration);
+                                            just_closed = true;
+                                        }
+                                    },
+                                    SignalType::SHORT => {
+                                        if candle.high >= trade.sl_price {
+                                            if trade.is_be_applied && trade.sl_price == trade.entry_price {
+                                                trade.outcome = Some("BE".to_string());
+                                                trade.exit_price = Some(trade.sl_price);
+                                                trade.pnl_r = Some(Decimal::ZERO);
+                                            } else {
+                                                trade.outcome = Some("LOSS".to_string());
+                                                trade.exit_price = Some(trade.sl_price);
+                                                trade.pnl_r = Some(Decimal::from(-1));
+                                            }
+                                            trade.exit_candle_idx = Some(candle_idx);
+                                            trade.duration_candles = Some(current_duration);
+                                            just_closed = true;
+                                        } else if candle.low <= trade.tp_price {
+                                            trade.outcome = Some("WIN".to_string());
+                                            trade.exit_price = Some(trade.tp_price);
+                                            trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
+                                            trade.exit_candle_idx = Some(candle_idx);
+                                            trade.duration_candles = Some(current_duration);
+                                            just_closed = true;
+                                        }
                                     }
                                 }
                             }
@@ -214,6 +311,27 @@ pub async fn run_backtest(
                             // T1.5: Record trade close - cooldown starts here
                             if just_closed {
                                 engine.record_trade_close(symbol, interval, candle_idx);
+                                
+                                // T11: Record trade result for kill switch (per symbol+TF, STICKY)
+                                let is_win = trade.outcome.as_deref() == Some("WIN");
+                                let ema50_slope = Some(ctx.get_ema50_slope());
+                                let current_atr = ctx.atr_14.current_value;
+                                engine.record_trade_result(symbol, interval, is_win, candle_idx, ema50_slope, current_atr);
+                                
+                                // Also record context-based close for multi-position
+                                if let Some(ref ctx_id) = trade.context_id {
+                                    engine.record_context_close(ctx_id, interval, candle_idx);
+                                }
+                                
+                                // Update position pool
+                                for pool_trade in engine.get_position_pool_mut().active_trades_mut() {
+                                    if pool_trade.signal.signal_id == trade.signal.signal_id {
+                                        let pnl = trade.pnl_r.unwrap_or(Decimal::ZERO);
+                                        let exit = trade.exit_price.unwrap_or(candle.close);
+                                        let outcome = trade.outcome.as_deref().unwrap_or("UNKNOWN");
+                                        pool_trade.close(exit, pnl, outcome, candle_idx);
+                                    }
+                                }
                             }
                         }
                         
@@ -247,6 +365,12 @@ pub async fn run_backtest(
                         duration_candles: t.duration_candles.unwrap_or(0),
                         regime: t.signal.regime_context.clone(),
                         confidence_tier: t.signal.confidence_tier.clone(),
+                        // Multi-position fields
+                        context_type: t.context_id.as_ref().map(|c| c.context_type.clone()),
+                        opened_at_candle: Some(t.entry_candle_idx),
+                        exit_candle_idx: t.exit_candle_idx,
+                        adjusted_confidence: Some(t.adjusted_confidence),
+                        was_concurrent: t.was_concurrent,
                     })
                     .collect();
                 
@@ -403,10 +527,28 @@ fn print_summary(summary: &BacktestSummary) {
     info!("      Flat EMA:         {:>6} blocks", bs.flat_ema_blocks);
     info!("      Low ATR:          {:>6} blocks", bs.low_atr_blocks);
     info!("      Bootstrap:        {:>6} blocks", bs.bootstrap_incomplete);
-    info!("      Open Trade:       {:>6} blocks (trade already active)", bs.open_trade_blocks);
+    info!("      Open Trade:       {:>6} blocks (legacy single-position)", bs.open_trade_blocks);
     info!("      Cooldown:         {:>6} blocks (post-close cooldown)", bs.cooldown_blocks);
     info!("      Score Too Low:    {:>6} blocks", bs.score_too_low);
     info!("      Policy Blocked:   {:>6} blocks", bs.policy_blocked);
+    info!("");
+    info!("   📍 Multi-Position Blocks (Phase 7):");
+    info!("      Max Trades:       {:>6} blocks (reached max concurrent)", bs.max_trades_reached);
+    info!("      Duplicate Ctx:    {:>6} blocks (same context_id)", bs.duplicate_context);
+    info!("      Hedge Blocked:    {:>6} blocks (opposite direction)", bs.hedge_blocked);
+    info!("      Context CD:       {:>6} blocks (context-specific cooldown)", bs.context_cooldown_blocks);
+    info!("");
+    info!("   📍 Phase 8 Blocks:");
+    info!("      Trend Saturation: {:>6} blocks (slope weakening)", bs.trend_saturation_blocks);
+    info!("      Weak Replaced:    {:>6} trades (replaced by stronger)", bs.weak_trade_replaced);
+    info!("");
+    info!("   📍 Phase 9 Exit Stats:");
+    info!("      Max Duration:     {:>6} exits (forced after 14 candles)", bs.max_duration_exits);
+    info!("      BE Applied:       {:>6} trades (moved SL to entry)", bs.be_applied_count);
+    info!("      Partial TP:       {:>6} times (50% closed at 1R)", bs.partial_tp_count);
+    info!("");
+    info!("   📍 Phase 10 Safety:");
+    info!("      Kill Switch:      {:>6} triggers (7 consec losses)", bs.kill_switch_triggered);
     info!("");
     
     // Results by pair table
@@ -572,18 +714,54 @@ pub async fn run_csv_backtest(
         // 1. Add candle
         ctx.add_candle(candle.clone());
         
+        // T11.2: Try to reset kill switch if conditions are met
+        let current_ema50_slope = Some(ctx.get_ema50_slope());
+        let current_atr = ctx.atr_14.current_value;
+        let median_atr = Some(ctx.get_median_atr_ratio() * current_atr.unwrap_or(Decimal::ONE)); // Approximate
+        engine.try_reset_kill_switch(symbol, timeframe, candle_idx, current_ema50_slope, current_atr, median_atr);
+        
         // 2. Check for signal
         if let Some(signal) = engine.evaluate(&mut ctx) {
             let entry = candle.close;
             let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry);
             
+            // Get context ID from context (set during evaluate)
+            let context_id = ctx.current_context_id.clone();
+            let adjusted_confidence = signal.confidence;
+            
+            // T8.2: Get context score from signal
+            let context_score = signal.confidence as i32;
+            
+            // T8.3: Get EMA50 slope at entry
+            let ema50_slope = ctx.get_ema50_slope();
+            
+            // Check if this trade overlaps with existing trades
+            let active_count = engine.get_position_pool().active_count(symbol, timeframe);
+            let was_concurrent = active_count > 0;
+            
             // T1.4: Record trade open (signal generated = trade entered)
             engine.record_trade_open(symbol, timeframe, candle_idx);
+            
+            // Create ActiveTrade for position pool
+            if let Some(ref ctx_id) = context_id {
+                let active_trade = ActiveTrade::new(
+                    signal.clone(),
+                    entry,
+                    sl,
+                    tp,
+                    ctx_id.clone(),
+                    candle_idx,
+                )
+                .with_context_score(context_score)
+                .with_ema50_slope(ema50_slope);
+                engine.add_trade_to_pool(active_trade);
+            }
             
             trades.push(SimulatedTrade {
                 signal,
                 entry_price: entry,
                 sl_price: sl,
+                original_sl_price: sl,
                 tp_price: tp,
                 exit_price: None,
                 pnl_r: None,
@@ -591,10 +769,18 @@ pub async fn run_csv_backtest(
                 entry_candle_idx: candle_idx,
                 exit_candle_idx: None,
                 duration_candles: None,
+                context_id,
+                adjusted_confidence,
+                was_concurrent,
+                context_score,
+                ema50_slope_at_entry: Some(ema50_slope),
+                is_be_applied: false,
             });
         }
         
         // 3. Manage open positions
+        let pool_config = engine.get_position_pool().config.clone();
+        
         for trade in trades.iter_mut() {
             if trade.outcome.is_some() { continue; }
             
@@ -603,40 +789,91 @@ pub async fn run_csv_backtest(
             }
             
             let mut just_closed = false;
+            let current_duration = (candle_idx - trade.entry_candle_idx) as u32;
             
-            match trade.signal.signal {
-                SignalType::LONG => {
-                    if candle.low <= trade.sl_price {
-                        trade.outcome = Some("LOSS".to_string());
-                        trade.exit_price = Some(trade.sl_price);
-                        trade.pnl_r = Some(Decimal::from(-1));
-                        trade.exit_candle_idx = Some(candle_idx);
-                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                        just_closed = true;
-                    } else if candle.high >= trade.tp_price {
-                        trade.outcome = Some("WIN".to_string());
-                        trade.exit_price = Some(trade.tp_price);
-                        trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
-                        trade.exit_candle_idx = Some(candle_idx);
-                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                        just_closed = true;
-                    }
-                },
-                SignalType::SHORT => {
-                    if candle.high >= trade.sl_price {
-                        trade.outcome = Some("LOSS".to_string());
-                        trade.exit_price = Some(trade.sl_price);
-                        trade.pnl_r = Some(Decimal::from(-1));
-                        trade.exit_candle_idx = Some(candle_idx);
-                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                        just_closed = true;
-                    } else if candle.low <= trade.tp_price {
-                        trade.outcome = Some("WIN".to_string());
-                        trade.exit_price = Some(trade.tp_price);
-                        trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
-                        trade.exit_candle_idx = Some(candle_idx);
-                        trade.duration_candles = Some((candle_idx - trade.entry_candle_idx) as u32);
-                        just_closed = true;
+            // T9.1: Max Duration HARD CAP - Force exit after max_trade_duration_candles
+            if current_duration >= pool_config.max_trade_duration_candles {
+                // Calculate PnL at current price
+                let risk = (trade.entry_price - trade.original_sl_price).abs();
+                let unrealized_pnl = match trade.signal.signal {
+                    SignalType::LONG => (candle.close - trade.entry_price) / risk,
+                    SignalType::SHORT => (trade.entry_price - candle.close) / risk,
+                };
+                
+                trade.outcome = Some("MAX_DURATION".to_string());
+                trade.exit_price = Some(candle.close);
+                trade.pnl_r = Some(unrealized_pnl);
+                trade.exit_candle_idx = Some(candle_idx);
+                trade.duration_candles = Some(current_duration);
+                just_closed = true;
+                engine.block_stats.max_duration_exits += 1;
+            }
+            
+            // T9.2: Time-based BE - Move SL to entry after be_threshold_candles if profit < be_min_profit_r
+            if !just_closed && !trade.is_be_applied && current_duration >= pool_config.be_threshold_candles {
+                let risk = (trade.entry_price - trade.original_sl_price).abs();
+                let unrealized_r = match trade.signal.signal {
+                    SignalType::LONG => (candle.close - trade.entry_price) / risk,
+                    SignalType::SHORT => (trade.entry_price - candle.close) / risk,
+                };
+                
+                // Only apply BE if trade is NOT doing well (< 0.5R profit)
+                if unrealized_r < pool_config.be_min_profit_r {
+                    trade.sl_price = trade.entry_price; // Move SL to entry (break-even)
+                    trade.is_be_applied = true;
+                    engine.block_stats.be_applied_count += 1;
+                }
+            }
+            
+            // Normal SL/TP checks (if not already closed by max duration)
+            if !just_closed {
+                match trade.signal.signal {
+                    SignalType::LONG => {
+                        if candle.low <= trade.sl_price {
+                            // Check if it's a BE exit or regular loss
+                            if trade.is_be_applied && trade.sl_price == trade.entry_price {
+                                trade.outcome = Some("BE".to_string());
+                                trade.exit_price = Some(trade.sl_price);
+                                trade.pnl_r = Some(Decimal::ZERO); // Break-even = 0R
+                            } else {
+                                trade.outcome = Some("LOSS".to_string());
+                                trade.exit_price = Some(trade.sl_price);
+                                trade.pnl_r = Some(Decimal::from(-1));
+                            }
+                            trade.exit_candle_idx = Some(candle_idx);
+                            trade.duration_candles = Some(current_duration);
+                            just_closed = true;
+                        } else if candle.high >= trade.tp_price {
+                            trade.outcome = Some("WIN".to_string());
+                            trade.exit_price = Some(trade.tp_price);
+                            trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
+                            trade.exit_candle_idx = Some(candle_idx);
+                            trade.duration_candles = Some(current_duration);
+                            just_closed = true;
+                        }
+                    },
+                    SignalType::SHORT => {
+                        if candle.high >= trade.sl_price {
+                            if trade.is_be_applied && trade.sl_price == trade.entry_price {
+                                trade.outcome = Some("BE".to_string());
+                                trade.exit_price = Some(trade.sl_price);
+                                trade.pnl_r = Some(Decimal::ZERO);
+                            } else {
+                                trade.outcome = Some("LOSS".to_string());
+                                trade.exit_price = Some(trade.sl_price);
+                                trade.pnl_r = Some(Decimal::from(-1));
+                            }
+                            trade.exit_candle_idx = Some(candle_idx);
+                            trade.duration_candles = Some(current_duration);
+                            just_closed = true;
+                        } else if candle.low <= trade.tp_price {
+                            trade.outcome = Some("WIN".to_string());
+                            trade.exit_price = Some(trade.tp_price);
+                            trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
+                            trade.exit_candle_idx = Some(candle_idx);
+                            trade.duration_candles = Some(current_duration);
+                            just_closed = true;
+                        }
                     }
                 }
             }
@@ -644,6 +881,27 @@ pub async fn run_csv_backtest(
             // T1.5: Record trade close - THIS IS WHERE COOLDOWN STARTS
             if just_closed {
                 engine.record_trade_close(symbol, timeframe, candle_idx);
+                
+                // T11: Record trade result for kill switch (per symbol+TF, STICKY)
+                let is_win = trade.outcome.as_deref() == Some("WIN");
+                let ema50_slope = Some(ctx.get_ema50_slope());
+                let current_atr = ctx.atr_14.current_value;
+                engine.record_trade_result(symbol, timeframe, is_win, candle_idx, ema50_slope, current_atr);
+                
+                // Also record context-based close for multi-position
+                if let Some(ref ctx_id) = trade.context_id {
+                    engine.record_context_close(ctx_id, timeframe, candle_idx);
+                }
+                
+                // Update position pool
+                for pool_trade in engine.get_position_pool_mut().active_trades_mut() {
+                    if pool_trade.signal.signal_id == trade.signal.signal_id {
+                        let pnl = trade.pnl_r.unwrap_or(Decimal::ZERO);
+                        let exit = trade.exit_price.unwrap_or(candle.close);
+                        let outcome = trade.outcome.as_deref().unwrap_or("UNKNOWN");
+                        pool_trade.close(exit, pnl, outcome, candle_idx);
+                    }
+                }
             }
         }
         
@@ -656,9 +914,13 @@ pub async fn run_csv_backtest(
         .collect();
     
     let completed_count = completed_trades.len();
-    let wins = completed_trades.iter().filter(|t| t.outcome.as_ref().unwrap() == "WIN").count();
-    let losses = completed_count - wins;
-    let win_rate = if completed_count > 0 { (wins as f64 / completed_count as f64) * 100.0 } else { 0.0 };
+    let wins = completed_trades.iter().filter(|t| t.outcome.as_deref() == Some("WIN")).count();
+    let losses = completed_trades.iter().filter(|t| t.outcome.as_deref() == Some("LOSS")).count();
+    let be_count = completed_trades.iter().filter(|t| t.outcome.as_deref() == Some("BE")).count();
+    let max_dur_count = completed_trades.iter().filter(|t| t.outcome.as_deref() == Some("MAX_DURATION")).count();
+    // Win rate should only count WIN/LOSS, not BE or MAX_DURATION
+    let decisive_trades = wins + losses;
+    let win_rate = if decisive_trades > 0 { (wins as f64 / decisive_trades as f64) * 100.0 } else { 0.0 };
     
     let total_pnl: Decimal = completed_trades.iter()
         .filter_map(|t| t.pnl_r)
@@ -670,9 +932,21 @@ pub async fn run_csv_backtest(
         0.0
     };
     
-    let profit_factor = if losses > 0 {
-        (wins as f64 * 1.5) / losses as f64
-    } else if wins > 0 {
+    // T12.2: FIXED Profit Factor = sum(positive_R) / abs(sum(negative_R))
+    // NOT (wins * 1.5) / losses - that's WRONG!
+    let positive_r_sum: Decimal = completed_trades.iter()
+        .filter_map(|t| t.pnl_r)
+        .filter(|r| *r > Decimal::ZERO)
+        .sum();
+    let negative_r_sum: Decimal = completed_trades.iter()
+        .filter_map(|t| t.pnl_r)
+        .filter(|r| *r < Decimal::ZERO)
+        .sum::<Decimal>()
+        .abs();
+    
+    let profit_factor = if negative_r_sum > Decimal::ZERO {
+        (positive_r_sum / negative_r_sum).to_f64().unwrap_or(0.0)
+    } else if positive_r_sum > Decimal::ZERO {
         f64::INFINITY
     } else {
         0.0
@@ -714,6 +988,14 @@ pub async fn run_csv_backtest(
         0.0
     };
     
+    // T12.3: Sanity Check Guard - warn if metrics are inconsistent
+    if profit_factor < 1.0 && total_pnl > Decimal::ZERO {
+        warn!("⚠️ METRIC INCONSISTENCY: PF={:.2} < 1 but PnL={}R > 0. Check R accounting!", profit_factor, total_pnl);
+    }
+    if profit_factor > 1.0 && total_pnl < Decimal::ZERO {
+        warn!("⚠️ METRIC INCONSISTENCY: PF={:.2} > 1 but PnL={}R < 0. Check R accounting!", profit_factor, total_pnl);
+    }
+    
     // Block stats
     let block_stats = engine.get_stats();
     
@@ -727,9 +1009,9 @@ pub async fn run_csv_backtest(
     info!("───────────────────────────────────────────────────────────────");
     info!("   Total Candles Processed: {}", total_candles);
     info!("   Total Signals Generated: {}", trades.len());
-    info!("   Completed Trades: {}", completed_count);
-    info!("   Wins: {} | Losses: {}", wins, losses);
-    info!("   Win Rate: {:.1}%", win_rate);
+    info!("   Completed Trades: {} (Wins: {} | Losses: {} | BE: {} | MaxDur: {})", 
+          completed_count, wins, losses, be_count, max_dur_count);
+    info!("   Win Rate: {:.1}% (of decisive trades: {})", win_rate, decisive_trades);
     info!("   Total PnL: {}R", total_pnl);
     info!("   Expectancy: {:.3}R per trade", expectancy);
     info!("   Profit Factor: {:.2}", profit_factor);
@@ -737,7 +1019,14 @@ pub async fn run_csv_backtest(
     info!("   Max Consecutive Losses: {}", max_consec);
     info!("   Avg Trade Duration: {:.1} candles", avg_duration);
     info!("");
-    info!("🛡️ BLOCK STATISTICS");
+    info!("� R ACCOUNTING VERIFICATION");
+    info!("───────────────────────────────────────────────────────────────");
+    info!("   Gross Profit (sum +R): {:.2}R", positive_r_sum);
+    info!("   Gross Loss (sum -R):   {:.2}R", negative_r_sum);
+    info!("   Net PnL (diff):        {:.2}R", total_pnl);
+    info!("   PF (gross/abs(loss)):  {:.2}", profit_factor);
+    info!("");
+    info!("�🛡️ BLOCK STATISTICS");
     info!("───────────────────────────────────────────────────────────────");
     info!("   Total Evaluations: {}", block_stats.total_evaluations);
     info!("   Signals Generated: {} ({:.2}% signal rate)", 
@@ -750,10 +1039,23 @@ pub async fn run_csv_backtest(
     info!("      Flat EMA:         {:>6} blocks", block_stats.flat_ema_blocks);
     info!("      Low ATR:          {:>6} blocks", block_stats.low_atr_blocks);
     info!("      Bootstrap:        {:>6} blocks", block_stats.bootstrap_incomplete);
-    info!("      Open Trade:       {:>6} blocks (trade already active)", block_stats.open_trade_blocks);
+    info!("      Open Trade:       {:>6} blocks (legacy single-position)", block_stats.open_trade_blocks);
     info!("      Cooldown:         {:>6} blocks (post-close cooldown)", block_stats.cooldown_blocks);
     info!("      Score Too Low:    {:>6} blocks", block_stats.score_too_low);
     info!("      Policy Blocked:   {:>6} blocks", block_stats.policy_blocked);
+    info!("");
+    info!("   📊 Multi-Position Blocks:");
+    info!("      Max Trades:       {:>6} blocks", block_stats.max_trades_reached);
+    info!("      Duplicate Ctx:    {:>6} blocks", block_stats.duplicate_context);
+    info!("      Hedge Blocked:    {:>6} blocks", block_stats.hedge_blocked);
+    info!("      Context CD:       {:>6} blocks", block_stats.context_cooldown_blocks);
+    info!("");
+    
+    // Multi-position metrics
+    let pool = engine.get_position_pool();
+    info!("   📊 Multi-Position Metrics:");
+    info!("      Max Concurrent:   {:>6} trades", pool.max_concurrent_trades());
+    info!("      Avg Concurrent:   {:>6.2} trades", pool.avg_concurrent_trades());
     info!("");
     info!("═══════════════════════════════════════════════════════════════");
     
