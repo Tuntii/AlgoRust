@@ -313,10 +313,13 @@ pub async fn run_backtest(
                                 engine.record_trade_close(symbol, interval, candle_idx);
                                 
                                 // T11: Record trade result for kill switch (per symbol+TF, STICKY)
-                                let is_win = trade.outcome.as_deref() == Some("WIN");
-                                let ema50_slope = Some(ctx.get_ema50_slope());
-                                let current_atr = ctx.atr_14.current_value;
-                                engine.record_trade_result(symbol, interval, is_win, candle_idx, ema50_slope, current_atr);
+                                // PHASE A: Only count towards kill switch if bootstrap is complete
+                                if ctx.bootstrap.is_complete() {
+                                    let is_win = trade.outcome.as_deref() == Some("WIN");
+                                    let ema50_slope = Some(ctx.get_ema50_slope());
+                                    let current_atr = ctx.atr_14.current_value;
+                                    engine.record_trade_result(symbol, interval, is_win, candle_idx, ema50_slope, current_atr);
+                                }
                                 
                                 // Also record context-based close for multi-position
                                 if let Some(ref ctx_id) = trade.context_id {
@@ -883,10 +886,13 @@ pub async fn run_csv_backtest(
                 engine.record_trade_close(symbol, timeframe, candle_idx);
                 
                 // T11: Record trade result for kill switch (per symbol+TF, STICKY)
-                let is_win = trade.outcome.as_deref() == Some("WIN");
-                let ema50_slope = Some(ctx.get_ema50_slope());
-                let current_atr = ctx.atr_14.current_value;
-                engine.record_trade_result(symbol, timeframe, is_win, candle_idx, ema50_slope, current_atr);
+                // PHASE A: Only count towards kill switch if bootstrap is complete
+                if ctx.bootstrap.is_complete() {
+                    let is_win = trade.outcome.as_deref() == Some("WIN");
+                    let ema50_slope = Some(ctx.get_ema50_slope());
+                    let current_atr = ctx.atr_14.current_value;
+                    engine.record_trade_result(symbol, timeframe, is_win, candle_idx, ema50_slope, current_atr);
+                }
                 
                 // Also record context-based close for multi-position
                 if let Some(ref ctx_id) = trade.context_id {

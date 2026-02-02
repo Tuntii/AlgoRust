@@ -52,7 +52,7 @@ impl SymbolContext {
     pub fn new(symbol: String, timeframe: String) -> Self {
         Self {
             symbol,
-            timeframe,
+            timeframe: timeframe.clone(),
             candles: VecDeque::new(),
             structure: MarketStructure::default(),
             ema_50_slope_history: VecDeque::new(),
@@ -70,7 +70,7 @@ impl SymbolContext {
             last_signal_candle: None,
             just_broke_high: false,
             just_broke_low: false,
-            bootstrap: BootstrapState::new(),
+            bootstrap: BootstrapState::with_timeframe(&timeframe), // TF-aware bootstrap
             total_candles_processed: 0,
             // Multi-position fields
             current_context_id: None,
@@ -202,17 +202,19 @@ impl SymbolContext {
         self.ema_50_slope_history.push_back(cur_ema50);
         if self.ema_50_slope_history.len() > 20 { self.ema_50_slope_history.pop_front(); }
 
-        // Store Candle
+        // Store Candle - HTF needs more history
         self.candles.push_back(candle);
-        if self.candles.len() > 1500 {
+        let max_candles = BootstrapState::min_candles_for_tf(&self.timeframe).max(1500);
+        if self.candles.len() > max_candles {
             self.candles.pop_front();
         }
 
         self.update_structure();
         
-        // T0.2 — Update Bootstrap State
+        // T0.2 — Update Bootstrap State (TF-aware)
         let pivot_count = self.pivot_high_history.len().min(self.pivot_low_history.len());
-        self.bootstrap.update(
+        self.bootstrap.update_with_tf(
+            &self.timeframe,
             self.candles.len(),
             self.ema_200.current_value.is_some(),
             pivot_count,

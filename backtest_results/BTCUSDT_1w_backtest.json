@@ -79,7 +79,7 @@
   },
   "signals": [
     {
-      "signal_id": "0f7b8568-c6d0-4059-83b3-692eca643836",
+      "signal_id": "4459049b-2406-459f-81f6-05daa9ae17cd",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "1w",
@@ -87,7 +87,7 @@
       "price": "61528.33000000",
       "confidence": 90,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:43.770726400Z",
+      "timestamp": "2026-02-02T04:40:48.293603700Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.1204 (threshold: 0.0010, median: 0.1514) (-15)",
         "✅ Bullish market structure confirmed",
@@ -125,7 +125,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "fa21c4c4-6381-4641-9fdc-2b5b2267da21",
+      "signal_id": "7d43c335-241f-45f0-8725-8dfb06db906b",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "1w",
@@ -133,7 +133,7 @@
       "price": "52137.67000000",
       "confidence": 90,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:43.788615500Z",
+      "timestamp": "2026-02-02T04:40:48.295754700Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0695 (threshold: 0.0010, median: 0.1279) (-15)",
         "✅ Bullish market structure confirmed",
@@ -171,7 +171,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "1b485768-6d57-4412-ad55-64c507bd3b73",
+      "signal_id": "5184f57d-9244-4409-9945-18b52cf08bc7",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "1w",
@@ -179,7 +179,7 @@
       "price": "119086.64000000",
       "confidence": 90,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:43.799832500Z",
+      "timestamp": "2026-02-02T04:40:48.297038300Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0747 (threshold: 0.0010, median: 0.0989) (-15)",
         "✅ Bullish market structure confirmed",

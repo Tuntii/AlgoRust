@@ -341,9 +341,41 @@ impl Default for PositionPoolConfig {
             partial_tp_enabled: false,            // T9.3: Disabled by default
             partial_tp_ratio: 0.5,                // T9.3: Close 50% at 1R
             kill_switch_consec_losses: 7,         // T10.2: Pause after 7 consecutive losses
-            kill_switch_min_duration: 20,         // T11.1: Min 20 candles before reset possible
+            kill_switch_min_duration: 20,         // T11.1: DEFAULT - use get_kill_switch_duration_for_tf()
             kill_switch_reset_wins: 2,            // T11.2: Need 2 consecutive wins to reset
         }
+    }
+}
+
+// =============================================================================
+// PHASE A: TF-Based Kill Switch Duration
+// =============================================================================
+
+/// Get kill switch minimum duration based on timeframe
+/// Shorter TFs need shorter reset periods, longer TFs need longer
+pub fn get_kill_switch_duration_for_tf(timeframe: &str) -> u32 {
+    match timeframe {
+        // Lower timeframes: faster reset (more candles per day)
+        "1m" => 60,    // 1 hour worth of candles
+        "3m" => 40,    // ~2 hours
+        "5m" => 30,    // ~2.5 hours (BLOCKED but kept for reference)
+        "15m" => 24,   // 6 hours (BLOCKED but kept for reference)
+        "30m" => 16,   // 8 hours
+        
+        // Medium timeframes: standard reset
+        "1h" => 12,    // 12 hours
+        "2h" => 10,    // 20 hours
+        "4h" => 8,     // 32 hours (~1.3 days)
+        
+        // Higher timeframes: slower reset (fewer candles)
+        "6h" => 6,     // 36 hours
+        "8h" => 5,     // 40 hours
+        "12h" => 4,    // 48 hours (2 days)
+        "1d" => 3,     // 3 days (BLOCKED but kept for reference)
+        "3d" => 2,     // 6 days
+        "1w" => 2,     // 2 weeks
+        
+        _ => 20,       // Default fallback
     }
 }
 

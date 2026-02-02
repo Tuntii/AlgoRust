@@ -38,7 +38,26 @@ impl TimeframePolicy {
     pub fn new() -> Self {
         let mut active_pairs = HashSet::new();
         let mut shadow_pairs = HashSet::new();
-        let blocked_pairs = HashSet::new();
+        let mut blocked_pairs = HashSet::new();
+        
+        // ═══════════════════════════════════════════════════════
+        // PHASE A: BLOCKED TIMEFRAMES (1d, 15m, 5m completely disabled)
+        // ═══════════════════════════════════════════════════════
+        
+        // 5m - too noisy, kill switch triggered frequently
+        blocked_pairs.insert(("BTCUSDT".to_string(), "5m".to_string()));
+        blocked_pairs.insert(("ETHUSDT".to_string(), "5m".to_string()));
+        blocked_pairs.insert(("SOLUSDT".to_string(), "5m".to_string()));
+        
+        // 15m - poor win rate, too many false signals
+        blocked_pairs.insert(("BTCUSDT".to_string(), "15m".to_string()));
+        blocked_pairs.insert(("ETHUSDT".to_string(), "15m".to_string()));
+        blocked_pairs.insert(("SOLUSDT".to_string(), "15m".to_string()));
+        
+        // 1d - too slow for current strategy, poor expectancy
+        blocked_pairs.insert(("BTCUSDT".to_string(), "1d".to_string()));
+        blocked_pairs.insert(("ETHUSDT".to_string(), "1d".to_string()));
+        blocked_pairs.insert(("SOLUSDT".to_string(), "1d".to_string()));
         
         // ═══════════════════════════════════════════════════════
         // FT1: ACTIVE WHITELIST (Edge-verified combinations)
@@ -48,8 +67,7 @@ impl TimeframePolicy {
         active_pairs.insert(("BTCUSDT".to_string(), "1h".to_string()));
         active_pairs.insert(("BTCUSDT".to_string(), "4h".to_string()));
         
-        // ETH: 15m, 30m, 1h only
-        active_pairs.insert(("ETHUSDT".to_string(), "15m".to_string()));
+        // ETH: 30m, 1h only (15m now blocked)
         active_pairs.insert(("ETHUSDT".to_string(), "30m".to_string()));
         active_pairs.insert(("ETHUSDT".to_string(), "1h".to_string()));
         
@@ -57,24 +75,16 @@ impl TimeframePolicy {
         // FT1: SHADOW MODE (Research/comparison only)
         // ═══════════════════════════════════════════════════════
         
-        // BTC shadow timeframes
-        shadow_pairs.insert(("BTCUSDT".to_string(), "5m".to_string()));
-        shadow_pairs.insert(("BTCUSDT".to_string(), "15m".to_string()));
+        // BTC shadow timeframes (5m, 15m, 1d now blocked)
         shadow_pairs.insert(("BTCUSDT".to_string(), "30m".to_string()));
-        shadow_pairs.insert(("BTCUSDT".to_string(), "1d".to_string()));
         
-        // ETH shadow timeframes
-        shadow_pairs.insert(("ETHUSDT".to_string(), "5m".to_string()));
+        // ETH shadow timeframes (5m, 1d now blocked)
         shadow_pairs.insert(("ETHUSDT".to_string(), "4h".to_string()));
-        shadow_pairs.insert(("ETHUSDT".to_string(), "1d".to_string()));
         
-        // SOL all shadow (not enough edge data)
-        shadow_pairs.insert(("SOLUSDT".to_string(), "5m".to_string()));
-        shadow_pairs.insert(("SOLUSDT".to_string(), "15m".to_string()));
+        // SOL all shadow (not enough edge data) - except blocked TFs
         shadow_pairs.insert(("SOLUSDT".to_string(), "30m".to_string()));
         shadow_pairs.insert(("SOLUSDT".to_string(), "1h".to_string()));
         shadow_pairs.insert(("SOLUSDT".to_string(), "4h".to_string()));
-        shadow_pairs.insert(("SOLUSDT".to_string(), "1d".to_string()));
         
         Self { active_pairs, shadow_pairs, blocked_pairs }
     }
@@ -158,10 +168,11 @@ impl Default for TimeframePolicy {
 /// Bootstrap state tracker
 #[derive(Debug, Clone)]
 pub struct BootstrapState {
-    pub ema200_ready: bool,      // EMA200 needs 200+ candles to seed properly
+    pub ema200_ready: bool,      // EMA200 needs 3×period = 600 candles
     pub pivot_history_ready: bool, // Need minimum pivot history
     pub atr_ready: bool,          // ATR needs warmup
     pub candle_count: usize,
+    pub timeframe: String,        // TF for dynamic requirements
     pub suppression_reason: Option<String>,
 }
 
@@ -172,7 +183,28 @@ impl BootstrapState {
             pivot_history_ready: false,
             atr_ready: false,
             candle_count: 0,
+            timeframe: "1h".to_string(),
             suppression_reason: None,
+        }
+    }
+    
+    /// Create with specific timeframe
+    pub fn with_timeframe(timeframe: &str) -> Self {
+        Self {
+            timeframe: timeframe.to_string(),
+            ..Self::new()
+        }
+    }
+    
+    /// Get minimum candle requirement for EMA200 based on timeframe
+    /// Base rule: 3 × EMA period = 600 candles
+    /// HTF adjustments: 4h → 1500, 1h → 1200
+    pub fn min_candles_for_tf(timeframe: &str) -> usize {
+        match timeframe {
+            "4h" => 1500,   // HTF needs more history for proper context
+            "1h" => 1200,   // HTF needs more history
+            "30m" => 800,   // Medium TF
+            _ => 600,       // Default: 3 × 200 = 600 candles for EMA200
         }
     }
     
@@ -180,8 +212,11 @@ impl BootstrapState {
     pub fn update(&mut self, candle_count: usize, has_ema200: bool, pivot_count: usize, has_atr: bool) {
         self.candle_count = candle_count;
         
-        // EMA200 needs at least 200 candles for proper seeding
-        self.ema200_ready = candle_count >= 200 && has_ema200;
+        // Get TF-specific minimum candle requirement
+        let min_candles = Self::min_candles_for_tf(&self.timeframe);
+        
+        // EMA200 needs TF-specific minimum candles (3×period base, HTF adjusted)
+        self.ema200_ready = candle_count >= min_candles && has_ema200;
         
         // Pivot history needs at least 2 pivots on each side for structure
         self.pivot_history_ready = pivot_count >= 2;
@@ -192,13 +227,21 @@ impl BootstrapState {
         // Set suppression reason if not ready
         if !self.is_complete() {
             let mut reasons = Vec::new();
-            if !self.ema200_ready { reasons.push("EMA200 not seeded"); }
-            if !self.pivot_history_ready { reasons.push("Insufficient pivot history"); }
-            if !self.atr_ready { reasons.push("ATR not ready"); }
+            if !self.ema200_ready { 
+                reasons.push(format!("EMA200 not seeded ({}/{} candles)", candle_count, min_candles)); 
+            }
+            if !self.pivot_history_ready { reasons.push("Insufficient pivot history".to_string()); }
+            if !self.atr_ready { reasons.push("ATR not ready".to_string()); }
             self.suppression_reason = Some(format!("bootstrap_incomplete: {}", reasons.join(", ")));
         } else {
             self.suppression_reason = None;
         }
+    }
+    
+    /// Update with timeframe context
+    pub fn update_with_tf(&mut self, timeframe: &str, candle_count: usize, has_ema200: bool, pivot_count: usize, has_atr: bool) {
+        self.timeframe = timeframe.to_string();
+        self.update(candle_count, has_ema200, pivot_count, has_atr);
     }
     
     /// Check if bootstrap is complete and signals can be generated

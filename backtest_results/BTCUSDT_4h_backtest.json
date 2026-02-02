@@ -30,8 +30,8 @@
       "pivot": 0.1875
     },
     "pnl_by_overlap_count": {
-      "1": 11.528815240788692,
-      "2": 5.598215659622487
+      "2": 5.598215659622487,
+      "1": 11.528815240788692
     },
     "worst_overlap_drawdown": 1.0,
     "overlap_1_pnl": 11.528815240788692,
@@ -78,14 +78,6 @@
       }
     },
     "by_confidence_tier": {
-      "low": {
-        "trades": 5,
-        "wins": 1,
-        "win_rate": 20.0,
-        "total_r": -0.5,
-        "avg_r": -0.1,
-        "expectancy": -0.09999999999999998
-      },
       "high": {
         "trades": 13,
         "wins": 7,
@@ -93,6 +85,14 @@
         "total_r": 11.127030900411178,
         "avg_r": 0.855925453877783,
         "expectancy": 0.7594591615068325
+      },
+      "low": {
+        "trades": 5,
+        "wins": 1,
+        "win_rate": 20.0,
+        "total_r": -0.5,
+        "avg_r": -0.1,
+        "expectancy": -0.09999999999999998
       },
       "medium": {
         "trades": 10,
@@ -106,7 +106,7 @@
   },
   "signals": [
     {
-      "signal_id": "61327f97-6696-4880-971e-a720239b7c22",
+      "signal_id": "03e769bb-2bcf-4e42-b814-f33dfd15b06b",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -114,7 +114,7 @@
       "price": "109411.20000000",
       "confidence": 65,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.628599700Z",
+      "timestamp": "2026-02-02T04:40:47.517134200Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -151,7 +151,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "04c11253-6ffe-4ad3-93e9-cee0e3eee85e",
+      "signal_id": "f6552191-01d6-4036-8413-d7f2784092e5",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -159,7 +159,7 @@
       "price": "122232.00000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.634416800Z",
+      "timestamp": "2026-02-02T04:40:47.517840400Z",
       "reason": [
         "✅ Bullish market structure confirmed",
         "✅ Fractal HL detected (Pivot Low confirmed)",
@@ -195,7 +195,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "164117a0-84ef-4a8d-9d03-531202743ca5",
+      "signal_id": "8dc419c7-19f0-43e2-a60d-6cddfde0a017",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -203,7 +203,7 @@
       "price": "124713.63000000",
       "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.635626900Z",
+      "timestamp": "2026-02-02T04:40:47.517986300Z",
       "reason": [
         "✅ Bullish market structure confirmed",
         "✅ Fractal HL detected (Pivot Low confirmed)",
@@ -239,7 +239,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "b8c837c1-71c1-43fe-87f3-8dbb52a98148",
+      "signal_id": "994fdd2c-0cf0-4ede-8e16-dcccdf68264d",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -247,7 +247,7 @@
       "price": "123390.47000000",
       "confidence": 52,
       "confidence_tier": "low",
-      "timestamp": "2026-02-02T04:35:42.636611Z",
+      "timestamp": "2026-02-02T04:40:47.518094800Z",
       "reason": [
         "✅ Bullish market structure confirmed",
         "✅ Fractal HL detected (Pivot Low confirmed)",
@@ -284,7 +284,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "3a75913f-e4bf-43a6-99a0-bd7203c3d0ee",
+      "signal_id": "ae709543-7b28-48cd-a4f8-5f0800ed81d1",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -292,7 +292,7 @@
       "price": "110798.01000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.644559Z",
+      "timestamp": "2026-02-02T04:40:47.519051Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -328,7 +328,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "bd9f7647-28b4-4d61-b111-faa82488835d",
+      "signal_id": "792b7a28-30bf-4392-857d-127d856f8f3b",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -336,7 +336,7 @@
       "price": "109176.74000000",
       "confidence": 66,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.645902300Z",
+      "timestamp": "2026-02-02T04:40:47.519220600Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -373,7 +373,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "8e569698-2f85-4a9f-8de5-072a6263b7b8",
+      "signal_id": "e6e1b6d3-a5e9-4ab0-87dc-67fb4bca130d",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -381,7 +381,7 @@
       "price": "108321.63000000",
       "confidence": 65,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.650382100Z",
+      "timestamp": "2026-02-02T04:40:47.519767300Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -418,7 +418,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "2bb07a8e-7fcc-4210-b244-b0bf632927c2",
+      "signal_id": "00dd26c8-4ece-40ad-aeaf-9b2e53051859",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -426,7 +426,7 @@
       "price": "108377.96000000",
       "confidence": 52,
       "confidence_tier": "low",
-      "timestamp": "2026-02-02T04:35:42.651213200Z",
+      "timestamp": "2026-02-02T04:40:47.519871900Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -463,7 +463,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "ee368024-bd5f-4d73-b10c-6ea510c86f33",
+      "signal_id": "4bd86301-fee0-4741-8529-aaeccf24c6f6",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -471,7 +471,7 @@
       "price": "110751.47000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.658352100Z",
+      "timestamp": "2026-02-02T04:40:47.520618Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -507,7 +507,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "45279ff7-180a-48e5-8053-8a04100f2ccb",
+      "signal_id": "790c8fa7-ac37-4928-b0b3-29489f690b1f",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -515,7 +515,7 @@
       "price": "107937.45000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.661995400Z",
+      "timestamp": "2026-02-02T04:40:47.521040400Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0113 (threshold: 0.0008, median: 0.0125) (-15)",
         "✅ Bearish market structure confirmed",
@@ -553,7 +553,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "e22fedc1-5ae6-4d8e-ac0c-77c4d49a5727",
+      "signal_id": "4adc22d6-9fc8-466b-b6a7-9d3d6ad8419e",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -561,7 +561,7 @@
       "price": "103227.58000000",
       "confidence": 85,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.665034300Z",
+      "timestamp": "2026-02-02T04:40:47.521389Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -598,7 +598,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "4138e683-ed72-48e6-a865-2116ca2479b5",
+      "signal_id": "c1c7c4bc-1d8a-4b50-8294-a210681a6e19",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -606,7 +606,7 @@
       "price": "101857.10000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.666883600Z",
+      "timestamp": "2026-02-02T04:40:47.521599200Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -642,7 +642,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "6e018997-6f78-4844-b8d9-dd2db70a3c37",
+      "signal_id": "69559247-bde1-4684-ac41-1f56d82ea8e3",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -650,7 +650,7 @@
       "price": "98682.14000000",
       "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.672080200Z",
+      "timestamp": "2026-02-02T04:40:47.522200400Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -687,7 +687,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "3b0bd2f5-a775-4bf1-aa11-8779ffc54fad",
+      "signal_id": "08de544f-0296-4790-a8d2-a538d5b779af",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -695,7 +695,7 @@
       "price": "94261.44000000",
       "confidence": 65,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.674969Z",
+      "timestamp": "2026-02-02T04:40:47.522537200Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -732,7 +732,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "ab5d8eab-5700-4098-a3ed-675a9b24fc44",
+      "signal_id": "6117c3bf-7a16-4119-a566-f12196d03ca3",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -740,7 +740,7 @@
       "price": "90842.72000000",
       "confidence": 66,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.675956200Z",
+      "timestamp": "2026-02-02T04:40:47.522662100Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -777,7 +777,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "0beddf6d-a423-4d16-a818-324b88c1eb05",
+      "signal_id": "cf2c136e-8c2a-4a78-9181-a58c83e477d7",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -785,7 +785,7 @@
       "price": "91863.64000000",
       "confidence": 65,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.677055100Z",
+      "timestamp": "2026-02-02T04:40:47.522795600Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -822,7 +822,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "49095032-a6c6-420f-9184-c8ae832764d5",
+      "signal_id": "b4728930-0116-47e7-be37-38cfe915a2ff",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -830,7 +830,7 @@
       "price": "86921.28000000",
       "confidence": 100,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.678411100Z",
+      "timestamp": "2026-02-02T04:40:47.522954100Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -867,7 +867,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "149e19cb-a3d2-4efd-8dc6-91144cf3ecb2",
+      "signal_id": "0a1c9d24-5810-4385-8dd4-da76c8e66ed9",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -875,7 +875,7 @@
       "price": "84284.01000000",
       "confidence": 45,
       "confidence_tier": "low",
-      "timestamp": "2026-02-02T04:35:42.679992200Z",
+      "timestamp": "2026-02-02T04:40:47.523164700Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -913,7 +913,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "71d5aa70-1eca-4e76-afa1-fbdc5a27172d",
+      "signal_id": "0c01fff1-b39a-4475-9297-09169b2bb453",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -921,7 +921,7 @@
       "price": "90240.01000000",
       "confidence": 70,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.701677600Z",
+      "timestamp": "2026-02-02T04:40:47.525526600Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0114 (threshold: 0.0008, median: 0.0156) (-15)",
         "✅ Bearish market structure confirmed",
@@ -959,7 +959,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "0f5fa8a2-96d0-4a47-b9d1-294f0ed6757c",
+      "signal_id": "bdf77d5b-a2db-4b84-913b-4bb5ceac2830",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -967,7 +967,7 @@
       "price": "89022.91000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.702403900Z",
+      "timestamp": "2026-02-02T04:40:47.525607900Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0108 (threshold: 0.0008, median: 0.0156) (-15)",
         "✅ Bearish market structure confirmed",
@@ -1004,7 +1004,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "da864c77-4313-42b2-9db5-bc6a112d3854",
+      "signal_id": "2453fdfc-ab30-4734-8454-88cefc4c71ed",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1012,7 +1012,7 @@
       "price": "87033.22000000",
       "confidence": 62,
       "confidence_tier": "low",
-      "timestamp": "2026-02-02T04:35:42.703473900Z",
+      "timestamp": "2026-02-02T04:40:47.525729200Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0131 (threshold: 0.0008, median: 0.0156) (-15)",
         "✅ Bearish market structure confirmed",
@@ -1051,7 +1051,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "48c74025-5d7d-4b08-acbd-76da8f9cdd95",
+      "signal_id": "318f3727-ff5c-4b74-aad1-12d03507954f",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1059,7 +1059,7 @@
       "price": "87213.59000000",
       "confidence": 70,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.705010600Z",
+      "timestamp": "2026-02-02T04:40:47.525916700Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0134 (threshold: 0.0008, median: 0.0155) (-15)",
         "✅ Bearish market structure confirmed",
@@ -1097,7 +1097,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "7d1e148e-f50d-46b1-952d-08125231308e",
+      "signal_id": "5f4a9ac2-73df-442f-a0ca-3114b35dc987",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1105,7 +1105,7 @@
       "price": "86618.34000000",
       "confidence": 70,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.706034100Z",
+      "timestamp": "2026-02-02T04:40:47.526034300Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0154 (threshold: 0.0008, median: 0.0154) (-15)",
         "✅ Bearish market structure confirmed",
@@ -1143,7 +1143,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "23adf1f9-c743-49fe-ba38-f7d9af583b34",
+      "signal_id": "6bbc1c7e-bd91-4463-9593-28e36196707a",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1151,7 +1151,7 @@
       "price": "86891.39000000",
       "confidence": 59,
       "confidence_tier": "low",
-      "timestamp": "2026-02-02T04:35:42.706948400Z",
+      "timestamp": "2026-02-02T04:40:47.526179700Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -1187,7 +1187,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "55bf3032-e2ab-4409-89a3-4ba3f66833be",
+      "signal_id": "925acf97-2aa6-435b-afe5-e8076da6ec79",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1195,7 +1195,7 @@
       "price": "87203.94000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.711679600Z",
+      "timestamp": "2026-02-02T04:40:47.526698900Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0118 (threshold: 0.0008, median: 0.0146) (-15)",
         "✅ Bearish market structure confirmed",
@@ -1232,7 +1232,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "2defdf98-f4f1-42b1-8671-7e8372488452",
+      "signal_id": "c535558a-450f-4c96-8325-3b25f99e0ce1",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1240,7 +1240,7 @@
       "price": "91408.91000000",
       "confidence": 70,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-02T04:35:42.731380900Z",
+      "timestamp": "2026-02-02T04:40:47.528977900Z",
       "reason": [
         "⚠️ Low volatility regime: ATR ratio 0.0096 (threshold: 0.0008, median: 0.0111) (-15)",
         "✅ Bullish market structure confirmed",
@@ -1278,7 +1278,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "f993504a-fb21-48c3-8d7e-54f56eaa9159",
+      "signal_id": "d5294e77-0cf2-4d53-844e-44497ac948c4",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1286,7 +1286,7 @@
       "price": "89620.10000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.742502200Z",
+      "timestamp": "2026-02-02T04:40:47.530247700Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",
@@ -1322,7 +1322,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "d10d2eb4-d816-4405-8e61-6462b0bfb9df",
+      "signal_id": "2a5c325d-db4a-4fbf-bc25-0d17a3df9b56",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "4h",
@@ -1330,7 +1330,7 @@
       "price": "83546.81000000",
       "confidence": 95,
       "confidence_tier": "high",
-      "timestamp": "2026-02-02T04:35:42.749671300Z",
+      "timestamp": "2026-02-02T04:40:47.531048200Z",
       "reason": [
         "✅ Bearish market structure confirmed",
         "✅ Fractal LH detected (Pivot High confirmed)",

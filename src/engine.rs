@@ -1,4 +1,4 @@
-use crate::types::{TradeSignal, SignalType, TrendState, RegimeContext, PositionPool, PositionPoolConfig, ContextId, ActiveTrade, KillSwitchState};
+use crate::types::{TradeSignal, SignalType, TrendState, RegimeContext, PositionPool, PositionPoolConfig, ContextId, ActiveTrade, KillSwitchState, get_kill_switch_duration_for_tf};
 use crate::state::SymbolContext;
 use crate::policy::PolicyEngine;
 use crate::analytics::{ScoreThreshold, BlockStats};
@@ -112,10 +112,11 @@ impl SignalEngine {
         
         // Check if kill switch should be ACTIVATED
         if !state.active && state.consecutive_losses >= config.kill_switch_consec_losses {
+            let tf_duration = get_kill_switch_duration_for_tf(timeframe);
             state.activate(current_candle, ema50_slope, atr);
             self.block_stats.kill_switch_triggered += 1;
             warn!("🔴 KILL SWITCH ACTIVATED for {} - {} consecutive losses (min {} candles before reset)", 
-                  key, state.consecutive_losses, config.kill_switch_min_duration);
+                  key, state.consecutive_losses, tf_duration);
         }
     }
     
@@ -132,11 +133,12 @@ impl SignalEngine {
     ) -> bool {
         let key = format!("{}_{}", symbol, timeframe);
         let config = &self.position_pool.config;
+        let tf_duration = get_kill_switch_duration_for_tf(timeframe);
         
         if let Some(state) = self.kill_switch_states.get_mut(&key) {
             if state.can_reset(
                 current_candle,
-                config.kill_switch_min_duration,
+                tf_duration, // Use TF-based duration instead of config default
                 config.kill_switch_reset_wins,
                 current_ema50_slope,
                 current_atr,

@@ -1,6 +1,6 @@
 [app]
 # Başlangıç modu: "live" veya "backtest"
-mode = "backtest" 
+mode = "live" 
 bootstrap_limit = 10000
 auto_reconnect = true
 
@@ -13,8 +13,9 @@ days = 120
 # csv_timeframe = "1h"
 
 [trading]
-symbols = ["BTCUSDT"]
-timeframes = ["1m", "5m", "15m", "30m" ,"1h", "4h", "1d" ,"1w", "1M"]
+# PHASE A: Only Active pairs (BTC 1h/4h, ETH 30m/1h)
+symbols = ["BTCUSDT", "ETHUSDT"]
+timeframes = ["30m", "1h", "4h"]
 
 [indicators]
 ema_fast = [5, 8, 13]
