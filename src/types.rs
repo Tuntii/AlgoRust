@@ -6,6 +6,24 @@ use std::collections::HashMap;
 use std::fmt;
 
 // =============================================================================
+// ALPACA BRACKET ORDER TYPES
+// =============================================================================
+
+/// Take profit specification for bracket orders
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TakeProfitSpec {
+    pub limit_price: Decimal,
+}
+
+/// Stop loss specification for bracket orders
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StopLossSpec {
+    pub stop_price: Decimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit_price: Option<Decimal>, // For stop-limit orders
+}
+
+// =============================================================================
 // MULTI-POSITION TRADING TYPES
 // =============================================================================
 
@@ -679,6 +697,15 @@ impl Candle {
 pub enum SignalType {
     LONG,
     SHORT,
+}
+
+impl fmt::Display for SignalType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SignalType::LONG => write!(f, "LONG"),
+            SignalType::SHORT => write!(f, "SHORT"),
+        }
+    }
 }
 
 // T6.2 — Signal Output Contracts

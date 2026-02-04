@@ -67,6 +67,8 @@ fn default_csv_timeframe() -> String {
 struct TradingConfig {
     symbols: Vec<String>,
     timeframes: Vec<String>,
+    #[serde(default)]
+    execute_trades: bool,
 }
 
 #[tokio::main]
@@ -128,6 +130,24 @@ async fn main() -> anyhow::Result<()> {
     let mut engine = SignalEngine::new();
     let mut contexts: HashMap<String, SymbolContext> = HashMap::new();
     let client = connect::BinanceClient::new();
+
+    // Initialize Alpaca client if execute_trades is enabled
+    let alpaca_client = if conf.trading.execute_trades {
+        match alpaca::AlpacaClient::new() {
+            Ok(client) => {
+                info!("🦙 Alpaca client initialized for live trading");
+                Some(client)
+            }
+            Err(e) => {
+                error!("⚠️ Failed to initialize Alpaca client: {}", e);
+                error!("   Trading execution will be disabled");
+                None
+            }
+        }
+    } else {
+        info!("ℹ️  Trade execution disabled (execute_trades = false)");
+        None
+    };
 
     // ... rest of live logic
     // Bootstrap (Historical Data)
@@ -203,6 +223,51 @@ async fn main() -> anyhow::Result<()> {
                                                             "{}",
                                                             serde_json::to_string(&signal).unwrap()
                                                         );
+
+                                                        // Execute trade if Alpaca is configured
+                                                        if let Some(alpaca) = &alpaca_client {
+                                                            info!("📊 Signal generated: {} {} @ ${}", 
+                                                                  signal.signal, signal.symbol, signal.price);
+                                                            
+                                                            let entry_price = signal.price;
+                                                            
+                                                            // Build a temporary order to get SL/TP for position sizing
+                                                            let temp_order = alpaca::build_bracket_order(&signal, ctx, rust_decimal::Decimal::ZERO);
+                                                            let sl_price = temp_order.stop_loss.as_ref().map(|sl| sl.stop_price).unwrap_or(entry_price);
+                                                            let tp_price = temp_order.take_profit.as_ref().map(|tp| tp.limit_price).unwrap_or(entry_price);
+                                                            
+                                                            // Calculate dynamic position size
+                                                            match alpaca.calculate_position_size(
+                                                                entry_price,
+                                                                sl_price,
+                                                                signal.confidence,
+                                                                None, // Use default 1% risk
+                                                            ).await {
+                                                                Ok(qty) => {
+                                                                    // Build final bracket order with calculated qty
+                                                                    let order = alpaca::build_bracket_order(&signal, ctx, qty);
+                                                                    
+                                                                    info!("🚀 Submitting bracket order:");
+                                                                    info!("   Symbol: {}, Side: {:?}, Qty: {}", order.symbol, order.side, order.qty);
+                                                                    info!("   Entry: ${}, SL: ${}, TP: ${}", entry_price, sl_price, tp_price);
+                                                                    
+                                                                    // Submit order with retry
+                                                                    match alpaca.submit_order_with_retry(order).await {
+                                                                        Ok(response) => {
+                                                                            info!("✅ Order placed successfully!");
+                                                                            info!("   Order ID: {}", response.id);
+                                                                            info!("   Status: {}", response.status);
+                                                                        }
+                                                                        Err(e) => {
+                                                                            error!("❌ Failed to submit order: {}", e);
+                                                                        }
+                                                                    }
+                                                                }
+                                                                Err(e) => {
+                                                                    error!("❌ Failed to calculate position size: {}", e);
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                                 Err(e) => error!("Candle parse error: {}", e),

@@ -232,6 +232,9 @@ pub async fn run_backtest(
                                         time_in_force: TimeInForce::Gtc,
                                         limit_price: None,
                                         stop_price: None,
+                                        order_class: None,
+                                        take_profit: None,
+                                        stop_loss: None,
                                     };
                                     
                                     // Alpaca sembol dönüşümü (Binance -> Alpaca)
