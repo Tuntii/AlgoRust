@@ -214,11 +214,11 @@ impl BootstrapState {
     /// HTF adjustments: 4h → 1000, 1h → 700
     pub fn min_candles_for_tf(timeframe: &str) -> usize {
         match timeframe {
-            "4h" => 800,  // HTF needs more history for proper context
-            "1h" => 500,  // HTF needs more history (was 700)
-            "30m" => 300, // Medium TF (was 450)
-            "15m" => 200, // Scalping TF (was 300)
-            _ => 200,     // Default: reduce bootstrap for faster signal readiness
+            "4h" => 1000, // HTF needs more history for proper context
+            "1h" => 700,  // HTF needs more history
+            "30m" => 450, // Medium TF
+            "15m" => 300, // Scalping TF
+            _ => 300,     // Default: reduce bootstrap for faster signal readiness
         }
     }
 

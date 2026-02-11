@@ -1,24 +1,24 @@
 {
   "symbol": "BTCUSDT",
   "timeframe": "15m",
-  "total_trades": 60,
+  "total_trades": 57,
   "wins": 9,
   "losses": 2,
   "win_rate": 81.81818181818183,
   "total_pnl_r": "5.1238887042810487471972713186",
   "advanced_metrics": {
-    "expectancy_r": 0.027404762891368534,
-    "max_consecutive_losses": 13,
+    "expectancy_r": 0.028847118833019506,
+    "max_consecutive_losses": 11,
     "max_consecutive_wins": 1,
-    "avg_r_per_trade": 0.08539814507135081,
+    "avg_r_per_trade": 0.08989278428563244,
     "avg_win_r": 0.5982319154312867,
-    "avg_loss_r": 0.0733294404980288,
+    "avg_loss_r": 0.0779125305291556,
     "profit_factor": 1.4396719421324886,
     "largest_win_r": 1.0,
     "largest_loss_r": 1.0,
-    "avg_trade_duration_candles": 4.6,
-    "sharpe_ratio_approx": 0.26244197647751566,
-    "trade_count": 60,
+    "avg_trade_duration_candles": 4.631578947368421,
+    "sharpe_ratio_approx": 0.2697491564047039,
+    "trade_count": 57,
     "max_concurrent_trades": 1,
     "avg_concurrent_trades": 1.0,
     "overlap_trade_count": 0,
@@ -26,7 +26,7 @@
     "overlap_pnl_r": 0.0,
     "context_based_expectancy": {
       "signal": 0.07118498557222236,
-      "bos": 0.08641337074986
+      "bos": 0.09130469362249358
     },
     "pnl_by_overlap_count": {
       "1": 5.123888704281049
@@ -42,64 +42,26 @@
     "by_session": {},
     "by_confidence_tier": {
       "high": {
-        "trades": 13,
+        "trades": 11,
         "wins": 4,
-        "win_rate": 30.76923076923077,
+        "win_rate": 36.36363636363637,
         "total_r": 2.3466296895856393,
-        "avg_r": 0.18050997612197225,
-        "expectancy": 0.15256371106230515
+        "avg_r": 0.21332997178051266,
+        "expectancy": 0.1803025676190879
       },
       "medium": {
-        "trades": 47,
+        "trades": 46,
         "wins": 5,
-        "win_rate": 10.638297872340425,
+        "win_rate": 10.869565217391305,
         "total_r": 2.7772590146954093,
-        "avg_r": 0.05909061733394488,
-        "expectancy": -0.007213669581443732
+        "avg_r": 0.06037519597163933,
+        "expectancy": -0.007370488485388169
       }
     }
   },
   "signals": [
     {
-      "signal_id": "b81682f5-9d4b-49bf-af15-40d728bd3ebf",
-      "engine_version": "2.1.0",
-      "symbol": "BTCUSDT",
-      "tf": "15m",
-      "direction": "LONG",
-      "price": "97129.98000000",
-      "confidence": 80,
-      "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:42.521501Z",
-      "reason": [
-        "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=5, slope=0.2495815556892606133140978077",
-        "LSTM score: 0.896"
-      ],
-      "context_id": null,
-      "regime_context": null,
-      "entry_price": "97129.98000000",
-      "sl_price": "97129.98000000",
-      "original_sl_price": "96527.71000000",
-      "tp_price": "97732.25000000",
-      "exit_price": "97129.98000000",
-      "pnl_r": "0",
-      "outcome": "BE",
-      "entry_candle_idx": 258,
-      "exit_candle_idx": 262,
-      "duration_candles": 4,
-      "context_id": {
-        "context_type": "bos",
-        "identifier": "bull_259",
-        "created_at_candle": 259
-      },
-      "adjusted_confidence": 80,
-      "was_concurrent": false,
-      "context_score": 80,
-      "ema50_slope_at_entry": "0.0008557459724318564955056556",
-      "is_be_applied": true
-    },
-    {
-      "signal_id": "336eef6f-278d-4884-acca-2e7ac33323bc",
+      "signal_id": "2847daed-be34-41c1-b357-bda6dda59605",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -107,10 +69,10 @@
       "price": "97248.98000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:42.546838900Z",
+      "timestamp": "2026-02-11T03:00:01.816340200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=-4, slope=-0.8131431419858217359203082421",
+        "15m KAMA quality: score=-4, slope=-0.8131431419858217108470174911",
         "LSTM score: 1.000"
       ],
       "context_id": null,
@@ -122,22 +84,22 @@
       "exit_price": "97248.98000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 466,
-      "exit_candle_idx": 473,
+      "entry_candle_idx": 499,
+      "exit_candle_idx": 506,
       "duration_candles": 7,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_467",
-        "created_at_candle": 467
+        "identifier": "bear_500",
+        "created_at_candle": 500
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
       "context_score": 72,
-      "ema50_slope_at_entry": "-0.0003479451227291425197861227",
+      "ema50_slope_at_entry": "-0.0003479451203429748467646838",
       "is_be_applied": true
     },
     {
-      "signal_id": "a0b7ebe0-c777-4724-a0e4-1107fcb0f28d",
+      "signal_id": "2106ee9a-50bb-4197-bd1a-667efd3487dc",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -145,11 +107,11 @@
       "price": "96371.30000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:42.604046800Z",
+      "timestamp": "2026-02-11T03:00:01.871841600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.9083741014111112439398992782",
-        "LSTM score: 0.913"
+        "LSTM score: 0.907"
       ],
       "context_id": null,
       "regime_context": null,
@@ -160,22 +122,22 @@
       "exit_price": "96371.30000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 763,
-      "exit_candle_idx": 767,
+      "entry_candle_idx": 796,
+      "exit_candle_idx": 800,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_764",
-        "created_at_candle": 764
+        "identifier": "bull_797",
+        "created_at_candle": 797
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
       "context_score": 72,
-      "ema50_slope_at_entry": "0.0010674367645270455197272994",
+      "ema50_slope_at_entry": "0.0010674367645270625050740241",
       "is_be_applied": true
     },
     {
-      "signal_id": "4f4430f4-90b4-4e96-88bd-5bf84b92d11a",
+      "signal_id": "9287b47b-3228-4ef7-8cc6-fcd58ad322f1",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -183,7 +145,7 @@
       "price": "86411.53000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:42.751921500Z",
+      "timestamp": "2026-02-11T03:00:02.009106100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.1563684635107625731502360765",
@@ -198,13 +160,13 @@
       "exit_price": "86411.53000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 1517,
-      "exit_candle_idx": 1521,
+      "entry_candle_idx": 1550,
+      "exit_candle_idx": 1554,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_1518",
-        "created_at_candle": 1518
+        "identifier": "bull_1551",
+        "created_at_candle": 1551
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -213,7 +175,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "4027e3a5-b623-4225-b9c5-9995aaff2dcc",
+      "signal_id": "fc4b1877-4133-43ce-9677-c4ec167ff95f",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -221,7 +183,7 @@
       "price": "91993.99000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:42.847007100Z",
+      "timestamp": "2026-02-11T03:00:02.098438900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.148327493301252103358066262",
@@ -236,13 +198,13 @@
       "exit_price": "91993.99000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 1901,
-      "exit_candle_idx": 1905,
+      "entry_candle_idx": 1934,
+      "exit_candle_idx": 1938,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_1902",
-        "created_at_candle": 1902
+        "identifier": "bear_1935",
+        "created_at_candle": 1935
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -251,7 +213,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "6872129b-cd56-4490-a1fa-53dc98f537e9",
+      "signal_id": "e68cfe17-e70c-4a53-8658-41611d6ea40d",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -259,7 +221,7 @@
       "price": "85246.35000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:43.183544200Z",
+      "timestamp": "2026-02-11T03:00:02.438741400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.3044812351365445349887554624",
@@ -274,13 +236,13 @@
       "exit_price": "85246.35000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 3548,
-      "exit_candle_idx": 3552,
+      "entry_candle_idx": 3581,
+      "exit_candle_idx": 3585,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_3549",
-        "created_at_candle": 3549
+        "identifier": "bear_3582",
+        "created_at_candle": 3582
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -289,7 +251,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "79fe94b2-894d-4c9a-afad-178501c83e95",
+      "signal_id": "bcf3b7c5-ad30-43d2-856e-1271f2253168",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -297,7 +259,7 @@
       "price": "83924.50000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:43.421214800Z",
+      "timestamp": "2026-02-11T03:00:02.676260300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.4836779936195481701813030655",
@@ -312,13 +274,13 @@
       "exit_price": "84175.99000000",
       "pnl_r": "0.2435054560946562224653608188",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 4692,
-      "exit_candle_idx": 4702,
+      "entry_candle_idx": 4725,
+      "exit_candle_idx": 4735,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_4693",
-        "created_at_candle": 4693
+        "identifier": "bull_4726",
+        "created_at_candle": 4726
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -327,7 +289,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "668cddd2-76aa-4aab-a48a-61f3082c9e0a",
+      "signal_id": "a56038c8-67b6-44f7-9aa0-43a70c8b19da",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -335,7 +297,7 @@
       "price": "82796.10000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:43.437259700Z",
+      "timestamp": "2026-02-11T03:00:02.690605500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.8886205030015554854847666843",
@@ -350,13 +312,13 @@
       "exit_price": "84154.22000000",
       "pnl_r": "-1",
       "outcome": "LOSS",
-      "entry_candle_idx": 4715,
-      "exit_candle_idx": 4718,
+      "entry_candle_idx": 4748,
+      "exit_candle_idx": 4751,
       "duration_candles": 3,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_4716",
-        "created_at_candle": 4716
+        "identifier": "bear_4749",
+        "created_at_candle": 4749
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -365,7 +327,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "69e0a1ff-2b79-437a-9aeb-5c7afb041bec",
+      "signal_id": "6e4827c7-85e3-45b1-8191-3e00288c5fda",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -373,7 +335,7 @@
       "price": "84100.00000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:43.464814500Z",
+      "timestamp": "2026-02-11T03:00:02.715211Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-1.2638169923796162498021178429",
@@ -388,13 +350,13 @@
       "exit_price": "84100.00000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 4778,
-      "exit_candle_idx": 4782,
+      "entry_candle_idx": 4811,
+      "exit_candle_idx": 4815,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_4779",
-        "created_at_candle": 4779
+        "identifier": "bear_4812",
+        "created_at_candle": 4812
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -403,45 +365,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "ef1c5e37-4a73-4a15-8831-7b9db4be93ae",
-      "engine_version": "2.1.0",
-      "symbol": "BTCUSDT",
-      "tf": "15m",
-      "direction": "LONG",
-      "price": "79564.86000000",
-      "confidence": 72,
-      "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:43.594894500Z",
-      "reason": [
-        "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=4, slope=0.4110247770551513623668081072",
-        "LSTM score: 0.611"
-      ],
-      "context_id": null,
-      "regime_context": null,
-      "entry_price": "79564.86000000",
-      "sl_price": "79564.86000000",
-      "original_sl_price": "76410.62000000",
-      "tp_price": "82719.10000000",
-      "exit_price": "79564.86000000",
-      "pnl_r": "0",
-      "outcome": "BE",
-      "entry_candle_idx": 5291,
-      "exit_candle_idx": 5295,
-      "duration_candles": 4,
-      "context_id": {
-        "context_type": "bos",
-        "identifier": "bull_5292",
-        "created_at_candle": 5292
-      },
-      "adjusted_confidence": 72,
-      "was_concurrent": false,
-      "context_score": 72,
-      "ema50_slope_at_entry": "0.0010112168457592701230293657",
-      "is_be_applied": true
-    },
-    {
-      "signal_id": "e139b832-e5c0-4eba-9165-649308b8e64d",
+      "signal_id": "da966a60-faba-4156-a5d1-920b711c60dd",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -449,7 +373,7 @@
       "price": "78479.91000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:43.625450900Z",
+      "timestamp": "2026-02-11T03:00:02.873010100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.5583510564274273115259557934",
@@ -464,13 +388,13 @@
       "exit_price": "78479.91000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 5390,
-      "exit_candle_idx": 5394,
+      "entry_candle_idx": 5423,
+      "exit_candle_idx": 5427,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_5391",
-        "created_at_candle": 5391
+        "identifier": "bear_5424",
+        "created_at_candle": 5424
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -479,7 +403,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "543d49f3-ba7b-4561-b832-edcb3644353c",
+      "signal_id": "79cac0f8-168a-4e62-9179-3cf750c1256b",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -487,7 +411,7 @@
       "price": "81743.55000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:43.664322200Z",
+      "timestamp": "2026-02-11T03:00:02.911056200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.1539164776737724104148241075",
@@ -502,13 +426,13 @@
       "exit_price": "81743.55000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 5535,
-      "exit_candle_idx": 5539,
+      "entry_candle_idx": 5568,
+      "exit_candle_idx": 5572,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_5536",
-        "created_at_candle": 5536
+        "identifier": "bear_5569",
+        "created_at_candle": 5569
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -517,7 +441,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "ce4dae44-b1f2-48e4-a3e3-db5a241087da",
+      "signal_id": "67fa80b0-2143-4beb-a697-b0796db1b0dc",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -525,7 +449,7 @@
       "price": "93810.43000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:44.061751Z",
+      "timestamp": "2026-02-11T03:00:03.313964900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.4195947999786593397181235083",
@@ -540,13 +464,13 @@
       "exit_price": "93810.43000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 7244,
-      "exit_candle_idx": 7248,
+      "entry_candle_idx": 7277,
+      "exit_candle_idx": 7281,
       "duration_candles": 4,
       "context_id": {
         "context_type": "signal",
-        "identifier": "7245",
-        "created_at_candle": 7245
+        "identifier": "7278",
+        "created_at_candle": 7278
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -555,7 +479,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "bae86795-f259-46f4-97f0-0f398504fd9e",
+      "signal_id": "6c10a9fd-1097-4f59-8a60-2de7bc7189c4",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -563,7 +487,7 @@
       "price": "95426.79000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:44.140427500Z",
+      "timestamp": "2026-02-11T03:00:03.395478800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.6446694885109703687867000778",
@@ -578,13 +502,13 @@
       "exit_price": "95940.54000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 7577,
-      "exit_candle_idx": 7580,
+      "entry_candle_idx": 7610,
+      "exit_candle_idx": 7613,
       "duration_candles": 3,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_7578",
-        "created_at_candle": 7578
+        "identifier": "bull_7611",
+        "created_at_candle": 7611
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -593,45 +517,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "fb087263-8359-44c7-a994-d8af2901ffe2",
-      "engine_version": "2.1.0",
-      "symbol": "BTCUSDT",
-      "tf": "15m",
-      "direction": "SHORT",
-      "price": "102953.74000000",
-      "confidence": 80,
-      "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:44.371244500Z",
-      "reason": [
-        "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=-5, slope=-0.2237083231825218704779087656",
-        "LSTM score: 0.628"
-      ],
-      "context_id": null,
-      "regime_context": null,
-      "entry_price": "102953.74000000",
-      "sl_price": "102953.74000000",
-      "original_sl_price": "104628.00000000",
-      "tp_price": "101279.48000000",
-      "exit_price": "102953.74000000",
-      "pnl_r": "0",
-      "outcome": "BE",
-      "entry_candle_idx": 8652,
-      "exit_candle_idx": 8656,
-      "duration_candles": 4,
-      "context_id": {
-        "context_type": "bos",
-        "identifier": "bear_8653",
-        "created_at_candle": 8653
-      },
-      "adjusted_confidence": 80,
-      "was_concurrent": false,
-      "context_score": 80,
-      "ema50_slope_at_entry": "-0.0007379161678642990181278397",
-      "is_be_applied": true
-    },
-    {
-      "signal_id": "ab30e82c-1e10-444f-9ff4-8293b1f03b8d",
+      "signal_id": "b5a9d1d2-95a0-4bed-b13a-5207b60ad06d",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -639,7 +525,7 @@
       "price": "104317.41000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:44.526177100Z",
+      "timestamp": "2026-02-11T03:00:03.786410500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "Pine confirmation: divergence detected",
@@ -655,13 +541,13 @@
       "exit_price": "104317.41000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 9243,
-      "exit_candle_idx": 9247,
+      "entry_candle_idx": 9276,
+      "exit_candle_idx": 9280,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_9244",
-        "created_at_candle": 9244
+        "identifier": "bear_9277",
+        "created_at_candle": 9277
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -670,7 +556,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "c2324faf-3800-49d3-aa74-5ab46ec96b85",
+      "signal_id": "5c9a6fe1-696e-4940-b2db-1e28bc267ebc",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -678,7 +564,7 @@
       "price": "106975.90000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:44.624836Z",
+      "timestamp": "2026-02-11T03:00:03.881995700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.2236571661928171175534685541",
@@ -693,13 +579,13 @@
       "exit_price": "106409.92000000",
       "pnl_r": "0.2280246565408323596954192015",
       "outcome": "WIN",
-      "entry_candle_idx": 9528,
-      "exit_candle_idx": 9530,
+      "entry_candle_idx": 9561,
+      "exit_candle_idx": 9563,
       "duration_candles": 2,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_9529",
-        "created_at_candle": 9529
+        "identifier": "bear_9562",
+        "created_at_candle": 9562
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -708,7 +594,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "f9d505ed-f447-4d5a-a90c-7a8937b2f294",
+      "signal_id": "42e83664-d867-4ce7-873c-2047aa097655",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -716,7 +602,7 @@
       "price": "103826.03000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:45.320830Z",
+      "timestamp": "2026-02-11T03:00:04.624529200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.5114429990597856802214628015",
@@ -731,13 +617,13 @@
       "exit_price": "103826.03000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 12470,
-      "exit_candle_idx": 12474,
+      "entry_candle_idx": 12503,
+      "exit_candle_idx": 12507,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_12471",
-        "created_at_candle": 12471
+        "identifier": "bull_12504",
+        "created_at_candle": 12504
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -746,7 +632,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "443b2be9-bbcf-4d5d-ac76-dd5b52e75bba",
+      "signal_id": "8ac9622f-8989-45db-b9f9-ecbe9af0209d",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -754,7 +640,7 @@
       "price": "106869.71000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:45.448416400Z",
+      "timestamp": "2026-02-11T03:00:04.753686100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.4838717877103286209551303345",
@@ -769,13 +655,13 @@
       "exit_price": "106869.71000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13042,
-      "exit_candle_idx": 13046,
+      "entry_candle_idx": 13075,
+      "exit_candle_idx": 13079,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13043",
-        "created_at_candle": 13043
+        "identifier": "bear_13076",
+        "created_at_candle": 13076
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -784,7 +670,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "be38d1a7-415b-4f67-935f-efe8c9c4de13",
+      "signal_id": "c80680f7-4fe7-4674-95c4-193ba4bc0fcf",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -792,7 +678,7 @@
       "price": "107383.33000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:45.477329300Z",
+      "timestamp": "2026-02-11T03:00:04.784084900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=5, slope=0.5718125177060105116479088548",
@@ -807,13 +693,13 @@
       "exit_price": "107383.33000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13131,
-      "exit_candle_idx": 13139,
+      "entry_candle_idx": 13164,
+      "exit_candle_idx": 13172,
       "duration_candles": 8,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_13132",
-        "created_at_candle": 13132
+        "identifier": "bull_13165",
+        "created_at_candle": 13165
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -822,7 +708,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "957b55bb-5af5-463c-b60a-e8642b434427",
+      "signal_id": "d6b45352-0566-4c67-9005-b6294dd082c7",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -830,7 +716,7 @@
       "price": "107183.83000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:45.496201100Z",
+      "timestamp": "2026-02-11T03:00:04.800872800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.1348919475885483927070142153",
@@ -845,13 +731,13 @@
       "exit_price": "107183.83000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13160,
-      "exit_candle_idx": 13164,
+      "entry_candle_idx": 13193,
+      "exit_candle_idx": 13197,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13161",
-        "created_at_candle": 13161
+        "identifier": "bear_13194",
+        "created_at_candle": 13194
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -860,7 +746,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "f23a180d-8dcd-47af-a788-64dce78b5edf",
+      "signal_id": "dbd468bf-90e7-4ad0-a6df-57d3acab6924",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -868,7 +754,7 @@
       "price": "107524.28000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:45.528859400Z",
+      "timestamp": "2026-02-11T03:00:04.833527400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.8699105968791475920373316311",
@@ -883,13 +769,13 @@
       "exit_price": "107524.28000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13268,
-      "exit_candle_idx": 13272,
+      "entry_candle_idx": 13301,
+      "exit_candle_idx": 13305,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13269",
-        "created_at_candle": 13269
+        "identifier": "bear_13302",
+        "created_at_candle": 13302
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -898,7 +784,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "4e93db12-55a8-4939-8f4f-580a1275f7b1",
+      "signal_id": "2b7fec8e-c755-4bd0-9e38-04b7e3a53669",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -906,7 +792,7 @@
       "price": "108023.81000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:45.545348300Z",
+      "timestamp": "2026-02-11T03:00:04.848417900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "Pine confirmation: divergence detected",
@@ -922,13 +808,13 @@
       "exit_price": "108528.50000000",
       "pnl_r": "0.6522143678680813119499618769",
       "outcome": "WIN",
-      "entry_candle_idx": 13292,
-      "exit_candle_idx": 13300,
+      "entry_candle_idx": 13325,
+      "exit_candle_idx": 13333,
       "duration_candles": 8,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_13293",
-        "created_at_candle": 13293
+        "identifier": "bull_13326",
+        "created_at_candle": 13326
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -937,7 +823,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "2c207f66-a56d-4fb0-b0d6-97682fa7adbe",
+      "signal_id": "99be0f4b-1afb-4d4a-a408-7093d8f9507f",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -945,7 +831,7 @@
       "price": "108561.17000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:45.643099300Z",
+      "timestamp": "2026-02-11T03:00:04.938489Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.3287793586373025152113193887",
@@ -960,13 +846,13 @@
       "exit_price": "108561.17000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13597,
-      "exit_candle_idx": 13601,
+      "entry_candle_idx": 13630,
+      "exit_candle_idx": 13634,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13598",
-        "created_at_candle": 13598
+        "identifier": "bear_13631",
+        "created_at_candle": 13631
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -975,7 +861,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "0459aace-327d-48ac-8fdd-4634e42d0c24",
+      "signal_id": "0e9d5d0e-6c39-4475-a950-d14dd752a4d3",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -983,7 +869,7 @@
       "price": "109969.99000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:45.661907600Z",
+      "timestamp": "2026-02-11T03:00:04.955930900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.4763440392245970802344847832",
@@ -998,13 +884,13 @@
       "exit_price": "109969.99000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13624,
-      "exit_candle_idx": 13628,
+      "entry_candle_idx": 13657,
+      "exit_candle_idx": 13661,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_13625",
-        "created_at_candle": 13625
+        "identifier": "bull_13658",
+        "created_at_candle": 13658
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1013,7 +899,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "9fbc1720-6e0d-437c-b8fd-2c705f0b73b6",
+      "signal_id": "6beedb82-0f8d-4847-8f8e-9489de4c5fd9",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1021,7 +907,7 @@
       "price": "119169.25000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:46.067269900Z",
+      "timestamp": "2026-02-11T03:00:05.373890200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.7215356191105408751516426417",
@@ -1036,13 +922,13 @@
       "exit_price": "119169.25000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 15342,
-      "exit_candle_idx": 15349,
+      "entry_candle_idx": 15375,
+      "exit_candle_idx": 15382,
       "duration_candles": 7,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_15343",
-        "created_at_candle": 15343
+        "identifier": "bull_15376",
+        "created_at_candle": 15376
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1051,7 +937,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "13ceb666-a36f-47ef-b03f-0422b33e047a",
+      "signal_id": "b938794f-ab2b-4eee-93fd-2cf8738bcf70",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1059,7 +945,7 @@
       "price": "118294.95000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:46.097071100Z",
+      "timestamp": "2026-02-11T03:00:05.403095Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.7888091755795727306857577697",
@@ -1074,13 +960,13 @@
       "exit_price": "118294.95000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 15439,
-      "exit_candle_idx": 15443,
+      "entry_candle_idx": 15472,
+      "exit_candle_idx": 15476,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_15440",
-        "created_at_candle": 15440
+        "identifier": "bull_15473",
+        "created_at_candle": 15473
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1089,7 +975,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "0a56f369-7ec8-49a2-a0b9-46e31d397ce6",
+      "signal_id": "d1e89f6a-9079-47dd-9730-7b2b4f000a61",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1097,7 +983,7 @@
       "price": "114244.53000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:46.423328Z",
+      "timestamp": "2026-02-11T03:00:05.723206200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.4026178632095363905073045678",
@@ -1112,13 +998,13 @@
       "exit_price": "114244.53000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 16873,
-      "exit_candle_idx": 16877,
+      "entry_candle_idx": 16906,
+      "exit_candle_idx": 16910,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_16874",
-        "created_at_candle": 16874
+        "identifier": "bull_16907",
+        "created_at_candle": 16907
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1127,7 +1013,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "8d283bf7-74c6-4e74-8bde-fd7ac3bd810e",
+      "signal_id": "60a11210-136c-4688-9fcd-5ea08c385ccb",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1135,7 +1021,7 @@
       "price": "114452.01000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:46.450268800Z",
+      "timestamp": "2026-02-11T03:00:05.751744800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.76755675992839082214095102",
@@ -1150,13 +1036,13 @@
       "exit_price": "114452.01000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 16959,
-      "exit_candle_idx": 16963,
+      "entry_candle_idx": 16992,
+      "exit_candle_idx": 16996,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_16960",
-        "created_at_candle": 16960
+        "identifier": "bear_16993",
+        "created_at_candle": 16993
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1165,7 +1051,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "8de25437-ca56-4a54-970f-6fb4b65b3ba3",
+      "signal_id": "69398a6f-eb6b-4b4c-9376-526f11f2d832",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1173,7 +1059,7 @@
       "price": "108834.00000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:46.923633100Z",
+      "timestamp": "2026-02-11T03:00:06.225061400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.6258790929441697446392431812",
@@ -1188,13 +1074,13 @@
       "exit_price": "108716.65000000",
       "pnl_r": "0.1816507228878362898981455682",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 19268,
-      "exit_candle_idx": 19278,
+      "entry_candle_idx": 19301,
+      "exit_candle_idx": 19311,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_19269",
-        "created_at_candle": 19269
+        "identifier": "bear_19302",
+        "created_at_candle": 19302
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -1203,7 +1089,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "2d4c1ce8-82b8-4925-bcc2-9295c66c19bd",
+      "signal_id": "85638846-2394-4eb2-9a6b-b9256f64ca1c",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1211,7 +1097,7 @@
       "price": "108345.12000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:46.957283100Z",
+      "timestamp": "2026-02-11T03:00:06.258366300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.8532183968474506562865290311",
@@ -1226,13 +1112,13 @@
       "exit_price": "108345.12000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 19389,
-      "exit_candle_idx": 19393,
+      "entry_candle_idx": 19422,
+      "exit_candle_idx": 19426,
       "duration_candles": 4,
       "context_id": {
         "context_type": "signal",
-        "identifier": "19390",
-        "created_at_candle": 19390
+        "identifier": "19423",
+        "created_at_candle": 19423
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -1241,7 +1127,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "4e22b629-88d4-4472-bbcc-91f14047c8c3",
+      "signal_id": "387956ac-3f08-4c3b-9b5e-c0bb8b463811",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1249,7 +1135,7 @@
       "price": "110996.00000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.054250500Z",
+      "timestamp": "2026-02-11T03:00:06.357605100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.1741537161792941562840854956",
@@ -1264,13 +1150,13 @@
       "exit_price": "110435.75000000",
       "pnl_r": "0.234549656286893687568554228",
       "outcome": "WIN",
-      "entry_candle_idx": 19788,
-      "exit_candle_idx": 19791,
+      "entry_candle_idx": 19821,
+      "exit_candle_idx": 19824,
       "duration_candles": 3,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_19789",
-        "created_at_candle": 19789
+        "identifier": "bear_19822",
+        "created_at_candle": 19822
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1279,7 +1165,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "c6df86ce-656e-4abb-8d5b-059c8a0d2b9b",
+      "signal_id": "0f698812-57ae-40bd-8c52-50b07139a9f4",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1287,7 +1173,7 @@
       "price": "111665.22000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.122890800Z",
+      "timestamp": "2026-02-11T03:00:06.429595800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.7155095883120178894399512203",
@@ -1302,13 +1188,13 @@
       "exit_price": "111330.71000000",
       "pnl_r": "0.3947067222032118373078148415",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 20116,
-      "exit_candle_idx": 20126,
+      "entry_candle_idx": 20149,
+      "exit_candle_idx": 20159,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_20117",
-        "created_at_candle": 20117
+        "identifier": "bear_20150",
+        "created_at_candle": 20150
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1317,7 +1203,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "0bea9694-f576-445d-b0aa-7f726918306d",
+      "signal_id": "c2bb607d-eb38-4a3d-bbc5-0e35c73f2fe0",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1325,7 +1211,7 @@
       "price": "112232.17000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.156772500Z",
+      "timestamp": "2026-02-11T03:00:06.462536400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.089978484548852650340736683",
@@ -1340,13 +1226,13 @@
       "exit_price": "112232.17000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 20240,
-      "exit_candle_idx": 20247,
+      "entry_candle_idx": 20273,
+      "exit_candle_idx": 20280,
       "duration_candles": 7,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_20241",
-        "created_at_candle": 20241
+        "identifier": "bull_20274",
+        "created_at_candle": 20274
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1355,7 +1241,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "ec2ff2e7-a71a-4c6f-8681-d0edc2fe604e",
+      "signal_id": "656a09b1-92ad-49f9-a94f-37b2e96b4124",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1363,7 +1249,7 @@
       "price": "115500.00000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:47.291014700Z",
+      "timestamp": "2026-02-11T03:00:06.600095600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.9017863551856916170696365763",
@@ -1378,13 +1264,13 @@
       "exit_price": "115141.80000000",
       "pnl_r": "0.2847399422888894188348079079",
       "outcome": "WIN",
-      "entry_candle_idx": 20723,
-      "exit_candle_idx": 20726,
+      "entry_candle_idx": 20756,
+      "exit_candle_idx": 20759,
       "duration_candles": 3,
       "context_id": {
         "context_type": "signal",
-        "identifier": "20724",
-        "created_at_candle": 20724
+        "identifier": "20757",
+        "created_at_candle": 20757
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -1393,7 +1279,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "6c007612-7be6-4760-999e-e1a0febfad51",
+      "signal_id": "1897c6cf-c468-49a1-b80b-8476573abca7",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1401,7 +1287,7 @@
       "price": "115826.37000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.321355500Z",
+      "timestamp": "2026-02-11T03:00:06.629985Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.5455063906784695102247171077",
@@ -1416,13 +1302,13 @@
       "exit_price": "115826.37000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 20807,
-      "exit_candle_idx": 20811,
+      "entry_candle_idx": 20840,
+      "exit_candle_idx": 20844,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_20808",
-        "created_at_candle": 20808
+        "identifier": "bull_20841",
+        "created_at_candle": 20841
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1431,7 +1317,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "6923bff9-79b7-4a96-9bf4-af02f1263e2f",
+      "signal_id": "fafc9f61-0372-4f35-b0b8-ad6e06810177",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1439,7 +1325,7 @@
       "price": "117440.32000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.365373500Z",
+      "timestamp": "2026-02-11T03:00:06.677084700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.7888367169691754168309295326",
@@ -1454,13 +1340,13 @@
       "exit_price": "117440.32000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 20991,
-      "exit_candle_idx": 20996,
+      "entry_candle_idx": 21024,
+      "exit_candle_idx": 21029,
       "duration_candles": 5,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_20992",
-        "created_at_candle": 20992
+        "identifier": "bull_21025",
+        "created_at_candle": 21025
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1469,7 +1355,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "a178b5d3-471c-4cd3-9e8d-82f3932b79a0",
+      "signal_id": "1fc993d5-3dd4-4970-b7aa-fb606f5d3999",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1477,7 +1363,7 @@
       "price": "109280.01000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.602010100Z",
+      "timestamp": "2026-02-11T03:00:06.935099700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.6922462725226923567474745697",
@@ -1492,13 +1378,13 @@
       "exit_price": "109280.01000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 21964,
-      "exit_candle_idx": 21968,
+      "entry_candle_idx": 21997,
+      "exit_candle_idx": 22001,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_21965",
-        "created_at_candle": 21965
+        "identifier": "bear_21998",
+        "created_at_candle": 21998
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1507,7 +1393,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "e72f4829-c478-43f2-9d19-7184684d41e9",
+      "signal_id": "9cfa7add-4ba4-432e-b2a5-fc91729c4140",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1515,7 +1401,7 @@
       "price": "109850.01000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.618273500Z",
+      "timestamp": "2026-02-11T03:00:06.955292600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.6352293532207465674957550821",
@@ -1530,13 +1416,13 @@
       "exit_price": "110202.74000000",
       "pnl_r": "0.5344231992969910002727190085",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 21998,
-      "exit_candle_idx": 22008,
+      "entry_candle_idx": 22031,
+      "exit_candle_idx": 22041,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_21999",
-        "created_at_candle": 21999
+        "identifier": "bull_22032",
+        "created_at_candle": 22032
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1545,7 +1431,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "4615405f-8b79-4b03-a9f6-8614eb6c4183",
+      "signal_id": "5bc6af5f-6008-4ee8-8a1a-f306c722d105",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1553,7 +1439,7 @@
       "price": "121733.94000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.740660Z",
+      "timestamp": "2026-02-11T03:00:07.072536900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.216430557826138399933560728",
@@ -1568,13 +1454,13 @@
       "exit_price": "121733.94000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 22576,
-      "exit_candle_idx": 22580,
+      "entry_candle_idx": 22609,
+      "exit_candle_idx": 22613,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_22577",
-        "created_at_candle": 22577
+        "identifier": "bear_22610",
+        "created_at_candle": 22610
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1583,7 +1469,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "a43ca06a-76e7-4643-82f6-5b94015da538",
+      "signal_id": "6d799206-c291-48c2-a6e7-d211da87594f",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1591,7 +1477,7 @@
       "price": "122625.73000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:47.854089800Z",
+      "timestamp": "2026-02-11T03:00:07.188882300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.8015504008615160423782181809",
@@ -1606,13 +1492,13 @@
       "exit_price": "122112.16000000",
       "pnl_r": "0.5635080866378459040136935197",
       "outcome": "WIN",
-      "entry_candle_idx": 22999,
-      "exit_candle_idx": 23003,
+      "entry_candle_idx": 23032,
+      "exit_candle_idx": 23036,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_23000",
-        "created_at_candle": 23000
+        "identifier": "bear_23033",
+        "created_at_candle": 23033
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1621,7 +1507,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "b03d2eef-3410-45e8-a9f7-e68016a8f21c",
+      "signal_id": "f787aa4c-95be-4f94-85e7-5f62f0e10a17",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1629,7 +1515,7 @@
       "price": "107283.61000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:48.074894200Z",
+      "timestamp": "2026-02-11T03:00:07.422104800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=5, slope=0.2121618355771959222868852938",
@@ -1644,13 +1530,13 @@
       "exit_price": "107283.61000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 23864,
-      "exit_candle_idx": 23868,
+      "entry_candle_idx": 23897,
+      "exit_candle_idx": 23901,
       "duration_candles": 4,
       "context_id": {
         "context_type": "signal",
-        "identifier": "23865",
-        "created_at_candle": 23865
+        "identifier": "23898",
+        "created_at_candle": 23898
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -1659,7 +1545,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "3994d2a7-5dd8-45f5-a0f8-5304d049b516",
+      "signal_id": "5239dde4-d221-4720-b681-22810269919e",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1667,7 +1553,7 @@
       "price": "108066.78000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.123769500Z",
+      "timestamp": "2026-02-11T03:00:07.466084800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.3103659873403028147935076115",
@@ -1682,13 +1568,13 @@
       "exit_price": "108066.78000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 24051,
-      "exit_candle_idx": 24055,
+      "entry_candle_idx": 24084,
+      "exit_candle_idx": 24088,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_24052",
-        "created_at_candle": 24052
+        "identifier": "bear_24085",
+        "created_at_candle": 24085
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1697,7 +1583,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "ec23e6b2-b7d4-40b0-a6a4-0f338788fcc8",
+      "signal_id": "b0bcb1a0-b44c-4dfb-b980-16c2faf7900a",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1705,7 +1591,7 @@
       "price": "110168.01000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.152981Z",
+      "timestamp": "2026-02-11T03:00:07.495722500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.4084647643430523061338715548",
@@ -1720,13 +1606,13 @@
       "exit_price": "110168.01000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 24147,
-      "exit_candle_idx": 24151,
+      "entry_candle_idx": 24180,
+      "exit_candle_idx": 24184,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_24148",
-        "created_at_candle": 24148
+        "identifier": "bear_24181",
+        "created_at_candle": 24181
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1735,7 +1621,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "9217fe82-02bf-4734-91f7-fb2e11b7985d",
+      "signal_id": "b910c084-aa00-429e-af71-ec609ea8b59b",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1743,7 +1629,7 @@
       "price": "110000.43000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.255304Z",
+      "timestamp": "2026-02-11T03:00:07.594467400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.3256087614239793945857436478",
@@ -1758,13 +1644,13 @@
       "exit_price": "110000.43000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 24492,
-      "exit_candle_idx": 24496,
+      "entry_candle_idx": 24525,
+      "exit_candle_idx": 24529,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_24493",
-        "created_at_candle": 24493
+        "identifier": "bear_24526",
+        "created_at_candle": 24526
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1773,7 +1659,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "0be9d81d-ab25-4dc2-9ce7-0e3ba23dadda",
+      "signal_id": "61b7ecb9-18a2-4c1f-acff-d962939cabed",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1781,7 +1667,7 @@
       "price": "111643.42000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.281070800Z",
+      "timestamp": "2026-02-11T03:00:07.622340900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.7509242959097062427684442958",
@@ -1796,13 +1682,13 @@
       "exit_price": "111643.42000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 24560,
-      "exit_candle_idx": 24564,
+      "entry_candle_idx": 24593,
+      "exit_candle_idx": 24597,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_24561",
-        "created_at_candle": 24561
+        "identifier": "bull_24594",
+        "created_at_candle": 24594
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1811,7 +1697,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "11d50e6c-6377-45d3-989f-ac77fd85d270",
+      "signal_id": "a7b59696-832e-45a0-bca4-57a558c00438",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1819,7 +1705,7 @@
       "price": "113717.01000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.352955Z",
+      "timestamp": "2026-02-11T03:00:07.693344900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.7448698130958911981197663171",
@@ -1834,13 +1720,13 @@
       "exit_price": "112994.40000000",
       "pnl_r": "0.3855153649167733674775928297",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 24896,
-      "exit_candle_idx": 24906,
+      "entry_candle_idx": 24929,
+      "exit_candle_idx": 24939,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_24897",
-        "created_at_candle": 24897
+        "identifier": "bear_24930",
+        "created_at_candle": 24930
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1849,7 +1735,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "538b19d2-3b0b-4dad-a9de-1548f1248588",
+      "signal_id": "004d37a8-b2ad-406d-8c44-838f54a62ca8",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1857,7 +1743,7 @@
       "price": "103863.00000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T11:04:48.631080200Z",
+      "timestamp": "2026-02-11T03:00:07.978102Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=5, slope=0.1360071177329663893926290399",
@@ -1872,13 +1758,13 @@
       "exit_price": "104715.00000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 26292,
-      "exit_candle_idx": 26295,
+      "entry_candle_idx": 26325,
+      "exit_candle_idx": 26328,
       "duration_candles": 3,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_26293",
-        "created_at_candle": 26293
+        "identifier": "bull_26326",
+        "created_at_candle": 26326
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -1887,7 +1773,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "77bb703c-90e6-4ba6-927e-9b548029c233",
+      "signal_id": "43836296-5ef4-4bd2-b2e4-7440b410b197",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1895,7 +1781,7 @@
       "price": "97579.56000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.684642500Z",
+      "timestamp": "2026-02-11T03:00:08.033503Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.71588843229118382899057294",
@@ -1910,13 +1796,13 @@
       "exit_price": "97579.56000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 26469,
-      "exit_candle_idx": 26473,
+      "entry_candle_idx": 26502,
+      "exit_candle_idx": 26506,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_26470",
-        "created_at_candle": 26470
+        "identifier": "bear_26503",
+        "created_at_candle": 26503
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1925,7 +1811,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "465a04b5-b2ae-440d-8cc9-a51fd8c00819",
+      "signal_id": "1f507a58-2d87-481a-aaf1-d0ddec08b3d8",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1933,7 +1819,7 @@
       "price": "94573.46000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:48.748418600Z",
+      "timestamp": "2026-02-11T03:00:08.098878100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.5681945483445226107052678717",
@@ -1948,13 +1834,13 @@
       "exit_price": "94573.46000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 26706,
-      "exit_candle_idx": 26715,
+      "entry_candle_idx": 26739,
+      "exit_candle_idx": 26748,
       "duration_candles": 9,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_26707",
-        "created_at_candle": 26707
+        "identifier": "bear_26740",
+        "created_at_candle": 26740
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1963,7 +1849,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "8495655d-3dda-4f2a-86e7-8a94af7524eb",
+      "signal_id": "e3505683-c5c2-455e-8a51-35e088c003ac",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -1971,7 +1857,7 @@
       "price": "92030.58000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.164832600Z",
+      "timestamp": "2026-02-11T03:00:08.525183300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.2669736116357956414869837577",
@@ -1986,13 +1872,13 @@
       "exit_price": "93112.10000000",
       "pnl_r": "-1",
       "outcome": "LOSS",
-      "entry_candle_idx": 28331,
-      "exit_candle_idx": 28331,
+      "entry_candle_idx": 28364,
+      "exit_candle_idx": 28364,
       "duration_candles": 0,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_28332",
-        "created_at_candle": 28332
+        "identifier": "bear_28365",
+        "created_at_candle": 28365
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2001,7 +1887,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "2e939414-4d69-4c25-9355-16612d9f2422",
+      "signal_id": "5aa89486-afab-475a-a93f-224ebc013524",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2009,7 +1895,7 @@
       "price": "90510.29000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.379992600Z",
+      "timestamp": "2026-02-11T03:00:08.747514300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.3069783063428561198040116426",
@@ -2024,13 +1910,13 @@
       "exit_price": "90510.29000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 29268,
-      "exit_candle_idx": 29272,
+      "entry_candle_idx": 29301,
+      "exit_candle_idx": 29305,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_29269",
-        "created_at_candle": 29269
+        "identifier": "bull_29302",
+        "created_at_candle": 29302
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2039,7 +1925,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "e6d3fbc4-271f-4944-a12d-ab3023d3f7e1",
+      "signal_id": "0f1b7771-a54e-41f1-bc30-933738452a54",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2047,7 +1933,7 @@
       "price": "89961.12000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.395129200Z",
+      "timestamp": "2026-02-11T03:00:08.763028300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.6118160055895488462042951605",
@@ -2062,13 +1948,13 @@
       "exit_price": "89961.12000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 29292,
-      "exit_candle_idx": 29296,
+      "entry_candle_idx": 29325,
+      "exit_candle_idx": 29329,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_29293",
-        "created_at_candle": 29293
+        "identifier": "bear_29326",
+        "created_at_candle": 29326
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2077,7 +1963,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "438bdaaf-c684-450e-ba33-fbec15809467",
+      "signal_id": "1975f1ea-39ac-4859-8360-2bbbffc669b6",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2085,7 +1971,7 @@
       "price": "87372.43000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.501605500Z",
+      "timestamp": "2026-02-11T03:00:08.873170Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.6628184898745317606864769905",
@@ -2100,13 +1986,13 @@
       "exit_price": "87372.43000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 29753,
-      "exit_candle_idx": 29757,
+      "entry_candle_idx": 29786,
+      "exit_candle_idx": 29790,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_29754",
-        "created_at_candle": 29754
+        "identifier": "bull_29787",
+        "created_at_candle": 29787
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2115,7 +2001,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "5768148e-f59b-4053-9210-5af14f32aae2",
+      "signal_id": "599bff77-25c2-4a4e-a340-16b50c0b42d8",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2123,7 +2009,7 @@
       "price": "86361.99000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.527307100Z",
+      "timestamp": "2026-02-11T03:00:08.896246700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.3898278352624419800010372342",
@@ -2138,13 +2024,13 @@
       "exit_price": "86889.04000000",
       "pnl_r": "0.4210505292590373477132015179",
       "outcome": "WIN",
-      "entry_candle_idx": 29823,
-      "exit_candle_idx": 29824,
+      "entry_candle_idx": 29856,
+      "exit_candle_idx": 29857,
       "duration_candles": 1,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_29824",
-        "created_at_candle": 29824
+        "identifier": "bull_29857",
+        "created_at_candle": 29857
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2153,7 +2039,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "b8a3de7b-fc35-485f-a8a5-31c9ba28dd9b",
+      "signal_id": "cfdecc2a-795a-4c91-adfa-e148cb6866c1",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2161,7 +2047,7 @@
       "price": "87934.72000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.590640300Z",
+      "timestamp": "2026-02-11T03:00:08.962784300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.779224630694843360450287946",
@@ -2176,13 +2062,13 @@
       "exit_price": "87934.72000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 30057,
-      "exit_candle_idx": 30061,
+      "entry_candle_idx": 30090,
+      "exit_candle_idx": 30094,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_30058",
-        "created_at_candle": 30058
+        "identifier": "bear_30091",
+        "created_at_candle": 30091
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2191,7 +2077,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "0e02e938-7e80-4469-9b60-c449c8fc51ec",
+      "signal_id": "a9b3ed69-9194-4751-a4fd-e3584d68f15e",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2199,7 +2085,7 @@
       "price": "87668.22000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.739480Z",
+      "timestamp": "2026-02-11T03:00:09.102717Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.2768435620027373935144907625",
@@ -2214,13 +2100,13 @@
       "exit_price": "87812.66000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 30666,
-      "exit_candle_idx": 30667,
+      "entry_candle_idx": 30699,
+      "exit_candle_idx": 30700,
       "duration_candles": 1,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_30667",
-        "created_at_candle": 30667
+        "identifier": "bull_30700",
+        "created_at_candle": 30700
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2229,7 +2115,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "c44301b2-1694-44a4-8b58-87c9be26a697",
+      "signal_id": "d56dc428-06a6-4538-873d-de84529ed664",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2237,7 +2123,7 @@
       "price": "88255.49000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:49.852109Z",
+      "timestamp": "2026-02-11T03:00:09.211097300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.7002273506912880924256779419",
@@ -2252,13 +2138,13 @@
       "exit_price": "88255.49000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 31128,
-      "exit_candle_idx": 31132,
+      "entry_candle_idx": 31161,
+      "exit_candle_idx": 31165,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_31129",
-        "created_at_candle": 31129
+        "identifier": "bull_31162",
+        "created_at_candle": 31162
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2267,7 +2153,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "29d9c3fc-e30a-479b-83a3-8676eb72b4cf",
+      "signal_id": "1cf13b20-c62b-4cc6-b88c-40bb33750990",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2275,7 +2161,7 @@
       "price": "88004.13000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:50.452602700Z",
+      "timestamp": "2026-02-11T03:00:09.796644600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.5071936103740008069593563442",
@@ -2290,13 +2176,13 @@
       "exit_price": "88004.13000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 33591,
-      "exit_candle_idx": 33595,
+      "entry_candle_idx": 33624,
+      "exit_candle_idx": 33628,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_33592",
-        "created_at_candle": 33592
+        "identifier": "bear_33625",
+        "created_at_candle": 33625
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -2305,7 +2191,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "89a2c5dd-4afc-49da-9083-38b93c383a6a",
+      "signal_id": "bebb5a15-f781-417c-939d-67d986ba8f13",
       "engine_version": "2.1.0",
       "symbol": "BTCUSDT",
       "tf": "15m",
@@ -2313,7 +2199,7 @@
       "price": "69378.34000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T11:04:50.767151200Z",
+      "timestamp": "2026-02-11T03:00:10.076604100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.4149750466964351346603472802",
@@ -2328,13 +2214,13 @@
       "exit_price": "69378.34000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 34913,
-      "exit_candle_idx": 34917,
+      "entry_candle_idx": 34946,
+      "exit_candle_idx": 34950,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_34914",
-        "created_at_candle": 34914
+        "identifier": "bear_34947",
+        "created_at_candle": 34947
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
