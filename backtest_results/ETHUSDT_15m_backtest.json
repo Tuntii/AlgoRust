@@ -1,37 +1,37 @@
 {
   "symbol": "ETHUSDT",
   "timeframe": "15m",
-  "total_trades": 44,
-  "wins": 10,
+  "total_trades": 43,
+  "wins": 11,
   "losses": 2,
-  "win_rate": 83.33333333333334,
-  "total_pnl_r": "5.4497352011944813898635872145",
+  "win_rate": 84.61538461538461,
+  "total_pnl_r": "7.2763443055014981578292685937",
   "advanced_metrics": {
-    "expectancy_r": 0.04274543603581278,
-    "max_consecutive_losses": 14,
-    "max_consecutive_wins": 2,
-    "avg_r_per_trade": 0.1238576182089655,
-    "avg_win_r": 0.568462723640744,
-    "avg_loss_r": 0.11187729561269641,
-    "profit_factor": 1.4944490551208118,
+    "expectancy_r": 0.04867232947240421,
+    "max_consecutive_losses": 11,
+    "max_consecutive_wins": 3,
+    "avg_r_per_trade": 0.1692173094302674,
+    "avg_win_r": 0.607693385127949,
+    "avg_loss_r": 0.14349115840918933,
+    "profit_factor": 1.4558012037371262,
     "largest_win_r": 1.0,
     "largest_loss_r": 1.0,
-    "avg_trade_duration_candles": 4.340909090909091,
-    "sharpe_ratio_approx": 0.3103430128709659,
-    "trade_count": 44,
+    "avg_trade_duration_candles": 4.395348837209302,
+    "sharpe_ratio_approx": 0.39466146762312176,
+    "trade_count": 43,
     "max_concurrent_trades": 1,
     "avg_concurrent_trades": 1.0,
     "overlap_trade_count": 0,
     "overlap_win_rate": 0.0,
     "overlap_pnl_r": 0.0,
     "context_based_expectancy": {
-      "bos": 0.1238576182089655
+      "bos": 0.1692173094302674
     },
     "pnl_by_overlap_count": {
-      "1": 5.449735201194482
+      "1": 7.276344305501498
     },
     "worst_overlap_drawdown": 0.0,
-    "overlap_1_pnl": 5.449735201194482,
+    "overlap_1_pnl": 7.276344305501498,
     "overlap_2_pnl": 0.0,
     "overlap_3_pnl": 0.0
   },
@@ -40,27 +40,27 @@
     "by_slope_regime": {},
     "by_session": {},
     "by_confidence_tier": {
-      "high": {
-        "trades": 6,
-        "wins": 1,
-        "win_rate": 16.666666666666664,
-        "total_r": 0.6046977443633629,
-        "avg_r": 0.10078295739389381,
-        "expectancy": -0.06443187702371932
-      },
       "medium": {
-        "trades": 38,
-        "wins": 9,
-        "win_rate": 23.684210526315788,
-        "total_r": 4.845037456831118,
-        "avg_r": 0.12750098570608207,
-        "expectancy": 0.05966816967679152
+        "trades": 39,
+        "wins": 10,
+        "win_rate": 25.64102564102564,
+        "total_r": 6.652286518115816,
+        "avg_r": 0.1705714491824568,
+        "expectancy": 0.06308054837008664
+      },
+      "high": {
+        "trades": 4,
+        "wins": 1,
+        "win_rate": 25.0,
+        "total_r": 0.6240577873856807,
+        "avg_r": 0.15601444684642019,
+        "expectancy": -0.0918078047799995
       }
     }
   },
   "signals": [
     {
-      "signal_id": "39202fa1-d7c0-46ee-824c-475560fd558e",
+      "signal_id": "62884b52-bca3-4cdf-962c-61943e9b72c1",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -68,11 +68,11 @@
       "price": "2680.89000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.064437200Z",
+      "timestamp": "2026-02-11T11:06:03.884807900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=-4, slope=-0.4612650340143718372969102867",
-        "LSTM score: 0.788"
+        "15m KAMA quality: score=-4, slope=-0.4612650340143722580475516394",
+        "LSTM score: 0.810"
       ],
       "context_id": null,
       "regime_context": null,
@@ -83,22 +83,22 @@
       "exit_price": "2680.89000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 429,
-      "exit_candle_idx": 433,
+      "entry_candle_idx": 397,
+      "exit_candle_idx": 401,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_430",
-        "created_at_candle": 430
+        "identifier": "bear_398",
+        "created_at_candle": 398
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
       "context_score": 72,
-      "ema50_slope_at_entry": "-0.0008777631748683850307051403",
+      "ema50_slope_at_entry": "-0.0008777632494532274850408121",
       "is_be_applied": true
     },
     {
-      "signal_id": "758da8b2-9064-40c6-9330-2dfb516f0e39",
+      "signal_id": "8d00064b-dd84-4af8-863e-c2e4d577c23c",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -106,11 +106,11 @@
       "price": "2793.81000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.151227900Z",
+      "timestamp": "2026-02-11T11:06:03.973448700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.4047919476819616512785164394",
-        "LSTM score: 0.816"
+        "LSTM score: 0.818"
       ],
       "context_id": null,
       "regime_context": null,
@@ -121,60 +121,22 @@
       "exit_price": "2793.81000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 984,
-      "exit_candle_idx": 991,
+      "entry_candle_idx": 952,
+      "exit_candle_idx": 959,
       "duration_candles": 7,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_985",
-        "created_at_candle": 985
+        "identifier": "bull_953",
+        "created_at_candle": 953
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
       "context_score": 72,
-      "ema50_slope_at_entry": "0.00120311570102792956696369",
+      "ema50_slope_at_entry": "0.0012031157010279295500279384",
       "is_be_applied": true
     },
     {
-      "signal_id": "fbcf4ca4-4390-486e-918d-a8469dc518d3",
-      "engine_version": "2.1.0",
-      "symbol": "ETHUSDT",
-      "tf": "15m",
-      "direction": "SHORT",
-      "price": "2388.81000000",
-      "confidence": 72,
-      "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.346830500Z",
-      "reason": [
-        "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=-4, slope=-0.6076940793140577342356372132",
-        "LSTM score: 0.999"
-      ],
-      "context_id": null,
-      "regime_context": null,
-      "entry_price": "2388.81000000",
-      "sl_price": "2388.81000000",
-      "original_sl_price": "2457.25000000",
-      "tp_price": "2223.00000000",
-      "exit_price": "2388.81000000",
-      "pnl_r": "0",
-      "outcome": "BE",
-      "entry_candle_idx": 1933,
-      "exit_candle_idx": 1938,
-      "duration_candles": 5,
-      "context_id": {
-        "context_type": "bos",
-        "identifier": "bear_1934",
-        "created_at_candle": 1934
-      },
-      "adjusted_confidence": 72,
-      "was_concurrent": false,
-      "context_score": 72,
-      "ema50_slope_at_entry": "-0.0005717691091051071780316914",
-      "is_be_applied": true
-    },
-    {
-      "signal_id": "c253dd63-7986-4c79-afbe-a9e4da6ba5a3",
+      "signal_id": "0b7f3c0f-edf8-46e3-82d9-37a5db215aac",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -182,7 +144,7 @@
       "price": "2177.15000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.459438800Z",
+      "timestamp": "2026-02-11T11:06:04.276930900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-1.4663341266272739791973411483",
@@ -197,13 +159,13 @@
       "exit_price": "2177.15000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 2495,
-      "exit_candle_idx": 2499,
+      "entry_candle_idx": 2463,
+      "exit_candle_idx": 2467,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_2496",
-        "created_at_candle": 2496
+        "identifier": "bear_2464",
+        "created_at_candle": 2464
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -212,7 +174,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "38947d00-e8d4-419f-a8b9-023cf33651cd",
+      "signal_id": "44e3cf9a-c050-4483-ba4e-48685879a47d",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -220,7 +182,7 @@
       "price": "2128.67000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.491823300Z",
+      "timestamp": "2026-02-11T11:06:04.309824200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.7766727904538978457791359564",
@@ -235,13 +197,13 @@
       "exit_price": "2128.67000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 2616,
-      "exit_candle_idx": 2620,
+      "entry_candle_idx": 2584,
+      "exit_candle_idx": 2588,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_2617",
-        "created_at_candle": 2617
+        "identifier": "bull_2585",
+        "created_at_candle": 2585
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -250,7 +212,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "36a44772-31dc-4810-aee0-8caec23b7490",
+      "signal_id": "be9b2125-e2dd-439b-b140-69c80946044e",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -258,7 +220,7 @@
       "price": "2002.73000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.739460200Z",
+      "timestamp": "2026-02-11T11:06:04.561222700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.8095677612490902839725566699",
@@ -273,13 +235,13 @@
       "exit_price": "2002.73000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 3769,
-      "exit_candle_idx": 3773,
+      "entry_candle_idx": 3737,
+      "exit_candle_idx": 3741,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_3770",
-        "created_at_candle": 3770
+        "identifier": "bull_3738",
+        "created_at_candle": 3738
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -288,7 +250,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "3e9ac451-77d1-438a-a969-1cf6b9293345",
+      "signal_id": "b1ef89f9-f79b-459c-ad84-ab14c1e7f7bc",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -296,7 +258,7 @@
       "price": "1861.64000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.917252Z",
+      "timestamp": "2026-02-11T11:06:04.736303Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.1123152044357001098454478767",
@@ -311,13 +273,13 @@
       "exit_price": "1861.64000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 4717,
-      "exit_candle_idx": 4721,
+      "entry_candle_idx": 4685,
+      "exit_candle_idx": 4689,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_4718",
-        "created_at_candle": 4718
+        "identifier": "bull_4686",
+        "created_at_candle": 4686
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -326,7 +288,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "c2daf929-a6b0-4dc1-8f0d-cb899fd4a8e5",
+      "signal_id": "09abb0b0-509f-476d-ba23-b1e4e8975d06",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -334,7 +296,7 @@
       "price": "1856.70000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:21.947557400Z",
+      "timestamp": "2026-02-11T11:06:04.762304900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.59821637380068096742711521",
@@ -349,13 +311,13 @@
       "exit_price": "1856.70000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 4808,
-      "exit_candle_idx": 4812,
+      "entry_candle_idx": 4776,
+      "exit_candle_idx": 4780,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_4809",
-        "created_at_candle": 4809
+        "identifier": "bear_4777",
+        "created_at_candle": 4777
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -364,45 +326,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "39dea5fd-a837-47af-95be-edd4c442504c",
-      "engine_version": "2.1.0",
-      "symbol": "ETHUSDT",
-      "tf": "15m",
-      "direction": "SHORT",
-      "price": "1618.25000000",
-      "confidence": 80,
-      "confidence_tier": "high",
-      "timestamp": "2026-02-11T03:01:22.117806900Z",
-      "reason": [
-        "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=-5, slope=-0.4285006267785303182331149768",
-        "LSTM score: 0.970"
-      ],
-      "context_id": null,
-      "regime_context": null,
-      "entry_price": "1618.25000000",
-      "sl_price": "1618.25000000",
-      "original_sl_price": "1646.25000000",
-      "tp_price": "1485.74000000",
-      "exit_price": "1618.25000000",
-      "pnl_r": "0",
-      "outcome": "BE",
-      "entry_candle_idx": 5567,
-      "exit_candle_idx": 5571,
-      "duration_candles": 4,
-      "context_id": {
-        "context_type": "bos",
-        "identifier": "bear_5568",
-        "created_at_candle": 5568
-      },
-      "adjusted_confidence": 80,
-      "was_concurrent": false,
-      "context_score": 80,
-      "ema50_slope_at_entry": "0.0037449160030925252427286233",
-      "is_be_applied": true
-    },
-    {
-      "signal_id": "9e96a095-f7d9-42db-9cee-b8cef56d9758",
+      "signal_id": "82ec59be-1aac-42c5-87e1-604ffb7f8923",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -410,7 +334,7 @@
       "price": "1737.00000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:22.411378100Z",
+      "timestamp": "2026-02-11T11:06:05.211676400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-1.2282892620641697380306601455",
@@ -425,13 +349,13 @@
       "exit_price": "1737.00000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 6932,
-      "exit_candle_idx": 6936,
+      "entry_candle_idx": 6900,
+      "exit_candle_idx": 6904,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_6933",
-        "created_at_candle": 6933
+        "identifier": "bear_6901",
+        "created_at_candle": 6901
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -440,7 +364,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "926b4240-b11b-4c32-8c9a-90705182f385",
+      "signal_id": "60a3a8d9-2125-4705-959d-54174cbcc1c7",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -448,7 +372,7 @@
       "price": "1813.33000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:22.506400200Z",
+      "timestamp": "2026-02-11T11:06:05.306507600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.1600684690175536638346998587",
@@ -463,13 +387,13 @@
       "exit_price": "1832.50000000",
       "pnl_r": "0.7616209773539928486293206198",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 7404,
-      "exit_candle_idx": 7414,
+      "entry_candle_idx": 7372,
+      "exit_candle_idx": 7382,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_7405",
-        "created_at_candle": 7405
+        "identifier": "bull_7373",
+        "created_at_candle": 7373
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -478,45 +402,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "dd818b3d-05d3-4bde-95e9-129c62b3f96d",
-      "engine_version": "2.1.0",
-      "symbol": "ETHUSDT",
-      "tf": "15m",
-      "direction": "SHORT",
-      "price": "2455.09000000",
-      "confidence": 72,
-      "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:22.791129100Z",
-      "reason": [
-        "SuperKAMA direct entry with SuperTrend filter",
-        "15m KAMA quality: score=-4, slope=-1.4001578073343403314805612728",
-        "LSTM score: 0.990"
-      ],
-      "context_id": null,
-      "regime_context": null,
-      "entry_price": "2455.09000000",
-      "sl_price": "2455.09000000",
-      "original_sl_price": "2562.47000000",
-      "tp_price": "2347.71000000",
-      "exit_price": "2455.09000000",
-      "pnl_r": "0",
-      "outcome": "BE",
-      "entry_candle_idx": 8561,
-      "exit_candle_idx": 8565,
-      "duration_candles": 4,
-      "context_id": {
-        "context_type": "bos",
-        "identifier": "bear_8562",
-        "created_at_candle": 8562
-      },
-      "adjusted_confidence": 72,
-      "was_concurrent": false,
-      "context_score": 72,
-      "ema50_slope_at_entry": "-0.001682879587148832394361041",
-      "is_be_applied": true
-    },
-    {
-      "signal_id": "4e54c330-474f-4d73-af14-153ba7798f6b",
+      "signal_id": "9484faef-667d-4130-b3cc-10e73cc35c3d",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -524,7 +410,7 @@
       "price": "2531.89000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:22.881489600Z",
+      "timestamp": "2026-02-11T11:06:05.697188400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.9737135449919435228417579849",
@@ -539,13 +425,13 @@
       "exit_price": "2531.89000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 8945,
-      "exit_candle_idx": 8949,
+      "entry_candle_idx": 8913,
+      "exit_candle_idx": 8917,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_8946",
-        "created_at_candle": 8946
+        "identifier": "bear_8914",
+        "created_at_candle": 8914
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -554,7 +440,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "7df8d97b-c2a2-4838-920a-929d7eb4783d",
+      "signal_id": "2643c323-6d91-49a2-a335-efb9b6e9503b",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -562,7 +448,7 @@
       "price": "2502.51000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:22.954603400Z",
+      "timestamp": "2026-02-11T11:06:05.772621600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.4155070748627588066125030001",
@@ -577,13 +463,13 @@
       "exit_price": "2502.51000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 9224,
-      "exit_candle_idx": 9228,
+      "entry_candle_idx": 9192,
+      "exit_candle_idx": 9196,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_9225",
-        "created_at_candle": 9225
+        "identifier": "bull_9193",
+        "created_at_candle": 9193
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -592,7 +478,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "f4a88e50-83c2-401b-814a-2fb0785c2fcb",
+      "signal_id": "6d4b6e16-00e1-45c4-97e0-0744552a2e08",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -600,7 +486,7 @@
       "price": "2489.92000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:22.973537900Z",
+      "timestamp": "2026-02-11T11:06:05.791853600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.7162191210210497741545762721",
@@ -615,13 +501,13 @@
       "exit_price": "2467.75000000",
       "pnl_r": "0.226942368717371276486846146",
       "outcome": "WIN",
-      "entry_candle_idx": 9274,
-      "exit_candle_idx": 9275,
+      "entry_candle_idx": 9242,
+      "exit_candle_idx": 9243,
       "duration_candles": 1,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_9275",
-        "created_at_candle": 9275
+        "identifier": "bear_9243",
+        "created_at_candle": 9243
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -630,7 +516,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "4f129e92-cf4e-4d34-bc0d-a7890cd12a7c",
+      "signal_id": "21c78da9-15ff-4d67-8772-29487c8a49fb",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -638,7 +524,7 @@
       "price": "2497.78000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T03:01:22.988162200Z",
+      "timestamp": "2026-02-11T11:06:05.806766300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=5, slope=0.609870982156505720023091233",
@@ -653,13 +539,13 @@
       "exit_price": "2513.44000000",
       "pnl_r": "0.1284132841328413284132841328",
       "outcome": "WIN",
-      "entry_candle_idx": 9298,
-      "exit_candle_idx": 9299,
+      "entry_candle_idx": 9266,
+      "exit_candle_idx": 9267,
       "duration_candles": 1,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_9299",
-        "created_at_candle": 9299
+        "identifier": "bull_9267",
+        "created_at_candle": 9267
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -668,7 +554,45 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "86c7d59d-abb2-4694-9973-6b876688e9f0",
+      "signal_id": "ccc95620-7f31-459b-ae79-89526b1e26c8",
+      "engine_version": "2.1.0",
+      "symbol": "ETHUSDT",
+      "tf": "15m",
+      "direction": "SHORT",
+      "price": "2630.38000000",
+      "confidence": 72,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-11T11:06:05.907951600Z",
+      "reason": [
+        "SuperKAMA direct entry with SuperTrend filter",
+        "15m KAMA quality: score=-4, slope=-0.67900947556280792384646152",
+        "LSTM score: 0.563"
+      ],
+      "context_id": null,
+      "regime_context": null,
+      "entry_price": "2630.38000000",
+      "sl_price": "2689.21000000",
+      "original_sl_price": "2689.21000000",
+      "tp_price": "2571.55000000",
+      "exit_price": "2571.55000000",
+      "pnl_r": "1",
+      "outcome": "WIN",
+      "entry_candle_idx": 9697,
+      "exit_candle_idx": 9698,
+      "duration_candles": 1,
+      "context_id": {
+        "context_type": "bos",
+        "identifier": "bear_9698",
+        "created_at_candle": 9698
+      },
+      "adjusted_confidence": 72,
+      "was_concurrent": false,
+      "context_score": 72,
+      "ema50_slope_at_entry": "-0.0012762344650965180661341723",
+      "is_be_applied": false
+    },
+    {
+      "signal_id": "c2174b1a-8fb2-439c-a4f6-1890eefc6115",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -676,7 +600,7 @@
       "price": "2499.40000000",
       "confidence": 78,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:23.406705Z",
+      "timestamp": "2026-02-11T11:06:06.227048900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "Pine confirmation: divergence detected",
@@ -692,13 +616,13 @@
       "exit_price": "2499.40000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 11256,
-      "exit_candle_idx": 11261,
+      "entry_candle_idx": 11224,
+      "exit_candle_idx": 11229,
       "duration_candles": 5,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_11257",
-        "created_at_candle": 11257
+        "identifier": "bear_11225",
+        "created_at_candle": 11225
       },
       "adjusted_confidence": 78,
       "was_concurrent": false,
@@ -707,7 +631,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "6a59259b-898c-44c5-94da-93ecdf080aad",
+      "signal_id": "d0838683-7404-43c7-9fac-dc80c7329c84",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -715,7 +639,7 @@
       "price": "2289.08000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:23.712429800Z",
+      "timestamp": "2026-02-11T11:06:06.526647400Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.4664889584495128671442436134",
@@ -730,13 +654,13 @@
       "exit_price": "2238.68000000",
       "pnl_r": "-1",
       "outcome": "LOSS",
-      "entry_candle_idx": 12713,
-      "exit_candle_idx": 12713,
+      "entry_candle_idx": 12681,
+      "exit_candle_idx": 12681,
       "duration_candles": 0,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_12714",
-        "created_at_candle": 12714
+        "identifier": "bull_12682",
+        "created_at_candle": 12682
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -745,7 +669,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "44d3de21-4ff3-4f88-9d37-06a5f2982275",
+      "signal_id": "1f122f82-a455-418d-a905-afb5a1c19325",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -753,7 +677,7 @@
       "price": "2405.03000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:23.804645700Z",
+      "timestamp": "2026-02-11T11:06:06.618416900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.275246486750646547937505177",
@@ -768,13 +692,13 @@
       "exit_price": "2405.03000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13113,
-      "exit_candle_idx": 13119,
+      "entry_candle_idx": 13081,
+      "exit_candle_idx": 13087,
       "duration_candles": 6,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13114",
-        "created_at_candle": 13114
+        "identifier": "bear_13082",
+        "created_at_candle": 13082
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -783,7 +707,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "6a1fa23e-bb4c-462f-b9a8-e39b3e5b2c2f",
+      "signal_id": "074fa6ab-7f76-44f5-a91f-5c9e7e159cce",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -791,7 +715,7 @@
       "price": "2483.66000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T03:01:23.860187300Z",
+      "timestamp": "2026-02-11T11:06:06.672552300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.3611307453584828438983892384",
@@ -806,13 +730,13 @@
       "exit_price": "2483.66000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13357,
-      "exit_candle_idx": 13362,
+      "entry_candle_idx": 13325,
+      "exit_candle_idx": 13330,
       "duration_candles": 5,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13358",
-        "created_at_candle": 13358
+        "identifier": "bear_13326",
+        "created_at_candle": 13326
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -821,7 +745,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "27f4f543-6947-44ba-98ff-1442a5f25053",
+      "signal_id": "c43e584c-7a84-43c8-9ef7-30ebbcff58e4",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -829,7 +753,7 @@
       "price": "2528.37000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T03:01:23.991438700Z",
+      "timestamp": "2026-02-11T11:06:06.803109200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.7449320549468846271403109975",
@@ -844,13 +768,13 @@
       "exit_price": "2528.37000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 13981,
-      "exit_candle_idx": 13985,
+      "entry_candle_idx": 13949,
+      "exit_candle_idx": 13953,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_13982",
-        "created_at_candle": 13982
+        "identifier": "bear_13950",
+        "created_at_candle": 13950
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -859,7 +783,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "e667642a-64fa-41e5-a1fc-9745e9bf08cb",
+      "signal_id": "398fcb89-c3ae-41e3-bdd0-970969711471",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -867,7 +791,7 @@
       "price": "2931.58000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:24.092018400Z",
+      "timestamp": "2026-02-11T11:06:06.899092200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.7792295193179778195725600863",
@@ -882,13 +806,13 @@
       "exit_price": "2931.58000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 14476,
-      "exit_candle_idx": 14480,
+      "entry_candle_idx": 14444,
+      "exit_candle_idx": 14448,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_14477",
-        "created_at_candle": 14477
+        "identifier": "bear_14445",
+        "created_at_candle": 14445
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -897,7 +821,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "b115b5ff-4365-4108-a697-8e1fd119da39",
+      "signal_id": "f054a1f8-1cfd-4c8c-95a1-c43860c88066",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -905,7 +829,7 @@
       "price": "2973.91000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:24.129451900Z",
+      "timestamp": "2026-02-11T11:06:06.937121500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.8036578946317577214524360004",
@@ -920,13 +844,13 @@
       "exit_price": "3002.19000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 14629,
-      "exit_candle_idx": 14636,
+      "entry_candle_idx": 14597,
+      "exit_candle_idx": 14604,
       "duration_candles": 7,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_14630",
-        "created_at_candle": 14630
+        "identifier": "bull_14598",
+        "created_at_candle": 14598
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -935,7 +859,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "997c59c9-934e-4532-b184-9698e25e0925",
+      "signal_id": "57b9148f-353b-4578-9d83-dfd600ecff9b",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -943,7 +867,7 @@
       "price": "4176.69000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:24.689774300Z",
+      "timestamp": "2026-02-11T11:06:07.491825300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.6229003470595976391275483891",
@@ -958,13 +882,13 @@
       "exit_price": "4176.69000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 17297,
-      "exit_candle_idx": 17301,
+      "entry_candle_idx": 17265,
+      "exit_candle_idx": 17269,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_17298",
-        "created_at_candle": 17298
+        "identifier": "bear_17266",
+        "created_at_candle": 17266
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -973,7 +897,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "eefcc253-26e4-45ac-9ae4-c8dfb7f4044b",
+      "signal_id": "469cc0e6-9c53-46f5-96e0-4ce64112d215",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -981,7 +905,7 @@
       "price": "4469.00000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:24.843229300Z",
+      "timestamp": "2026-02-11T11:06:07.638772300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.7751947089650953087738436663",
@@ -996,13 +920,13 @@
       "exit_price": "4444.44000000",
       "pnl_r": "0.3784283513097072419106317411",
       "outcome": "WIN",
-      "entry_candle_idx": 18014,
-      "exit_candle_idx": 18014,
+      "entry_candle_idx": 17982,
+      "exit_candle_idx": 17982,
       "duration_candles": 0,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_18015",
-        "created_at_candle": 18015
+        "identifier": "bear_17983",
+        "created_at_candle": 17983
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1011,7 +935,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "4b8506a4-4eaa-4549-a188-1e72f4ea60d0",
+      "signal_id": "3ba7c388-be83-4e05-9a18-86cee0876ac5",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1019,7 +943,7 @@
       "price": "4298.91000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:24.914547900Z",
+      "timestamp": "2026-02-11T11:06:07.709984500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.3552462328667133659374796129",
@@ -1034,13 +958,13 @@
       "exit_price": "4298.91000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 18288,
-      "exit_candle_idx": 18292,
+      "entry_candle_idx": 18256,
+      "exit_candle_idx": 18260,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_18289",
-        "created_at_candle": 18289
+        "identifier": "bull_18257",
+        "created_at_candle": 18257
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1049,7 +973,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "2ffbdd20-d6fc-4666-b78c-889951e74870",
+      "signal_id": "7c61aeb6-4fe1-4264-9451-45700fdab142",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1057,7 +981,7 @@
       "price": "4756.94000000",
       "confidence": 80,
       "confidence_tier": "high",
-      "timestamp": "2026-02-11T03:01:24.966365700Z",
+      "timestamp": "2026-02-11T11:06:07.763424500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-5, slope=-0.5438808260260863052260066544",
@@ -1072,13 +996,13 @@
       "exit_price": "4711.99000000",
       "pnl_r": "0.4956445032528393428161870107",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 18521,
-      "exit_candle_idx": 18531,
+      "entry_candle_idx": 18489,
+      "exit_candle_idx": 18499,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_18522",
-        "created_at_candle": 18522
+        "identifier": "bear_18490",
+        "created_at_candle": 18490
       },
       "adjusted_confidence": 80,
       "was_concurrent": false,
@@ -1087,7 +1011,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "c59f0c5b-52b0-4b4a-bd9c-e4af59f3eb72",
+      "signal_id": "46714bea-8625-47de-af5a-60693910bbf3",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1095,7 +1019,7 @@
       "price": "4463.29000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:25.192176800Z",
+      "timestamp": "2026-02-11T11:06:07.990827800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.4600926104724997063877145905",
@@ -1110,13 +1034,13 @@
       "exit_price": "4477.10000000",
       "pnl_r": "0.132001529344293634104377748",
       "outcome": "WIN",
-      "entry_candle_idx": 19410,
-      "exit_candle_idx": 19411,
+      "entry_candle_idx": 19378,
+      "exit_candle_idx": 19379,
       "duration_candles": 1,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_19411",
-        "created_at_candle": 19411
+        "identifier": "bull_19379",
+        "created_at_candle": 19379
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1125,7 +1049,45 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "a4e2082d-5a93-4f93-8cd1-dd4a5df7d5cc",
+      "signal_id": "37a4dac0-0bf7-4037-8cc5-6876925a39b5",
+      "engine_version": "2.1.0",
+      "symbol": "ETHUSDT",
+      "tf": "15m",
+      "direction": "LONG",
+      "price": "4419.99000000",
+      "confidence": 72,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-11T11:06:08.042235600Z",
+      "reason": [
+        "SuperKAMA direct entry with SuperTrend filter",
+        "15m KAMA quality: score=4, slope=0.2529893753166869354802332641",
+        "LSTM score: 0.646"
+      ],
+      "context_id": null,
+      "regime_context": null,
+      "entry_price": "4419.99000000",
+      "sl_price": "4339.99000000",
+      "original_sl_price": "4339.99000000",
+      "tp_price": "4499.99000000",
+      "exit_price": "4472.49000000",
+      "pnl_r": "0.65625",
+      "outcome": "MAX_DURATION",
+      "entry_candle_idx": 19593,
+      "exit_candle_idx": 19603,
+      "duration_candles": 10,
+      "context_id": {
+        "context_type": "bos",
+        "identifier": "bull_19594",
+        "created_at_candle": 19594
+      },
+      "adjusted_confidence": 72,
+      "was_concurrent": false,
+      "context_score": 72,
+      "ema50_slope_at_entry": "0.001907671231981716688845612",
+      "is_be_applied": false
+    },
+    {
+      "signal_id": "c898d4d4-8d65-46de-a5ed-a336b3debc43",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1133,7 +1095,7 @@
       "price": "4685.79000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:25.464487300Z",
+      "timestamp": "2026-02-11T11:06:08.254590300Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.2539421687949765864660390518",
@@ -1148,13 +1110,13 @@
       "exit_price": "4671.51000000",
       "pnl_r": "0.3216940752421716602838477134",
       "outcome": "WIN",
-      "entry_candle_idx": 20586,
-      "exit_candle_idx": 20586,
+      "entry_candle_idx": 20554,
+      "exit_candle_idx": 20554,
       "duration_candles": 0,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_20587",
-        "created_at_candle": 20587
+        "identifier": "bear_20555",
+        "created_at_candle": 20555
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1163,7 +1125,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "fb3197d9-697f-4e0b-8d01-2c51b1611e7e",
+      "signal_id": "79e2e922-de34-4edb-b94d-a9f28eed8668",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1171,7 +1133,7 @@
       "price": "3909.39000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:26.203553400Z",
+      "timestamp": "2026-02-11T11:06:08.992900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.0185825657486229911821030336",
@@ -1186,13 +1148,13 @@
       "exit_price": "3909.39000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 23919,
-      "exit_candle_idx": 23923,
+      "entry_candle_idx": 23887,
+      "exit_candle_idx": 23891,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_23920",
-        "created_at_candle": 23920
+        "identifier": "bull_23888",
+        "created_at_candle": 23888
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1201,46 +1163,45 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "a60bdd2c-48df-4e48-82ef-8feaf14fba78",
+      "signal_id": "ad7c4989-cdcb-433f-b15f-daeb8c239bbb",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
       "direction": "SHORT",
-      "price": "3956.56000000",
-      "confidence": 80,
-      "confidence_tier": "high",
-      "timestamp": "2026-02-11T03:01:26.247878200Z",
+      "price": "3974.94000000",
+      "confidence": 72,
+      "confidence_tier": "medium",
+      "timestamp": "2026-02-11T11:06:09.057116Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
-        "Pine confirmation: divergence detected",
-        "15m KAMA quality: score=-5, slope=-0.2812632661116915151362679817",
-        "LSTM score: 0.908"
+        "15m KAMA quality: score=-4, slope=-0.4134942716264531348491770822",
+        "LSTM score: 0.645"
       ],
       "context_id": null,
       "regime_context": null,
-      "entry_price": "3956.56000000",
-      "sl_price": "3956.56000000",
-      "original_sl_price": "4030.94000000",
-      "tp_price": "3908.17000000",
-      "exit_price": "3958.00000000",
-      "pnl_r": "-0.0193600430223178273729497177",
+      "entry_price": "3974.94000000",
+      "sl_price": "3974.94000000",
+      "original_sl_price": "4049.51000000",
+      "tp_price": "3900.37000000",
+      "exit_price": "3963.68000000",
+      "pnl_r": "0.1509990612846989405927316615",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 24083,
-      "exit_candle_idx": 24093,
+      "entry_candle_idx": 24115,
+      "exit_candle_idx": 24125,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_24084",
-        "created_at_candle": 24084
+        "identifier": "bear_24116",
+        "created_at_candle": 24116
       },
-      "adjusted_confidence": 80,
+      "adjusted_confidence": 72,
       "was_concurrent": false,
-      "context_score": 80,
-      "ema50_slope_at_entry": "0.000872113489147933012317914",
+      "context_score": 72,
+      "ema50_slope_at_entry": "-0.0006816020937795997842671563",
       "is_be_applied": true
     },
     {
-      "signal_id": "51be7462-efcf-464c-9e27-589ef77eeb6d",
+      "signal_id": "a5f7f829-abbe-4be2-a63b-c35b67b8d86b",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1248,7 +1209,7 @@
       "price": "3349.67000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:26.644080600Z",
+      "timestamp": "2026-02-11T11:06:09.418994100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.1546727551789120772119452875",
@@ -1263,13 +1224,13 @@
       "exit_price": "3349.67000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 25765,
-      "exit_candle_idx": 25769,
+      "entry_candle_idx": 25733,
+      "exit_candle_idx": 25737,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_25766",
-        "created_at_candle": 25766
+        "identifier": "bear_25734",
+        "created_at_candle": 25734
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1278,7 +1239,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "414d9298-efa0-4a76-adbe-dda1f562bdb5",
+      "signal_id": "9e1c7ab7-5aab-4cc9-8013-42a98256bd6c",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1286,7 +1247,7 @@
       "price": "3439.44000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:26.831851900Z",
+      "timestamp": "2026-02-11T11:06:09.597040700Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.7827418815288303191901017161",
@@ -1301,13 +1262,13 @@
       "exit_price": "3403.71000000",
       "pnl_r": "0.4971476276610546820648392932",
       "outcome": "WIN",
-      "entry_candle_idx": 26441,
-      "exit_candle_idx": 26445,
+      "entry_candle_idx": 26409,
+      "exit_candle_idx": 26413,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_26442",
-        "created_at_candle": 26442
+        "identifier": "bear_26410",
+        "created_at_candle": 26410
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1316,7 +1277,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "cebcc7c7-38f2-4ac0-987b-572b6374a0fb",
+      "signal_id": "bbca4ae2-add8-4b6e-9e81-77489d43f209",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1324,7 +1285,7 @@
       "price": "2789.27000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.029328400Z",
+      "timestamp": "2026-02-11T11:06:09.794392500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.8033480482219686787967701177",
@@ -1339,13 +1300,13 @@
       "exit_price": "2789.27000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 27342,
-      "exit_candle_idx": 27346,
+      "entry_candle_idx": 27310,
+      "exit_candle_idx": 27314,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_27343",
-        "created_at_candle": 27343
+        "identifier": "bull_27311",
+        "created_at_candle": 27311
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1354,7 +1315,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "17fc714d-9fcb-4081-b021-9a220bca05dd",
+      "signal_id": "649f8e74-d2b6-48e5-9cd4-3eee921b3712",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1362,7 +1323,7 @@
       "price": "2859.09000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.059735400Z",
+      "timestamp": "2026-02-11T11:06:09.823809600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.1206114599451364728544018523",
@@ -1377,13 +1338,13 @@
       "exit_price": "2859.09000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 27451,
-      "exit_candle_idx": 27455,
+      "entry_candle_idx": 27419,
+      "exit_candle_idx": 27423,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_27452",
-        "created_at_candle": 27452
+        "identifier": "bull_27420",
+        "created_at_candle": 27420
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1392,7 +1353,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "81f69021-c256-4716-ab6f-a30449949ba3",
+      "signal_id": "35511afc-a7f6-4ee0-885c-5c2c7e564897",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1400,7 +1361,7 @@
       "price": "2871.70000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.094839100Z",
+      "timestamp": "2026-02-11T11:06:09.858816900Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-1.3436238019132160412630142781",
@@ -1415,13 +1376,13 @@
       "exit_price": "2871.70000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 27574,
-      "exit_candle_idx": 27578,
+      "entry_candle_idx": 27542,
+      "exit_candle_idx": 27546,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_27575",
-        "created_at_candle": 27575
+        "identifier": "bear_27543",
+        "created_at_candle": 27543
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1430,7 +1391,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "ef688eee-878a-4f0d-8331-ce240e239267",
+      "signal_id": "cda724ff-e951-4527-8b6f-83db0bc3ab72",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1438,7 +1399,7 @@
       "price": "3007.68000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.143058700Z",
+      "timestamp": "2026-02-11T11:06:09.907228100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.8192947755424578235207922604",
@@ -1453,13 +1414,13 @@
       "exit_price": "2992.66000000",
       "pnl_r": "0.5272025272025272025272025272",
       "outcome": "MAX_DURATION",
-      "entry_candle_idx": 27781,
-      "exit_candle_idx": 27791,
+      "entry_candle_idx": 27749,
+      "exit_candle_idx": 27759,
       "duration_candles": 10,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_27782",
-        "created_at_candle": 27782
+        "identifier": "bear_27750",
+        "created_at_candle": 27750
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1468,7 +1429,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "c4df458f-e912-4ac1-8ec6-d06eba7f06cc",
+      "signal_id": "bae084d0-a300-48d5-8b55-d4f9f046d919",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1476,7 +1437,7 @@
       "price": "3026.15000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.207249400Z",
+      "timestamp": "2026-02-11T11:06:09.968437600Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.2969748373985593886057121546",
@@ -1491,13 +1452,13 @@
       "exit_price": "3052.36000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 28069,
-      "exit_candle_idx": 28073,
+      "entry_candle_idx": 28037,
+      "exit_candle_idx": 28041,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_28070",
-        "created_at_candle": 28070
+        "identifier": "bull_28038",
+        "created_at_candle": 28038
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1506,7 +1467,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "f761fd9e-9fdc-41fb-b8fb-322fd0f3e205",
+      "signal_id": "7594a1ef-ab34-4e84-9c1a-35e8eb93171a",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1514,7 +1475,7 @@
       "price": "3098.70000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.478072800Z",
+      "timestamp": "2026-02-11T11:06:10.262527100Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.3431301846201356599611097911",
@@ -1529,13 +1490,13 @@
       "exit_price": "3098.70000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 29403,
-      "exit_candle_idx": 29407,
+      "entry_candle_idx": 29371,
+      "exit_candle_idx": 29375,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_29404",
-        "created_at_candle": 29404
+        "identifier": "bear_29372",
+        "created_at_candle": 29372
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1544,7 +1505,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "bdc8f47c-a6a1-4ec7-9ca0-33283bb4dc87",
+      "signal_id": "127f8312-3042-42b9-95b3-83e7b4fb1e86",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1552,7 +1513,7 @@
       "price": "3147.97000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.887988600Z",
+      "timestamp": "2026-02-11T11:06:10.669625500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.9406648866564047333779163848",
@@ -1567,13 +1528,13 @@
       "exit_price": "3147.97000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 31379,
-      "exit_candle_idx": 31384,
+      "entry_candle_idx": 31347,
+      "exit_candle_idx": 31352,
       "duration_candles": 5,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_31380",
-        "created_at_candle": 31380
+        "identifier": "bull_31348",
+        "created_at_candle": 31348
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1582,7 +1543,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "b4995ff4-4883-4c31-95cc-904fbe138a7b",
+      "signal_id": "c18138a1-140e-4a86-a239-02931e0114a2",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1590,7 +1551,7 @@
       "price": "3139.38000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:27.983348600Z",
+      "timestamp": "2026-02-11T11:06:10.764701Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=0.2351771562628084308407758474",
@@ -1605,13 +1566,13 @@
       "exit_price": "3104.45000000",
       "pnl_r": "-1",
       "outcome": "LOSS",
-      "entry_candle_idx": 31864,
-      "exit_candle_idx": 31864,
+      "entry_candle_idx": 31832,
+      "exit_candle_idx": 31832,
       "duration_candles": 0,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_31865",
-        "created_at_candle": 31865
+        "identifier": "bull_31833",
+        "created_at_candle": 31833
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1620,7 +1581,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "8378bb48-4852-43d4-82fb-cc50923f5136",
+      "signal_id": "908f33f2-6b39-46bb-9d76-2e198dd75558",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1628,7 +1589,7 @@
       "price": "3362.23000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:28.200052300Z",
+      "timestamp": "2026-02-11T11:06:10.994847200Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=4, slope=1.022442192203139147409719273",
@@ -1643,13 +1604,13 @@
       "exit_price": "3362.23000000",
       "pnl_r": "0",
       "outcome": "BE",
-      "entry_candle_idx": 32796,
-      "exit_candle_idx": 32800,
+      "entry_candle_idx": 32764,
+      "exit_candle_idx": 32768,
       "duration_candles": 4,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bull_32797",
-        "created_at_candle": 32797
+        "identifier": "bull_32765",
+        "created_at_candle": 32765
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1658,7 +1619,7 @@
       "is_be_applied": true
     },
     {
-      "signal_id": "ec094880-4fea-4aa5-8079-393102f363ac",
+      "signal_id": "2e0c9672-50f7-44d1-b551-d8d92dfe1514",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1666,7 +1627,7 @@
       "price": "3310.60000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:28.213955200Z",
+      "timestamp": "2026-02-11T11:06:11.011445500Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.4154435826942135973115898368",
@@ -1681,13 +1642,13 @@
       "exit_price": "3264.94000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 32816,
-      "exit_candle_idx": 32819,
+      "entry_candle_idx": 32784,
+      "exit_candle_idx": 32787,
       "duration_candles": 3,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_32817",
-        "created_at_candle": 32817
+        "identifier": "bear_32785",
+        "created_at_candle": 32785
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,
@@ -1696,7 +1657,7 @@
       "is_be_applied": false
     },
     {
-      "signal_id": "0a639cff-7566-4fe3-b510-541bf3f565e8",
+      "signal_id": "12c5a79a-ae79-4ff1-a0c4-676de6103a28",
       "engine_version": "2.1.0",
       "symbol": "ETHUSDT",
       "tf": "15m",
@@ -1704,7 +1665,7 @@
       "price": "2198.63000000",
       "confidence": 72,
       "confidence_tier": "medium",
-      "timestamp": "2026-02-11T03:01:28.557740700Z",
+      "timestamp": "2026-02-11T11:06:11.346903800Z",
       "reason": [
         "SuperKAMA direct entry with SuperTrend filter",
         "15m KAMA quality: score=-4, slope=-0.6152460784674360039121057397",
@@ -1719,13 +1680,13 @@
       "exit_price": "2129.94000000",
       "pnl_r": "1",
       "outcome": "WIN",
-      "entry_candle_idx": 34410,
-      "exit_candle_idx": 34419,
+      "entry_candle_idx": 34378,
+      "exit_candle_idx": 34387,
       "duration_candles": 9,
       "context_id": {
         "context_type": "bos",
-        "identifier": "bear_34411",
-        "created_at_candle": 34411
+        "identifier": "bear_34379",
+        "created_at_candle": 34379
       },
       "adjusted_confidence": 72,
       "was_concurrent": false,

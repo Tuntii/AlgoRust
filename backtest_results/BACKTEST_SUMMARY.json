@@ -1,35 +1,35 @@
 {
   "total_symbols": 2,
   "total_timeframes_tested": 6,
-  "total_trades": 848,
-  "total_wins": 325,
-  "total_losses": 59,
-  "overall_win_rate": 84.63541666666666,
-  "overall_pnl_r": "127.65686445659775812130410540",
-  "overall_expectancy": 0.15053875525542187,
-  "overall_profit_factor": 127.65686445659777,
+  "total_trades": 932,
+  "total_wins": 358,
+  "total_losses": 64,
+  "overall_win_rate": 84.83412322274881,
+  "overall_pnl_r": "139.84972200145068680640389468",
+  "overall_expectancy": 0.15005334978696425,
+  "overall_profit_factor": 139.8497220014507,
   "best_performer": "ETHUSDT 1h",
   "worst_performer": "ETHUSDT 30m",
   "block_stats": {
     "wick_trap_blocks": 0,
     "flat_ema_blocks": 0,
     "low_atr_blocks": 0,
-    "bootstrap_incomplete": 2894,
+    "bootstrap_incomplete": 1994,
     "cooldown_blocks": 0,
     "open_trade_blocks": 0,
     "score_too_low": 0,
     "policy_blocked": 0,
-    "lstm_filtered": 2373,
-    "total_evaluations": 122641,
-    "total_signals_generated": 849,
-    "max_trades_reached": 171,
+    "lstm_filtered": 2392,
+    "total_evaluations": 122640,
+    "total_signals_generated": 936,
+    "max_trades_reached": 187,
     "duplicate_context": 0,
     "hedge_blocked": 2,
-    "context_cooldown_blocks": 47,
+    "context_cooldown_blocks": 54,
     "trend_saturation_blocks": 16,
     "weak_trade_replaced": 0,
-    "max_duration_exits": 24,
-    "be_applied_count": 470,
+    "max_duration_exits": 26,
+    "be_applied_count": 517,
     "partial_tp_count": 0,
     "kill_switch_triggered": 4
   },
@@ -37,80 +37,80 @@
     {
       "symbol": "BTCUSDT",
       "timeframe": "15m",
-      "trades": 57,
+      "trades": 60,
       "wins": 9,
       "losses": 2,
       "win_rate": 81.81818181818183,
       "pnl_r": "5.1238887042810487471972713186",
-      "expectancy": 0.028847118833019506,
+      "expectancy": 0.027404762891368534,
       "profit_factor": 1.4396719421324886,
-      "sharpe": 0.2697491564047039,
-      "max_consec_loss": 11
+      "sharpe": 0.26244197647751566,
+      "max_consec_loss": 13
     },
     {
       "symbol": "BTCUSDT",
       "timeframe": "30m",
-      "trades": 16,
+      "trades": 17,
       "wins": 5,
       "losses": 0,
       "win_rate": 100.0,
       "pnl_r": "2.3632656197501251801355578319",
-      "expectancy": 0.10266355518018541,
+      "expectancy": 0.09662452252252744,
       "profit_factor": 5.124971101968035,
-      "sharpe": 0.5608919506902911,
+      "sharpe": 0.5391790015113985,
       "max_consec_loss": 4
     },
     {
       "symbol": "BTCUSDT",
       "timeframe": "1h",
-      "trades": 408,
-      "wins": 152,
-      "losses": 33,
-      "win_rate": 82.16216216216216,
-      "pnl_r": "56.095755427150321749906043028",
-      "expectancy": 0.13358535373318414,
-      "profit_factor": 2.612678232262804,
-      "sharpe": 0.2757706679115964,
-      "max_consec_loss": 11
+      "trades": 452,
+      "wins": 170,
+      "losses": 35,
+      "win_rate": 82.92682926829268,
+      "pnl_r": "60.265314328854227812906064955",
+      "expectancy": 0.12980615757708636,
+      "profit_factor": 2.639055206151652,
+      "sharpe": 0.27537508948290007,
+      "max_consec_loss": 13
     },
     {
       "symbol": "ETHUSDT",
       "timeframe": "15m",
-      "trades": 44,
-      "wins": 10,
+      "trades": 43,
+      "wins": 11,
       "losses": 2,
-      "win_rate": 83.33333333333334,
-      "pnl_r": "5.4497352011944813898635872145",
-      "expectancy": 0.04274543603581278,
-      "profit_factor": 1.4944490551208118,
-      "sharpe": 0.3103430128709659,
-      "max_consec_loss": 14
+      "win_rate": 84.61538461538461,
+      "pnl_r": "7.2763443055014981578292685937",
+      "expectancy": 0.04867232947240421,
+      "profit_factor": 1.4558012037371262,
+      "sharpe": 0.39466146762312176,
+      "max_consec_loss": 11
     },
     {
       "symbol": "ETHUSDT",
       "timeframe": "30m",
-      "trades": 5,
+      "trades": 8,
       "wins": 3,
       "losses": 0,
       "win_rate": 100.0,
       "pnl_r": "1.7187399293292818077408564194",
-      "expectancy": 0.14568021369570494,
+      "expectancy": 0.0910501335598156,
       "profit_factor": 2.471013806027539,
-      "sharpe": 0.9324969392853749,
-      "max_consec_loss": 1
+      "sharpe": 0.6401803258578203,
+      "max_consec_loss": 3
     },
     {
       "symbol": "ETHUSDT",
       "timeframe": "1h",
-      "trades": 318,
-      "wins": 146,
-      "losses": 22,
-      "win_rate": 86.90476190476191,
-      "pnl_r": "56.905479574892499246460789591",
-      "expectancy": 0.17093159004011893,
-      "profit_factor": 3.3247152916108966,
-      "sharpe": 0.3286934284135709,
-      "max_consec_loss": 11
+      "trades": 352,
+      "wins": 160,
+      "losses": 25,
+      "win_rate": 86.48648648648648,
+      "pnl_r": "63.102169113734505100594875565",
+      "expectancy": 0.17038766782491782,
+      "profit_factor": 3.2488250088776307,
+      "sharpe": 0.3296414454029509,
+      "max_consec_loss": 13
     }
   ],
   "dollar_pnl": {
@@ -120,9 +120,9 @@
       {
         "risk_percent": 1.0,
         "risk_per_r": 10.0,
-        "total_dollar_pnl": 1276.5686445659778,
-        "total_final_capital": 7276.568644565978,
-        "total_return_percent": 21.27614407609963,
+        "total_dollar_pnl": 1398.4972200145069,
+        "total_final_capital": 7398.497220014507,
+        "total_return_percent": 23.30828700024178,
         "pair_results": [
           {
             "pair": "BTCUSDT 15m",
@@ -141,16 +141,16 @@
           {
             "pair": "BTCUSDT 1h",
             "starting_capital": 1000.0,
-            "dollar_pnl": 560.9575542715033,
-            "final_capital": 1560.9575542715033,
-            "return_percent": 56.09575542715033
+            "dollar_pnl": 602.6531432885423,
+            "final_capital": 1602.6531432885422,
+            "return_percent": 60.26531432885424
           },
           {
             "pair": "ETHUSDT 15m",
             "starting_capital": 1000.0,
-            "dollar_pnl": 54.49735201194481,
-            "final_capital": 1054.4973520119447,
-            "return_percent": 5.449735201194481
+            "dollar_pnl": 72.76344305501497,
+            "final_capital": 1072.763443055015,
+            "return_percent": 7.276344305501498
           },
           {
             "pair": "ETHUSDT 30m",
@@ -162,18 +162,18 @@
           {
             "pair": "ETHUSDT 1h",
             "starting_capital": 1000.0,
-            "dollar_pnl": 569.054795748925,
-            "final_capital": 1569.054795748925,
-            "return_percent": 56.9054795748925
+            "dollar_pnl": 631.021691137345,
+            "final_capital": 1631.021691137345,
+            "return_percent": 63.1021691137345
           }
         ]
       },
       {
         "risk_percent": 2.0,
         "risk_per_r": 20.0,
-        "total_dollar_pnl": 2553.1372891319556,
-        "total_final_capital": 8553.137289131955,
-        "total_return_percent": 42.55228815219926,
+        "total_dollar_pnl": 2796.9944400290137,
+        "total_final_capital": 8796.994440029013,
+        "total_return_percent": 46.61657400048356,
         "pair_results": [
           {
             "pair": "BTCUSDT 15m",
@@ -192,16 +192,16 @@
           {
             "pair": "BTCUSDT 1h",
             "starting_capital": 1000.0,
-            "dollar_pnl": 1121.9151085430067,
-            "final_capital": 2121.9151085430067,
-            "return_percent": 112.19151085430066
+            "dollar_pnl": 1205.3062865770846,
+            "final_capital": 2205.3062865770844,
+            "return_percent": 120.53062865770848
           },
           {
             "pair": "ETHUSDT 15m",
             "starting_capital": 1000.0,
-            "dollar_pnl": 108.99470402388962,
-            "final_capital": 1108.9947040238897,
-            "return_percent": 10.899470402388962
+            "dollar_pnl": 145.52688611002995,
+            "final_capital": 1145.5268861100299,
+            "return_percent": 14.552688611002996
           },
           {
             "pair": "ETHUSDT 30m",
@@ -213,18 +213,18 @@
           {
             "pair": "ETHUSDT 1h",
             "starting_capital": 1000.0,
-            "dollar_pnl": 1138.10959149785,
-            "final_capital": 2138.10959149785,
-            "return_percent": 113.810959149785
+            "dollar_pnl": 1262.04338227469,
+            "final_capital": 2262.04338227469,
+            "return_percent": 126.204338227469
           }
         ]
       },
       {
         "risk_percent": 3.0,
         "risk_per_r": 30.0,
-        "total_dollar_pnl": 3829.705933697933,
-        "total_final_capital": 9829.705933697933,
-        "total_return_percent": 63.82843222829888,
+        "total_dollar_pnl": 4195.491660043521,
+        "total_final_capital": 10195.49166004352,
+        "total_return_percent": 69.92486100072534,
         "pair_results": [
           {
             "pair": "BTCUSDT 15m",
@@ -243,16 +243,16 @@
           {
             "pair": "BTCUSDT 1h",
             "starting_capital": 1000.0,
-            "dollar_pnl": 1682.8726628145098,
-            "final_capital": 2682.8726628145096,
-            "return_percent": 168.287266281451
+            "dollar_pnl": 1807.959429865627,
+            "final_capital": 2807.959429865627,
+            "return_percent": 180.7959429865627
           },
           {
             "pair": "ETHUSDT 15m",
             "starting_capital": 1000.0,
-            "dollar_pnl": 163.49205603583442,
-            "final_capital": 1163.4920560358344,
-            "return_percent": 16.349205603583442
+            "dollar_pnl": 218.29032916504494,
+            "final_capital": 1218.290329165045,
+            "return_percent": 21.82903291650449
           },
           {
             "pair": "ETHUSDT 30m",
@@ -264,9 +264,9 @@
           {
             "pair": "ETHUSDT 1h",
             "starting_capital": 1000.0,
-            "dollar_pnl": 1707.1643872467748,
-            "final_capital": 2707.164387246775,
-            "return_percent": 170.7164387246775
+            "dollar_pnl": 1893.0650734120352,
+            "final_capital": 2893.0650734120354,
+            "return_percent": 189.3065073412035
           }
         ]
       }
