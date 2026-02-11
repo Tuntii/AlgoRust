@@ -1,6 +1,6 @@
 [app]
 # Başlangıç modu: "live" veya "backtest"
-mode = "backtest" 
+mode = "live" 
 bootstrap_limit = 10000
 auto_reconnect = true
 
