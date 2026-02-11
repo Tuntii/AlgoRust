@@ -37,7 +37,7 @@ pub struct TimeframePolicy {
 impl TimeframePolicy {
     pub fn new() -> Self {
         let mut active_pairs = HashSet::new();
-        let mut shadow_pairs = HashSet::new();
+        let shadow_pairs = HashSet::new();
         let mut blocked_pairs = HashSet::new();
 
         // ═══════════════════════════════════════════════════════
@@ -49,9 +49,7 @@ impl TimeframePolicy {
         blocked_pairs.insert(("ETHUSDT".to_string(), "5m".to_string()));
         blocked_pairs.insert(("SOLUSDT".to_string(), "5m".to_string()));
 
-        // 15m - poor win rate, too many false signals
-        blocked_pairs.insert(("BTCUSDT".to_string(), "15m".to_string()));
-        blocked_pairs.insert(("ETHUSDT".to_string(), "15m".to_string()));
+        // 15m - keep SOL blocked, allow BTC/ETH for scalping improvements
         blocked_pairs.insert(("SOLUSDT".to_string(), "15m".to_string()));
 
         // 1d - too slow for current strategy, poor expectancy
@@ -63,11 +61,14 @@ impl TimeframePolicy {
         // FT1: ACTIVE WHITELIST (Edge-verified combinations)
         // ═══════════════════════════════════════════════════════
 
-        // BTC: 1h, 4h only
+        // BTC: 15m, 30m, 1h, 4h active
+        active_pairs.insert(("BTCUSDT".to_string(), "15m".to_string()));
+        active_pairs.insert(("BTCUSDT".to_string(), "30m".to_string()));
         active_pairs.insert(("BTCUSDT".to_string(), "1h".to_string()));
         active_pairs.insert(("BTCUSDT".to_string(), "4h".to_string()));
 
-        // ETH: 30m, 1h only (15m now blocked)
+        // ETH: 15m, 30m, 1h
+        active_pairs.insert(("ETHUSDT".to_string(), "15m".to_string()));
         active_pairs.insert(("ETHUSDT".to_string(), "30m".to_string()));
         active_pairs.insert(("ETHUSDT".to_string(), "1h".to_string()));
 
@@ -75,16 +76,13 @@ impl TimeframePolicy {
         // FT1: SHADOW MODE (Research/comparison only)
         // ═══════════════════════════════════════════════════════
 
-        // BTC shadow timeframes (5m, 15m, 1d now blocked)
-        shadow_pairs.insert(("BTCUSDT".to_string(), "30m".to_string()));
-
         // ETH shadow timeframes (5m, 1d now blocked)
-        shadow_pairs.insert(("ETHUSDT".to_string(), "4h".to_string()));
+        // shadow_pairs.insert(("ETHUSDT".to_string(), "4h".to_string()));
 
-        // SOL all shadow (not enough edge data) - except blocked TFs
-        shadow_pairs.insert(("SOLUSDT".to_string(), "30m".to_string()));
-        shadow_pairs.insert(("SOLUSDT".to_string(), "1h".to_string()));
-        shadow_pairs.insert(("SOLUSDT".to_string(), "4h".to_string()));
+        // // SOL all shadow (not enough edge data) - except blocked TFs
+        // shadow_pairs.insert(("SOLUSDT".to_string(), "30m".to_string()));
+        // shadow_pairs.insert(("SOLUSDT".to_string(), "1h".to_string()));
+        // shadow_pairs.insert(("SOLUSDT".to_string(), "4h".to_string()));
 
         Self {
             active_pairs,
@@ -213,13 +211,14 @@ impl BootstrapState {
 
     /// Get minimum candle requirement for EMA200 based on timeframe
     /// Base rule: 3 × EMA period = 600 candles
-    /// HTF adjustments: 4h → 1500, 1h → 1200
+    /// HTF adjustments: 4h → 1000, 1h → 700
     pub fn min_candles_for_tf(timeframe: &str) -> usize {
         match timeframe {
-            "4h" => 1500, // HTF needs more history for proper context
-            "1h" => 1200, // HTF needs more history
-            "30m" => 800, // Medium TF
-            _ => 600,     // Default: 3 × 200 = 600 candles for EMA200
+            "4h" => 1000, // HTF needs more history for proper context
+            "1h" => 700,  // HTF needs more history
+            "30m" => 450, // Medium TF
+            "15m" => 300, // Scalping TF
+            _ => 300,     // Default: reduce bootstrap for faster signal readiness
         }
     }
 
@@ -309,15 +308,15 @@ impl VolatilityFilter {
 
         // Timeframe-specific minimum ATR ratios
         min_thresholds.insert("5m".to_string(), Decimal::from_f64(0.0012).unwrap());
-        min_thresholds.insert("15m".to_string(), Decimal::from_f64(0.0015).unwrap());
-        min_thresholds.insert("30m".to_string(), Decimal::from_f64(0.0012).unwrap());
+        min_thresholds.insert("15m".to_string(), Decimal::from_f64(0.0013).unwrap());
+        min_thresholds.insert("30m".to_string(), Decimal::from_f64(0.0011).unwrap());
         min_thresholds.insert("1h".to_string(), Decimal::from_f64(0.0010).unwrap());
-        min_thresholds.insert("4h".to_string(), Decimal::from_f64(0.0008).unwrap());
+        min_thresholds.insert("4h".to_string(), Decimal::from_f64(0.0007).unwrap());
         min_thresholds.insert("1d".to_string(), Decimal::from_f64(0.0006).unwrap());
 
         Self {
             min_thresholds,
-            extreme_low_multiplier: Decimal::from_f64(0.35).unwrap(), // OPTIMIZED: Was 0.5 (50%), now 35%
+            extreme_low_multiplier: Decimal::from_f64(0.32).unwrap(), // Slightly tighter for quality
         }
     }
 
@@ -384,7 +383,7 @@ pub struct SlopeFilter {
 impl SlopeFilter {
     pub fn new() -> Self {
         Self {
-            min_slope: Decimal::from_f64(0.0006).unwrap(), // 0.06%
+            min_slope: Decimal::from_f64(0.00055).unwrap(), // 0.055%
         }
     }
 

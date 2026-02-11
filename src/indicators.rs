@@ -125,6 +125,298 @@ pub struct Rsi {
     avg_loss: Option<Decimal>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Kama {
+    length: usize,
+    fast: usize,
+    slow: usize,
+    pub current_value: Option<Decimal>,
+    prev_close: Option<Decimal>,
+    abs_changes: std::collections::VecDeque<Decimal>,
+    closes: std::collections::VecDeque<Decimal>,
+    sum_abs_change: Decimal,
+}
+
+impl Kama {
+    pub fn new(length: usize, fast: usize, slow: usize) -> Self {
+        Self {
+            length,
+            fast,
+            slow,
+            current_value: None,
+            prev_close: None,
+            abs_changes: std::collections::VecDeque::new(),
+            closes: std::collections::VecDeque::new(),
+            sum_abs_change: Decimal::ZERO,
+        }
+    }
+
+    pub fn update(&mut self, close: Decimal) -> Decimal {
+        if let Some(prev) = self.prev_close {
+            let change = (close - prev).abs();
+            self.abs_changes.push_back(change);
+            self.sum_abs_change += change;
+            if self.abs_changes.len() > self.length {
+                if let Some(old) = self.abs_changes.pop_front() {
+                    self.sum_abs_change -= old;
+                }
+            }
+        }
+
+        self.prev_close = Some(close);
+        self.closes.push_back(close);
+        if self.closes.len() > self.length + 1 {
+            self.closes.pop_front();
+        }
+
+        let er = if self.closes.len() > self.length && !self.sum_abs_change.is_zero() {
+            let first = *self.closes.front().unwrap();
+            (close - first).abs() / self.sum_abs_change
+        } else {
+            Decimal::ZERO
+        };
+
+        let fast_sc = Decimal::from(2) / (Decimal::from(self.fast) + Decimal::ONE);
+        let slow_sc = Decimal::from(2) / (Decimal::from(self.slow) + Decimal::ONE);
+        let sc = (er * (fast_sc - slow_sc) + slow_sc).powi(2);
+
+        let kama = match self.current_value {
+            Some(prev) => prev + sc * (close - prev),
+            None => close,
+        };
+
+        self.current_value = Some(kama);
+        kama
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Macd {
+    fast: Ema,
+    slow: Ema,
+    signal: Ema,
+    pub macd_line: Option<Decimal>,
+    pub signal_line: Option<Decimal>,
+    pub hist: Option<Decimal>,
+}
+
+impl Macd {
+    pub fn new(fast: usize, slow: usize, signal: usize) -> Self {
+        Self {
+            fast: Ema::new(fast),
+            slow: Ema::new(slow),
+            signal: Ema::new(signal),
+            macd_line: None,
+            signal_line: None,
+            hist: None,
+        }
+    }
+
+    pub fn update(&mut self, close: Decimal) -> Option<(Decimal, Decimal, Decimal)> {
+        let fast_val = self.fast.update(close);
+        let slow_val = self.slow.update(close);
+        let macd_line = fast_val - slow_val;
+        let signal_line = self.signal.update(macd_line);
+        let hist = macd_line - signal_line;
+
+        self.macd_line = Some(macd_line);
+        self.signal_line = Some(signal_line);
+        self.hist = Some(hist);
+
+        Some((macd_line, signal_line, hist))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Adx {
+    period: usize,
+    smoothing: usize,
+    prev_high: Option<Decimal>,
+    prev_low: Option<Decimal>,
+    prev_close: Option<Decimal>,
+    tr_sm: Option<Decimal>,
+    plus_dm_sm: Option<Decimal>,
+    minus_dm_sm: Option<Decimal>,
+    adx_sm: Option<Decimal>,
+    pub pdi: Option<Decimal>,
+    pub mdi: Option<Decimal>,
+    pub adx: Option<Decimal>,
+}
+
+impl Adx {
+    pub fn new(period: usize, smoothing: usize) -> Self {
+        Self {
+            period,
+            smoothing,
+            prev_high: None,
+            prev_low: None,
+            prev_close: None,
+            tr_sm: None,
+            plus_dm_sm: None,
+            minus_dm_sm: None,
+            adx_sm: None,
+            pdi: None,
+            mdi: None,
+            adx: None,
+        }
+    }
+
+    pub fn update(&mut self, high: Decimal, low: Decimal, close: Decimal) -> Option<(Decimal, Decimal, Decimal)> {
+        let (tr, plus_dm, minus_dm) = match (self.prev_high, self.prev_low, self.prev_close) {
+            (Some(prev_high), Some(prev_low), Some(prev_close)) => {
+                let up_move = high - prev_high;
+                let down_move = prev_low - low;
+
+                let plus_dm = if up_move > down_move && up_move > Decimal::ZERO {
+                    up_move
+                } else {
+                    Decimal::ZERO
+                };
+
+                let minus_dm = if down_move > up_move && down_move > Decimal::ZERO {
+                    down_move
+                } else {
+                    Decimal::ZERO
+                };
+
+                let hl = high - low;
+                let hc = (high - prev_close).abs();
+                let lc = (low - prev_close).abs();
+                let tr = hl.max(hc).max(lc);
+
+                (tr, plus_dm, minus_dm)
+            }
+            _ => {
+                let tr = high - low;
+                (tr, Decimal::ZERO, Decimal::ZERO)
+            }
+        };
+
+        self.prev_high = Some(high);
+        self.prev_low = Some(low);
+        self.prev_close = Some(close);
+
+        let period = Decimal::from(self.period);
+        let smoothing = Decimal::from(self.smoothing);
+
+        self.tr_sm = Some(match self.tr_sm {
+            Some(prev) => prev + (tr - prev) / period,
+            None => tr,
+        });
+
+        self.plus_dm_sm = Some(match self.plus_dm_sm {
+            Some(prev) => prev + (plus_dm - prev) / period,
+            None => plus_dm,
+        });
+
+        self.minus_dm_sm = Some(match self.minus_dm_sm {
+            Some(prev) => prev + (minus_dm - prev) / period,
+            None => minus_dm,
+        });
+
+        let tr_sm = self.tr_sm.unwrap_or(Decimal::ZERO);
+        if tr_sm.is_zero() {
+            return None;
+        }
+
+        let pdi = Decimal::from(100) * self.plus_dm_sm.unwrap_or(Decimal::ZERO) / tr_sm;
+        let mdi = Decimal::from(100) * self.minus_dm_sm.unwrap_or(Decimal::ZERO) / tr_sm;
+
+        let denom = pdi + mdi;
+        let dx = if denom.is_zero() {
+            Decimal::ZERO
+        } else {
+            Decimal::from(100) * (pdi - mdi).abs() / denom
+        };
+
+        let adx = match self.adx_sm {
+            Some(prev) => prev + (dx - prev) / smoothing,
+            None => dx,
+        };
+
+        self.pdi = Some(pdi);
+        self.mdi = Some(mdi);
+        self.adx = Some(adx);
+        self.adx_sm = Some(adx);
+
+        Some((pdi, mdi, adx))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StochRsi {
+    length: usize,
+    k_period: usize,
+    d_period: usize,
+    rsi_window: std::collections::VecDeque<Decimal>,
+    k_window: std::collections::VecDeque<Decimal>,
+    d_window: std::collections::VecDeque<Decimal>,
+    pub k: Option<Decimal>,
+    pub d: Option<Decimal>,
+}
+
+impl StochRsi {
+    pub fn new(length: usize, k_period: usize, d_period: usize) -> Self {
+        Self {
+            length,
+            k_period,
+            d_period,
+            rsi_window: std::collections::VecDeque::new(),
+            k_window: std::collections::VecDeque::new(),
+            d_window: std::collections::VecDeque::new(),
+            k: None,
+            d: None,
+        }
+    }
+
+    pub fn update(&mut self, rsi: Decimal) -> Option<(Decimal, Decimal)> {
+        self.rsi_window.push_back(rsi);
+        if self.rsi_window.len() > self.length {
+            self.rsi_window.pop_front();
+        }
+
+        if self.rsi_window.len() < self.length {
+            return None;
+        }
+
+        let min = self.rsi_window.iter().cloned().min().unwrap_or(rsi);
+        let max = self.rsi_window.iter().cloned().max().unwrap_or(rsi);
+        let denom = max - min;
+        let stoch = if denom.is_zero() {
+            Decimal::ZERO
+        } else {
+            (rsi - min) / denom * Decimal::from(100)
+        };
+
+        self.k_window.push_back(stoch);
+        if self.k_window.len() > self.k_period {
+            self.k_window.pop_front();
+        }
+
+        let k = if self.k_window.is_empty() {
+            stoch
+        } else {
+            self.k_window.iter().cloned().sum::<Decimal>() / Decimal::from(self.k_window.len())
+        };
+
+        self.d_window.push_back(k);
+        if self.d_window.len() > self.d_period {
+            self.d_window.pop_front();
+        }
+
+        let d = if self.d_window.is_empty() {
+            k
+        } else {
+            self.d_window.iter().cloned().sum::<Decimal>() / Decimal::from(self.d_window.len())
+        };
+
+        self.k = Some(k);
+        self.d = Some(d);
+
+        Some((k, d))
+    }
+}
+
 impl Rsi {
     pub fn new(period: usize) -> Self {
         Self {

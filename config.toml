@@ -7,19 +7,31 @@ auto_reconnect = true
 [backtest]
 output_dir = "backtest_results"
 days = 365
+exit_mode = "sl_tp"
+send_alpaca_signals = false
 # Local CSV backtest (optional - comment out to use Binance API)
 # csv_file = "backtest_results/bitcoin_prices_all_time.csv"
 # csv_symbol = "BTCUSDT"
 # csv_timeframe = "1h"
 
 [trading]
-# PHASE A: Only Active pairs (BTC 1h/4h, ETH 30m/1h)
+# PHASE A: Active scalping pairs (15m/30m/1h)
 symbols = ["BTCUSDT", "ETHUSDT"]
-timeframes = ["5m","15m","30m", "1h"]
-# Live trade execution control (default: false for safety)
-execute_trades = false
+timeframes = ["15m", "30m", "1h"]
+# Live trade execution control
+execute_trades = true
+# Paper trading (simulated trading without real money)
+use_paper_trader = true
+paper_initial_balance = 100000.0
+paper_state_file = "paper_trader_state.json"
 
 [indicators]
 ema_fast = [5, 8, 13]
 ema_trend = 50
 ema_macro = 200
+
+[ml]
+enabled = true
+model_path = "models/lstm_filter.onnx"
+meta_path = "models/lstm_meta.json"
+onnxruntime_path = "C:/Users/tunay/AppData/Roaming/Python/Python313/site-packages/onnxruntime/capi/onnxruntime.dll"

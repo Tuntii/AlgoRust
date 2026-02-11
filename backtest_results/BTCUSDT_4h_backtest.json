@@ -1,0 +1,92 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "4h",
+  "total_trades": 1,
+  "wins": 0,
+  "losses": 0,
+  "win_rate": 0.0,
+  "total_pnl_r": "1.8775142872402926881375847888",
+  "advanced_metrics": {
+    "expectancy_r": -1.8775142872402928,
+    "max_consecutive_losses": 1,
+    "max_consecutive_wins": 0,
+    "avg_r_per_trade": 1.8775142872402928,
+    "avg_win_r": 0.0,
+    "avg_loss_r": 1.8775142872402928,
+    "profit_factor": -0.0,
+    "largest_win_r": 1.8775142872402928,
+    "largest_loss_r": 0.0,
+    "avg_trade_duration_candles": 14.0,
+    "sharpe_ratio_approx": 0.0,
+    "trade_count": 1,
+    "max_concurrent_trades": 1,
+    "avg_concurrent_trades": 1.0,
+    "overlap_trade_count": 0,
+    "overlap_win_rate": 0.0,
+    "overlap_pnl_r": 0.0,
+    "context_based_expectancy": {
+      "signal": 1.8775142872402928
+    },
+    "pnl_by_overlap_count": {
+      "1": 1.8775142872402928
+    },
+    "worst_overlap_drawdown": 0.0,
+    "overlap_1_pnl": 1.8775142872402928,
+    "overlap_2_pnl": 0.0,
+    "overlap_3_pnl": 0.0
+  },
+  "regime_report": {
+    "by_atr_regime": {},
+    "by_slope_regime": {},
+    "by_session": {},
+    "by_confidence_tier": {
+      "high": {
+        "trades": 1,
+        "wins": 0,
+        "win_rate": 0.0,
+        "total_r": 1.8775142872402928,
+        "avg_r": 1.8775142872402928,
+        "expectancy": -1.8775142872402928
+      }
+    }
+  },
+  "signals": [
+    {
+      "signal_id": "690f485f-5000-42a6-a331-b9fa671cec38",
+      "engine_version": "2.1.0",
+      "symbol": "BTCUSDT",
+      "tf": "4h",
+      "direction": "LONG",
+      "price": "92000.74000000",
+      "confidence": 80,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-07T00:47:05.119571600Z",
+      "reason": [
+        "Pine entry: EMAxKAMA cross with SuperTrend filter",
+        "Pine confirmation: divergence detected"
+      ],
+      "context_id": null,
+      "regime_context": null,
+      "entry_price": "92000.74000000",
+      "sl_price": "90128.44000000",
+      "original_sl_price": "90128.44000000",
+      "tp_price": "92519.95000000",
+      "exit_price": "95516.01000000",
+      "pnl_r": "1.8775142872402926881375847888",
+      "outcome": "MAX_DURATION",
+      "entry_candle_idx": 2041,
+      "exit_candle_idx": 2055,
+      "duration_candles": 14,
+      "context_id": {
+        "context_type": "signal",
+        "identifier": "2042",
+        "created_at_candle": 2042
+      },
+      "adjusted_confidence": 80,
+      "was_concurrent": false,
+      "context_score": 80,
+      "ema50_slope_at_entry": "0.0018525182819763254350031358",
+      "is_be_applied": false
+    }
+  ]
+}

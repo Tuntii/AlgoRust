@@ -1,0 +1,92 @@
+{
+  "symbol": "ETHUSDT",
+  "timeframe": "4h",
+  "total_trades": 1,
+  "wins": 0,
+  "losses": 0,
+  "win_rate": 0.0,
+  "total_pnl_r": "1.0584927363353640352745707835",
+  "advanced_metrics": {
+    "expectancy_r": -1.058492736335364,
+    "max_consecutive_losses": 1,
+    "max_consecutive_wins": 0,
+    "avg_r_per_trade": 1.058492736335364,
+    "avg_win_r": 0.0,
+    "avg_loss_r": 1.058492736335364,
+    "profit_factor": -0.0,
+    "largest_win_r": 1.058492736335364,
+    "largest_loss_r": 0.0,
+    "avg_trade_duration_candles": 14.0,
+    "sharpe_ratio_approx": 0.0,
+    "trade_count": 1,
+    "max_concurrent_trades": 1,
+    "avg_concurrent_trades": 1.0,
+    "overlap_trade_count": 0,
+    "overlap_win_rate": 0.0,
+    "overlap_pnl_r": 0.0,
+    "context_based_expectancy": {
+      "signal": 1.058492736335364
+    },
+    "pnl_by_overlap_count": {
+      "1": 1.058492736335364
+    },
+    "worst_overlap_drawdown": 0.0,
+    "overlap_1_pnl": 1.058492736335364,
+    "overlap_2_pnl": 0.0,
+    "overlap_3_pnl": 0.0
+  },
+  "regime_report": {
+    "by_atr_regime": {},
+    "by_slope_regime": {},
+    "by_session": {},
+    "by_confidence_tier": {
+      "high": {
+        "trades": 1,
+        "wins": 0,
+        "win_rate": 0.0,
+        "total_r": 1.058492736335364,
+        "avg_r": 1.058492736335364,
+        "expectancy": -1.058492736335364
+      }
+    }
+  },
+  "signals": [
+    {
+      "signal_id": "d8ec1503-b376-4515-bdb7-f320be338f88",
+      "engine_version": "2.1.0",
+      "symbol": "ETHUSDT",
+      "tf": "4h",
+      "direction": "LONG",
+      "price": "3142.25000000",
+      "confidence": 80,
+      "confidence_tier": "high",
+      "timestamp": "2026-02-07T00:48:08.197258Z",
+      "reason": [
+        "Pine entry: EMAxKAMA cross with SuperTrend filter",
+        "Pine confirmation: divergence detected"
+      ],
+      "context_id": null,
+      "regime_context": null,
+      "entry_price": "3142.25000000",
+      "sl_price": "2907.52000000",
+      "original_sl_price": "2907.52000000",
+      "tp_price": "3225.00000000",
+      "exit_price": "3390.71000000",
+      "pnl_r": "1.0584927363353640352745707835",
+      "outcome": "MAX_DURATION",
+      "entry_candle_idx": 1825,
+      "exit_candle_idx": 1839,
+      "duration_candles": 14,
+      "context_id": {
+        "context_type": "signal",
+        "identifier": "1826",
+        "created_at_candle": 1826
+      },
+      "adjusted_confidence": 80,
+      "was_concurrent": false,
+      "context_score": 80,
+      "ema50_slope_at_entry": "0.004825212846335142180983738",
+      "is_be_applied": false
+    }
+  ]
+}

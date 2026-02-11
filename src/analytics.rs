@@ -3,13 +3,10 @@
 // ============================================================================
 
 use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
 
-use crate::types::{RegimeContext, TradeSignal, SignalType};
+use crate::types::{RegimeContext, TradeSignal};
 
 // =============================================================================
 // BLOCK STATISTICS TRACKER
@@ -25,6 +22,7 @@ pub struct BlockStats {
     pub open_trade_blocks: u32,  // Blocked because trade already open (LEGACY - single position)
     pub score_too_low: u32,
     pub policy_blocked: u32,
+    pub lstm_filtered: u32,
     pub total_evaluations: u32,
     pub total_signals_generated: u32,
     
@@ -61,6 +59,7 @@ impl BlockStats {
         self.open_trade_blocks += other.open_trade_blocks;
         self.score_too_low += other.score_too_low;
         self.policy_blocked += other.policy_blocked;
+        self.lstm_filtered += other.lstm_filtered;
         self.total_evaluations += other.total_evaluations;
         self.total_signals_generated += other.total_signals_generated;
         // Multi-position blocks
@@ -88,6 +87,7 @@ impl BlockStats {
         self.open_trade_blocks +
         self.score_too_low +
         self.policy_blocked +
+        self.lstm_filtered +
         // Multi-position blocks
         self.max_trades_reached +
         self.duplicate_context +
@@ -630,13 +630,13 @@ impl ScoreThreshold {
     /// OPTIMIZED: Lowered thresholds to allow more signals while maintaining quality
     pub fn min_score_for_tf(timeframe: &str) -> i32 {
         match timeframe {
-            "5m" => 70,     // Was 80 - still high for noise
-            "15m" => 65,    // Was 75
-            "30m" => 60,    // Was 70
-            "1h" => 55,     // Was 65
-            "4h" => 55,     // Was 65  
-            "1d" => 50,     // Was 60
-            _ => 60,        // Was 70
+            "5m" => 68,     // Keep high for noise
+            "15m" => 65,    // Tighten for win rate
+            "30m" => 60,
+            "1h" => 55,
+            "4h" => 55,
+            "1d" => 50,
+            _ => 58,
         }
     }
     

@@ -3,18 +3,35 @@ use rust_decimal::prelude::*;
 use chrono::{DateTime, Duration, Utc, TimeZone, NaiveDateTime};
 use std::fs::{self, File};
 use std::io::{Write, BufRead, BufReader};
-use std::path::Path;
-use crate::types::{TradeSignal, Candle, SignalType, TrendState, RegimeContext, ContextId, ActiveTrade, PositionPool, PositionPoolConfig};
+use crate::types::{TradeSignal, Candle, SignalType, ContextId, ActiveTrade};
 use crate::state::SymbolContext;
-use crate::engine::SignalEngine;
+use crate::engine::{LstmMode, SignalEngine};
+use crate::ml_filter::LstmFilter;
 use crate::connect::BinanceClient;
 use crate::policy::TimeframePolicy;
 use crate::alpaca::{AlpacaClient, OrderRequest, Side, OrderType, TimeInForce}; // Added Alpaca types
 use crate::analytics::{
-    AdvancedMetrics, TradeRecord, RegimeReport, ExtendedBacktestResult, BlockStats
+    AdvancedMetrics, TradeRecord, RegimeReport, BlockStats
 };
 use tracing::{info, warn, error};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExitMode {
+    Supertrend,
+    SlTp,
+    Hybrid,
+}
+
+impl ExitMode {
+    fn from_str(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "supertrend" => ExitMode::Supertrend,
+            "hybrid" => ExitMode::Hybrid,
+            _ => ExitMode::SlTp,
+        }
+    }
+}
 
 // =============================================================================
 // BACKTEST SUMMARY REPORT
@@ -35,6 +52,34 @@ pub struct BacktestSummary {
     pub worst_performer: Option<String>,
     pub block_stats: BlockStats,
     pub results_by_pair: Vec<PairResult>,
+    // Dollar P&L calculations (with $1000 per pair)
+    pub dollar_pnl: Option<DollarPnlSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct DollarPnlSummary {
+    pub starting_capital_per_pair: f64,
+    pub total_starting_capital: f64,
+    pub risk_scenarios: Vec<RiskScenario>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RiskScenario {
+    pub risk_percent: f64,
+    pub risk_per_r: f64,
+    pub total_dollar_pnl: f64,
+    pub total_final_capital: f64,
+    pub total_return_percent: f64,
+    pub pair_results: Vec<DollarPairResult>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DollarPairResult {
+    pub pair: String,
+    pub starting_capital: f64,
+    pub dollar_pnl: f64,
+    pub final_capital: f64,
+    pub return_percent: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -100,7 +145,11 @@ pub async fn run_backtest(
     symbols: &[String], 
     timeframes: &[String], 
     days: i64,
-    output_dir: &str
+    exit_mode: &str,
+    send_alpaca_signals: bool,
+    output_dir: &str,
+    lstm_filter: Option<LstmFilter>,
+    lstm_mode: LstmMode,
 ) -> anyhow::Result<()> {
     info!("🔄 Backtest Başlatılıyor... (Son {} gün)", days);
     info!("═══════════════════════════════════════════════════════════════");
@@ -110,10 +159,15 @@ pub async fn run_backtest(
     
     let client = BinanceClient::new();
     let mut engine = SignalEngine::new_backtest_mode(); // Backtest mode: bypasses policy
+    if let Some(filter) = lstm_filter {
+        engine.set_lstm_filter(filter);
+    }
+    engine.set_lstm_mode(lstm_mode);
     let policy = TimeframePolicy::new();
+    let exit_mode = ExitMode::from_str(exit_mode);
 
     // Alpaca Client (Optional) - .env yüklü ise aktif olur
-    let alpaca_client = if std::env::var("ALPACA_API_KEY").is_ok() {
+    let alpaca_client = if send_alpaca_signals && std::env::var("ALPACA_API_KEY").is_ok() {
         match AlpacaClient::new() {
             Ok(c) => {
                 info!("🦙 Alpaca entegrasyonu aktif (Backtest Sinyalleri İletilecek)");
@@ -275,6 +329,8 @@ pub async fn run_backtest(
                         
                          // 3. Açık pozisyonları yönet (Simülasyon)
                         let pool_config = engine.get_position_pool().config.clone();
+                        let allow_supertrend_exit = exit_mode != ExitMode::SlTp;
+                        let allow_sl_tp_exit = exit_mode != ExitMode::Supertrend;
                         
                         for trade in trades.iter_mut() {
                             if trade.outcome.is_some() { continue; } // Zaten kapandı
@@ -303,9 +359,41 @@ pub async fn run_backtest(
                                 just_closed = true;
                                 engine.block_stats.max_duration_exits += 1;
                             }
+
+                            if !just_closed && allow_supertrend_exit {
+                                let reversal = match trade.signal.signal {
+                                    SignalType::LONG => ctx.pine_trend_changed_bearish,
+                                    SignalType::SHORT => ctx.pine_trend_changed_bullish,
+                                };
+
+                                if reversal {
+                                    let risk = (trade.entry_price - trade.original_sl_price).abs();
+                                    let pnl_r = if risk.is_zero() {
+                                        Decimal::ZERO
+                                    } else {
+                                        match trade.signal.signal {
+                                            SignalType::LONG => (candle.close - trade.entry_price) / risk,
+                                            SignalType::SHORT => (trade.entry_price - candle.close) / risk,
+                                        }
+                                    };
+
+                                    trade.outcome = Some(if pnl_r > Decimal::ZERO {
+                                        "WIN"
+                                    } else if pnl_r < Decimal::ZERO {
+                                        "LOSS"
+                                    } else {
+                                        "BE"
+                                    }.to_string());
+                                    trade.exit_price = Some(candle.close);
+                                    trade.pnl_r = Some(pnl_r);
+                                    trade.exit_candle_idx = Some(candle_idx);
+                                    trade.duration_candles = Some(current_duration);
+                                    just_closed = true;
+                                }
+                            }
                             
                             // T9.2: Time-based BE
-                            if !just_closed && !trade.is_be_applied && current_duration >= pool_config.be_threshold_candles {
+                            if allow_sl_tp_exit && !just_closed && !trade.is_be_applied && current_duration >= pool_config.be_threshold_candles {
                                 let risk = (trade.entry_price - trade.original_sl_price).abs();
                                 let unrealized_r = match trade.signal.signal {
                                     SignalType::LONG => (candle.close - trade.entry_price) / risk,
@@ -320,7 +408,7 @@ pub async fn run_backtest(
                             }
                             
                             // Normal SL/TP checks
-                            if !just_closed {
+                            if allow_sl_tp_exit && !just_closed {
                                 match trade.signal.signal {
                                     SignalType::LONG => {
                                         if candle.low <= trade.sl_price {
@@ -339,7 +427,13 @@ pub async fn run_backtest(
                                         } else if candle.high >= trade.tp_price {
                                             trade.outcome = Some("WIN".to_string());
                                             trade.exit_price = Some(trade.tp_price);
-                                            trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
+                                            let risk = (trade.entry_price - trade.original_sl_price).abs();
+                                            let tp_r = if risk.is_zero() {
+                                                Decimal::ZERO
+                                            } else {
+                                                (trade.tp_price - trade.entry_price) / risk
+                                            };
+                                            trade.pnl_r = Some(tp_r);
                                             trade.exit_candle_idx = Some(candle_idx);
                                             trade.duration_candles = Some(current_duration);
                                             just_closed = true;
@@ -362,7 +456,13 @@ pub async fn run_backtest(
                                         } else if candle.low <= trade.tp_price {
                                             trade.outcome = Some("WIN".to_string());
                                             trade.exit_price = Some(trade.tp_price);
-                                            trade.pnl_r = Some(Decimal::from_f64(1.5).unwrap());
+                                            let risk = (trade.entry_price - trade.original_sl_price).abs();
+                                            let tp_r = if risk.is_zero() {
+                                                Decimal::ZERO
+                                            } else {
+                                                (trade.entry_price - trade.tp_price) / risk
+                                            };
+                                            trade.pnl_r = Some(tp_r);
                                             trade.exit_candle_idx = Some(candle_idx);
                                             trade.duration_candles = Some(current_duration);
                                             just_closed = true;
@@ -418,8 +518,9 @@ pub async fn run_backtest(
                     .map(|t| t.pnl_r.unwrap_or_default())
                     .sum();
                 
-                let win_rate = if completed_count > 0 {
-                    wins as f64 / completed_count as f64 * 100.0
+                let decisive_trades = wins + losses;
+                let win_rate = if decisive_trades > 0 {
+                    wins as f64 / decisive_trades as f64 * 100.0
                 } else { 0.0 };
 
                 // T5.1: Build trade records for advanced metrics
@@ -467,8 +568,8 @@ pub async fn run_backtest(
                 file.write_all(json.as_bytes())?;
                 
                 // T5.1: Enhanced logging with advanced metrics
-                info!("📊 Rapor: {} {} -> PnL: {}R (%{:.1} WR, {} Trades)", 
-                      symbol, interval, total_pnl, win_rate, completed_count);
+                    info!("📊 Rapor: {} {} -> PnL: {}R (%{:.1} WR, {} Trades)", 
+                        symbol, interval, total_pnl, win_rate, completed_count);
                 info!("   📈 Expectancy: {:.3}R | PF: {:.2} | Sharpe: {:.2}", 
                       advanced_metrics.expectancy_r, 
                       advanced_metrics.profit_factor,
@@ -525,7 +626,12 @@ pub async fn run_backtest(
     
     // Calculate overall metrics
     if summary.total_trades > 0 {
-        summary.overall_win_rate = summary.total_wins as f64 / summary.total_trades as f64 * 100.0;
+        let decisive_total = summary.total_wins + summary.total_losses;
+        summary.overall_win_rate = if decisive_total > 0 {
+            summary.total_wins as f64 / decisive_total as f64 * 100.0
+        } else {
+            0.0
+        };
         summary.overall_expectancy = summary.overall_pnl_r.to_f64().unwrap_or(0.0) / summary.total_trades as f64;
         
         let gross_wins: f64 = summary.results_by_pair.iter()
@@ -538,6 +644,53 @@ pub async fn run_backtest(
             .sum();
         summary.overall_profit_factor = if gross_losses > 0.0 { gross_wins / gross_losses } else { gross_wins };
     }
+    
+    // Calculate dollar P&L with different risk percentages
+    let starting_capital_per_pair = 1000.0;
+    let total_starting_capital = starting_capital_per_pair * summary.results_by_pair.len() as f64;
+    let risk_percentages = vec![1.0, 2.0, 3.0];
+    let mut risk_scenarios = Vec::new();
+    
+    for risk_pct in risk_percentages {
+        let risk_per_r = starting_capital_per_pair * (risk_pct / 100.0);
+        let mut pair_results = Vec::new();
+        let mut total_dollar_pnl = 0.0;
+        
+        for result in &summary.results_by_pair {
+            let pnl_r = result.pnl_r.to_f64().unwrap_or(0.0);
+            let dollar_pnl = pnl_r * risk_per_r;
+            let final_capital = starting_capital_per_pair + dollar_pnl;
+            let return_percent = (dollar_pnl / starting_capital_per_pair) * 100.0;
+            
+            pair_results.push(DollarPairResult {
+                pair: format!("{} {}", result.symbol, result.timeframe),
+                starting_capital: starting_capital_per_pair,
+                dollar_pnl,
+                final_capital,
+                return_percent,
+            });
+            
+            total_dollar_pnl += dollar_pnl;
+        }
+        
+        let total_final_capital = total_starting_capital + total_dollar_pnl;
+        let total_return_percent = (total_dollar_pnl / total_starting_capital) * 100.0;
+        
+        risk_scenarios.push(RiskScenario {
+            risk_percent: risk_pct,
+            risk_per_r,
+            total_dollar_pnl,
+            total_final_capital,
+            total_return_percent,
+            pair_results,
+        });
+    }
+    
+    summary.dollar_pnl = Some(DollarPnlSummary {
+        starting_capital_per_pair,
+        total_starting_capital,
+        risk_scenarios,
+    });
     
     // Print final summary
     print_summary(&summary);
@@ -597,6 +750,7 @@ fn print_summary(summary: &BacktestSummary) {
     info!("      Cooldown:         {:>6} blocks (post-close cooldown)", bs.cooldown_blocks);
     info!("      Score Too Low:    {:>6} blocks", bs.score_too_low);
     info!("      Policy Blocked:   {:>6} blocks", bs.policy_blocked);
+    info!("      LSTM Filtered:    {:>6} blocks", bs.lstm_filtered);
     info!("");
     info!("   📍 Multi-Position Blocks (Phase 7):");
     info!("      Max Trades:       {:>6} blocks (reached max concurrent)", bs.max_trades_reached);
@@ -609,12 +763,12 @@ fn print_summary(summary: &BacktestSummary) {
     info!("      Weak Replaced:    {:>6} trades (replaced by stronger)", bs.weak_trade_replaced);
     info!("");
     info!("   📍 Phase 9 Exit Stats:");
-    info!("      Max Duration:     {:>6} exits (forced after 14 candles)", bs.max_duration_exits);
+    info!("      Max Duration:     {:>6} exits (forced after max duration)", bs.max_duration_exits);
     info!("      BE Applied:       {:>6} trades (moved SL to entry)", bs.be_applied_count);
     info!("      Partial TP:       {:>6} times (50% closed at 1R)", bs.partial_tp_count);
     info!("");
     info!("   📍 Phase 10 Safety:");
-    info!("      Kill Switch:      {:>6} triggers (7 consec losses)", bs.kill_switch_triggered);
+    info!("      Kill Switch:      {:>6} triggers (consec losses)", bs.kill_switch_triggered);
     info!("");
     
     // Results by pair table
@@ -640,6 +794,25 @@ fn print_summary(summary: &BacktestSummary) {
     }
     
     info!("");
+    
+    // Dollar P&L Summary
+    if let Some(ref dollar_pnl) = summary.dollar_pnl {
+        info!("💰 DOLLAR P&L CALCULATION");
+        info!("───────────────────────────────────────────────────────────────");
+        info!("   Starting Capital per Pair: ${:.2}", dollar_pnl.starting_capital_per_pair);
+        info!("   Total Starting Capital: ${:.2}", dollar_pnl.total_starting_capital);
+        info!("");
+        
+        for scenario in &dollar_pnl.risk_scenarios {
+            info!("   📊 Risk {}% per trade (${:.2} per R):", 
+                  scenario.risk_percent, scenario.risk_per_r);
+            info!("      Total P&L: ${:.2}", scenario.total_dollar_pnl);
+            info!("      Final Capital: ${:.2}", scenario.total_final_capital);
+            info!("      Total Return: {:.2}%", scenario.total_return_percent);
+            info!("");
+        }
+    }
+    
     info!("═══════════════════════════════════════════════════════════════");
     info!("                         🏁 END REPORT                         ");
     info!("═══════════════════════════════════════════════════════════════");
@@ -647,16 +820,16 @@ fn print_summary(summary: &BacktestSummary) {
 }
 
 fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) -> (Decimal, Decimal) {
-    let default_rr = Decimal::from_f64(1.5).unwrap();
-    let min_profit_pct = Decimal::from_f64(0.005).unwrap(); // Hedef en az %0.5 uzakta olmalı
+    let default_rr = Decimal::from_f64(1.0).unwrap();
+    let min_profit_pct = Decimal::from_f64(0.003).unwrap(); // Hedef en az %0.3 uzakta olmalı
 
     match signal.signal {
         SignalType::LONG => {
             // SL = Last Swing Low. Eğer yoksa %1 altı.
             let sl = ctx.structure.last_pivot_low.unwrap_or(entry * Decimal::from_f64(0.99).unwrap());
             // Koruma: Çok yakın SL varsa minimum %0.2 mesafe koy
-            let safe_sl = if (entry - sl) / entry < Decimal::from_f64(0.002).unwrap() {
-                entry * Decimal::from_f64(0.995).unwrap()
+            let safe_sl = if (entry - sl) / entry < Decimal::from_f64(0.0015).unwrap() {
+                entry * Decimal::from_f64(0.9965).unwrap()
             } else {
                 sl
             };
@@ -689,8 +862,8 @@ fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) ->
         },
         SignalType::SHORT => {
             let sl = ctx.structure.last_pivot_high.unwrap_or(entry * Decimal::from_f64(1.01).unwrap());
-             let safe_sl = if (sl - entry) / entry < Decimal::from_f64(0.002).unwrap() {
-                entry * Decimal::from_f64(1.005).unwrap()
+             let safe_sl = if (sl - entry) / entry < Decimal::from_f64(0.0015).unwrap() {
+                entry * Decimal::from_f64(1.0035).unwrap()
             } else {
                 sl
             };
@@ -782,7 +955,11 @@ pub async fn run_csv_backtest(
     csv_path: &str,
     symbol: &str,
     timeframe: &str,
-    output_dir: &str
+    exit_mode: &str,
+    send_alpaca_signals: bool,
+    output_dir: &str,
+    lstm_filter: Option<LstmFilter>,
+    lstm_mode: LstmMode,
 ) -> anyhow::Result<()> {
     info!("═══════════════════════════════════════════════════════════════");
     info!("   🗂️  LOCAL CSV BACKTEST: {} ({})", symbol, timeframe);
@@ -805,6 +982,12 @@ pub async fn run_csv_backtest(
           candles.last().unwrap().open_time.format("%Y-%m-%d"));
     
     let mut engine = SignalEngine::new_backtest_mode(); // T1.3: Backtest mode with shorter cooldowns
+    if let Some(filter) = lstm_filter {
+        engine.set_lstm_filter(filter);
+    }
+    engine.set_lstm_mode(lstm_mode);
+    let exit_mode = ExitMode::from_str(exit_mode);
+    let _ = send_alpaca_signals;
     let mut ctx = SymbolContext::new(symbol.to_string(), timeframe.to_string());
     let mut trades: Vec<SimulatedTrade> = Vec::new();
     let mut candle_idx: usize = 0;
@@ -889,6 +1072,8 @@ pub async fn run_csv_backtest(
         
         // 3. Manage open positions
         let pool_config = engine.get_position_pool().config.clone();
+        let allow_supertrend_exit = exit_mode != ExitMode::SlTp;
+        let allow_sl_tp_exit = exit_mode != ExitMode::Supertrend;
         
         for trade in trades.iter_mut() {
             if trade.outcome.is_some() { continue; }
@@ -917,9 +1102,41 @@ pub async fn run_csv_backtest(
                 just_closed = true;
                 engine.block_stats.max_duration_exits += 1;
             }
+
+            if !just_closed && allow_supertrend_exit {
+                let reversal = match trade.signal.signal {
+                    SignalType::LONG => ctx.pine_trend_changed_bearish,
+                    SignalType::SHORT => ctx.pine_trend_changed_bullish,
+                };
+
+                if reversal {
+                    let risk = (trade.entry_price - trade.original_sl_price).abs();
+                    let pnl_r = if risk.is_zero() {
+                        Decimal::ZERO
+                    } else {
+                        match trade.signal.signal {
+                            SignalType::LONG => (candle.close - trade.entry_price) / risk,
+                            SignalType::SHORT => (trade.entry_price - candle.close) / risk,
+                        }
+                    };
+
+                    trade.outcome = Some(if pnl_r > Decimal::ZERO {
+                        "WIN"
+                    } else if pnl_r < Decimal::ZERO {
+                        "LOSS"
+                    } else {
+                        "BE"
+                    }.to_string());
+                    trade.exit_price = Some(candle.close);
+                    trade.pnl_r = Some(pnl_r);
+                    trade.exit_candle_idx = Some(candle_idx);
+                    trade.duration_candles = Some(current_duration);
+                    just_closed = true;
+                }
+            }
             
             // T9.2: Time-based BE - Move SL to entry after be_threshold_candles if profit < be_min_profit_r
-            if !just_closed && !trade.is_be_applied && current_duration >= pool_config.be_threshold_candles {
+            if allow_sl_tp_exit && !just_closed && !trade.is_be_applied && current_duration >= pool_config.be_threshold_candles {
                 let risk = (trade.entry_price - trade.original_sl_price).abs();
                 let unrealized_r = match trade.signal.signal {
                     SignalType::LONG => (candle.close - trade.entry_price) / risk,
@@ -934,8 +1151,8 @@ pub async fn run_csv_backtest(
                 }
             }
             
-            // Normal SL/TP checks (if not already closed by max duration)
-            if !just_closed {
+            // Normal SL/TP checks (if not already closed)
+            if allow_sl_tp_exit && !just_closed {
                 match trade.signal.signal {
                     SignalType::LONG => {
                         if candle.low <= trade.sl_price {
@@ -1155,6 +1372,7 @@ pub async fn run_csv_backtest(
     info!("      Cooldown:         {:>6} blocks (post-close cooldown)", block_stats.cooldown_blocks);
     info!("      Score Too Low:    {:>6} blocks", block_stats.score_too_low);
     info!("      Policy Blocked:   {:>6} blocks", block_stats.policy_blocked);
+    info!("      LSTM Filtered:    {:>6} blocks", block_stats.lstm_filtered);
     info!("");
     info!("   📊 Multi-Position Blocks:");
     info!("      Max Trades:       {:>6} blocks", block_stats.max_trades_reached);

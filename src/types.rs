@@ -1,8 +1,6 @@
 use chrono::{DateTime, Utc};
-use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt;
 
 // =============================================================================
@@ -370,14 +368,14 @@ impl Default for PositionPoolConfig {
             allow_hedge: false,                 // LONG + SHORT NOT allowed
             confidence_reduction_per_trade: 0.3, // 30% reduction per additional trade
             min_score_improvement: 10,          // T8.2: Need +10 score to replace weak trade
-            max_trade_duration_candles: 14,     // T9.1: Force exit after 14 candles
-            be_threshold_candles: 6,            // T9.2: Apply BE after 6 candles
-            be_min_profit_r: Decimal::from_str_exact("0.5").unwrap(), // T9.2: Don't apply BE if > 0.5R profit
-            partial_tp_enabled: false,                                // T9.3: Disabled by default
+            max_trade_duration_candles: 10,     // T9.1: Force exit sooner for scalping
+            be_threshold_candles: 4,            // T9.2: Apply BE earlier
+            be_min_profit_r: Decimal::from_str_exact("0.3").unwrap(), // T9.2: Don't apply BE if > 0.3R profit
+            partial_tp_enabled: true,                                 // T9.3: Lock some win rate on 1R
             partial_tp_ratio: 0.5,                                    // T9.3: Close 50% at 1R
-            kill_switch_consec_losses: 7, // T10.2: Pause after 7 consecutive losses
+            kill_switch_consec_losses: 9, // T10.2: Pause after 9 consecutive losses
             kill_switch_min_duration: 20, // T11.1: DEFAULT - use get_kill_switch_duration_for_tf()
-            kill_switch_reset_wins: 2,    // T11.2: Need 2 consecutive wins to reset
+            kill_switch_reset_wins: 1,    // T11.2: Need 1 consecutive win to reset
         }
     }
 }
@@ -394,11 +392,11 @@ pub fn get_kill_switch_duration_for_tf(timeframe: &str) -> u32 {
         "1m" => 60,  // 1 hour worth of candles
         "3m" => 40,  // ~2 hours
         "5m" => 30,  // ~2.5 hours (BLOCKED but kept for reference)
-        "15m" => 24, // 6 hours (BLOCKED but kept for reference)
-        "30m" => 16, // 8 hours
+        "15m" => 18, // 4.5 hours
+        "30m" => 12, // 6 hours
 
         // Medium timeframes: standard reset
-        "1h" => 12, // 12 hours
+        "1h" => 10, // 10 hours
         "2h" => 10, // 20 hours
         "4h" => 8,  // 32 hours (~1.3 days)
 

@@ -7,7 +7,7 @@ use std::env;
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{info, error, warn};
-use crate::types::{TradeSignal, SignalType, TakeProfitSpec, StopLossSpec};
+use crate::types::{TradeSignal, SignalType, StopLossSpec};
 use crate::state::SymbolContext;
 
 #[derive(Debug, Clone)]
@@ -169,6 +169,77 @@ impl AlpacaClient {
         Ok(response)
     }
 
+    /// Get order status by ID
+    pub async fn get_order(&self, order_id: &str) -> Result<OrderResponse> {
+        let url = self.base_url.join(&format!("/v2/orders/{}", order_id))?;
+        
+        let resp = self.client
+            .get(url)
+            .headers(self.headers())
+            .timeout(Duration::from_secs(10))
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let error_text = resp.text().await?;
+            error!("Failed to get order: {}", error_text);
+            anyhow::bail!("Failed to get order: {}", error_text);
+        }
+
+        let response: OrderResponse = resp.json().await?;
+        Ok(response)
+    }
+
+    /// Submit OCO orders (stop-loss and take-profit) for an existing position
+    /// Alpaca crypto doesn't support bracket orders, so we submit SL/TP as separate OCO orders
+    pub async fn submit_oco_orders(
+        &self,
+        symbol: &str,
+        side: Side, // Opposite of entry side (sell for long, buy for short)
+        qty: Decimal,
+        sl_price: Decimal,
+        tp_price: Decimal,
+    ) -> Result<OrderResponse> {
+        let url = self.base_url.join("/v2/orders")?;
+        
+        // Create OCO order: take_profit as limit, stop_loss as stop
+        let oco_order = OrderRequest {
+            symbol: symbol.to_string(),
+            qty,
+            side,
+            order_type: OrderType::Limit,
+            time_in_force: TimeInForce::Gtc,
+            limit_price: Some(tp_price),
+            stop_price: None,
+            order_class: Some("oco".to_string()),
+            take_profit: None,
+            stop_loss: Some(StopLossSpec {
+                stop_price: sl_price,
+                limit_price: None,
+            }),
+        };
+        
+        info!("Submitting OCO orders: TP @ ${}, SL @ ${}", tp_price, sl_price);
+        
+        let resp = self.client
+            .post(url)
+            .headers(self.headers())
+            .json(&oco_order)
+            .timeout(Duration::from_secs(10))
+            .send()
+            .await?;
+        
+        if !resp.status().is_success() {
+            let error_text = resp.text().await?;
+            error!("Failed to submit OCO orders: {}", error_text);
+            anyhow::bail!("Failed to submit OCO orders: {}", error_text);
+        }
+        
+        let response: OrderResponse = resp.json().await?;
+        info!("✅ OCO orders submitted successfully");
+        Ok(response)
+    }
+
     /// Submit order with exponential backoff retry logic
     /// Retries on 5xx server errors and 429 rate limiting
     pub async fn submit_order_with_retry(&self, order: OrderRequest) -> Result<OrderResponse> {
@@ -303,7 +374,9 @@ impl AlpacaClient {
     }
 }
 
-/// Build a bracket order (OCO) with automatic SL/TP from a trade signal
+/// Build market entry order for crypto (without bracket)
+/// Alpaca crypto doesn't support bracket orders, so we submit entry first,
+/// then submit OCO orders (SL/TP) after entry is filled
 /// 
 /// # Arguments
 /// * `signal` - The trade signal to convert into an order
@@ -311,14 +384,12 @@ impl AlpacaClient {
 /// * `qty` - Position size in base currency
 /// 
 /// # Returns
-/// OrderRequest with bracket order fields populated
-pub fn build_bracket_order(
+/// OrderRequest for market entry (simple order) and (sl_price, tp_price) tuple
+pub fn build_market_entry_order(
     signal: &TradeSignal,
     ctx: &SymbolContext,
     qty: Decimal,
-) -> OrderRequest {
-    use rust_decimal::prelude::FromStr;
-
+) -> (OrderRequest, Decimal, Decimal) {
     let entry = signal.price;
     let (sl_price, tp_price) = calculate_sl_tp(signal, ctx, entry);
 
@@ -330,7 +401,7 @@ pub fn build_bracket_order(
         SignalType::SHORT => Side::Sell,
     };
 
-    OrderRequest {
+    let order = OrderRequest {
         symbol: alpaca_symbol,
         qty,
         side,
@@ -338,22 +409,27 @@ pub fn build_bracket_order(
         time_in_force: TimeInForce::Gtc,
         limit_price: None,
         stop_price: None,
-        // Bracket order configuration
-        order_class: Some("bracket".to_string()),
-        take_profit: Some(TakeProfitSpec {
-            limit_price: tp_price,
-        }),
-        stop_loss: Some(StopLossSpec {
-            stop_price: sl_price,
-            limit_price: None, // Use market stop
-        }),
+        // No bracket/OCO for crypto - submit separately
+        order_class: None,
+        take_profit: None,
+        stop_loss: None,
+    };
+
+    (order, sl_price, tp_price)
+}
+
+/// Get opposite side for exit orders (buy -> sell, sell -> buy)
+pub fn get_exit_side(entry_side: &Side) -> Side {
+    match entry_side {
+        Side::Buy => Side::Sell,
+        Side::Sell => Side::Buy,
     }
 }
 
 /// Calculate SL/TP based on pivots and risk/reward
 /// Extracted from backtest/runner.rs for reusability
 fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) -> (Decimal, Decimal) {
-    use rust_decimal::prelude::FromStr;
+    
 
     let default_rr = Decimal::from_f64(1.5).unwrap();
     let min_profit_pct = Decimal::from_f64(0.005).unwrap(); // Min 0.5% profit target

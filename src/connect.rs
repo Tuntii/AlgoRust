@@ -2,10 +2,8 @@ use crate::types::Candle;
 use anyhow::Result;
 use rust_decimal::Decimal;
 use chrono::{DateTime, Utc};
-use futures_util::StreamExt;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
-use serde::Deserialize;
 
 pub struct BinanceClient {
     base_url: String,
@@ -172,8 +170,6 @@ impl BinanceClient {
 
 // WebSocket implementation
 use futures_util::{Stream, SinkExt};
-use tokio::net::TcpStream;
-use tokio_tungstenite::{WebSocketStream, MaybeTlsStream};
 use tracing::info;
 
 pub async fn connect_stream(symbols: &[String], intervals: &[String]) -> Result<impl Stream<Item = Result<Message, tokio_tungstenite::tungstenite::Error>>> {

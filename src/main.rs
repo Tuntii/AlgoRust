@@ -4,31 +4,35 @@ mod connect;
 mod engine;
 mod indicators;
 mod mtf_analysis;
+mod ml_filter;
 mod policy;
 mod safemode;
 mod state;
 mod types;
 mod alpaca;
+mod paper_trader;
 
-use crate::engine::SignalEngine;
-use crate::safemode::{CanaryDeployment, DeploymentMode, SafeMode};
+use crate::engine::{LstmMode, SignalEngine};
+use crate::ml_filter::LstmFilter;
 use crate::state::SymbolContext;
 use crate::types::WsStreamMessage;
 use config::Config;
 use futures_util::StreamExt;
+use rust_decimal::prelude::FromPrimitive;
 use serde::Deserialize;
 use std::collections::HashMap;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use dotenv::dotenv;
-use std::env;
 
 #[derive(Debug, Deserialize)]
 struct AppSettings {
     app: AppConfig,
     trading: TradingConfig,
     backtest: Option<BacktestConfig>,
+    #[serde(default)]
+    ml: Option<MlConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,6 +58,10 @@ struct BacktestConfig {
     csv_symbol: String,
     #[serde(default = "default_csv_timeframe")]
     csv_timeframe: String,
+    #[serde(default = "default_exit_mode")]
+    exit_mode: String,
+    #[serde(default = "default_send_alpaca_signals")]
+    send_alpaca_signals: bool,
 }
 
 fn default_csv_symbol() -> String {
@@ -63,12 +71,46 @@ fn default_csv_timeframe() -> String {
     "1h".to_string()
 }
 
+fn default_exit_mode() -> String {
+    "supertrend".to_string()
+}
+
+fn default_send_alpaca_signals() -> bool {
+    false
+}
+
 #[derive(Debug, Deserialize)]
 struct TradingConfig {
     symbols: Vec<String>,
     timeframes: Vec<String>,
     #[serde(default)]
     execute_trades: bool,
+    #[serde(default)]
+    use_paper_trader: bool,
+    #[serde(default = "default_paper_balance")]
+    paper_initial_balance: f64,
+    #[serde(default = "default_paper_state_file")]
+    paper_state_file: String,
+}
+
+fn default_paper_balance() -> f64 {
+    100000.0 // Default $100k
+}
+
+fn default_paper_state_file() -> String {
+    "paper_trader_state.json".to_string()
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct MlConfig {
+    #[serde(default)]
+    enabled: bool,
+    model_path: String,
+    meta_path: String,
+    #[serde(default)]
+    onnxruntime_path: Option<String>,
+    #[serde(default)]
+    mode: Option<String>,
 }
 
 #[tokio::main]
@@ -98,6 +140,8 @@ async fn main() -> anyhow::Result<()> {
     );
 
     if conf.app.mode == "backtest" {
+        let lstm_filter = load_lstm_filter(&conf.ml);
+        let lstm_mode = load_lstm_mode(&conf.ml);
         if let Some(bt_conf) = conf.backtest {
             // Check if CSV file is specified for local backtest
             if let Some(csv_file) = bt_conf.csv_file {
@@ -106,7 +150,11 @@ async fn main() -> anyhow::Result<()> {
                     &csv_file,
                     &bt_conf.csv_symbol,
                     &bt_conf.csv_timeframe,
+                    &bt_conf.exit_mode,
+                    bt_conf.send_alpaca_signals,
                     &bt_conf.output_dir,
+                    lstm_filter.clone(),
+                    lstm_mode,
                 )
                 .await;
             }
@@ -116,7 +164,11 @@ async fn main() -> anyhow::Result<()> {
                 &conf.trading.symbols,
                 &conf.trading.timeframes,
                 bt_conf.days,
+                &bt_conf.exit_mode,
+                bt_conf.send_alpaca_signals,
                 &bt_conf.output_dir,
+                lstm_filter.clone(),
+                lstm_mode,
             )
             .await;
         } else {
@@ -128,11 +180,15 @@ async fn main() -> anyhow::Result<()> {
     // Live Mode devamı...
     // Init Engine & State
     let mut engine = SignalEngine::new();
+    if let Some(filter) = load_lstm_filter(&conf.ml) {
+        engine.set_lstm_filter(filter);
+    }
+    engine.set_lstm_mode(load_lstm_mode(&conf.ml));
     let mut contexts: HashMap<String, SymbolContext> = HashMap::new();
     let client = connect::BinanceClient::new();
 
     // Initialize Alpaca client if execute_trades is enabled
-    let alpaca_client = if conf.trading.execute_trades {
+    let alpaca_client = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
         match alpaca::AlpacaClient::new() {
             Ok(client) => {
                 info!("🦙 Alpaca client initialized for live trading");
@@ -144,8 +200,38 @@ async fn main() -> anyhow::Result<()> {
                 None
             }
         }
+    } else if conf.trading.use_paper_trader {
+        None // Paper trader will be used instead
     } else {
         info!("ℹ️  Trade execution disabled (execute_trades = false)");
+        None
+    };
+
+    // Initialize Paper Trader if enabled
+    let mut paper_trader = if conf.trading.use_paper_trader && conf.trading.execute_trades {
+        let state_path = std::path::Path::new(&conf.trading.paper_state_file);
+        let trader = if state_path.exists() {
+            match paper_trader::PaperTrader::load_from_file(state_path) {
+                Ok(t) => {
+                    info!("📊 Paper trader state loaded from: {}", conf.trading.paper_state_file);
+                    t
+                }
+                Err(e) => {
+                    warn!("⚠️ Failed to load paper trader state: {}", e);
+                    warn!("   Starting with fresh state");
+                    paper_trader::PaperTrader::new(
+                        rust_decimal::Decimal::from_f64(conf.trading.paper_initial_balance).unwrap()
+                    )
+                }
+            }
+        } else {
+            info!("💼 Paper trader initialized with ${} balance", conf.trading.paper_initial_balance);
+            paper_trader::PaperTrader::new(
+                rust_decimal::Decimal::from_f64(conf.trading.paper_initial_balance).unwrap()
+            )
+        };
+        Some(trader)
+    } else {
         None
     };
 
@@ -216,6 +302,16 @@ async fn main() -> anyhow::Result<()> {
                                                 Ok(candle) => {
                                                     ctx.add_candle(candle);
 
+                                                    // Update paper trader positions on every candle close
+                                                    if let Some(ref mut trader) = paper_trader {
+                                                        let current_close = ctx.candles.back()
+                                                            .map(|c| c.close)
+                                                            .unwrap_or_default();
+                                                        if let Err(e) = trader.update_positions(&k.symbol, current_close) {
+                                                            error!("Failed to update paper trader positions: {}", e);
+                                                        }
+                                                    }
+
                                                     // Sinyal Değerlendir
                                                     if let Some(signal) = engine.evaluate(ctx) {
                                                         // stdout -> pipe
@@ -224,17 +320,55 @@ async fn main() -> anyhow::Result<()> {
                                                             serde_json::to_string(&signal).unwrap()
                                                         );
 
-                                                        // Execute trade if Alpaca is configured
-                                                        if let Some(alpaca) = &alpaca_client {
+                                                        // Execute trade with Paper Trader
+                                                        if let Some(ref mut trader) = paper_trader {
                                                             info!("📊 Signal generated: {} {} @ ${}", 
                                                                   signal.signal, signal.symbol, signal.price);
+
+                                                            // Calculate confidence multiplier
+                                                            use crate::analytics::ConfidenceTier;
+                                                            let confidence_tier = ConfidenceTier::from_score(signal.confidence as i32);
+                                                            let confidence_multiplier = rust_decimal::Decimal::from_f64(
+                                                                confidence_tier.position_size_multiplier()
+                                                            ).unwrap();
+
+                                                            // Open position
+                                                            if let Err(e) = trader.open_position(
+                                                                &signal,
+                                                                ctx,
+                                                                rust_decimal::Decimal::from_f64(0.01).unwrap(), // 1% risk
+                                                                confidence_multiplier,
+                                                            ) {
+                                                                error!("Failed to open position: {}", e);
+                                                            }
+
+                                                            // Print status every 10 trades
+                                                            if trader.total_trades % 10 == 0 && trader.total_trades > 0 {
+                                                                trader.print_status();
+                                                            }
+
+                                                            // Save state
+                                                            let state_path = std::path::Path::new(&conf.trading.paper_state_file);
+                                                            if let Err(e) = trader.save_to_file(state_path) {
+                                                                error!("Failed to save paper trader state: {}", e);
+                                                            }
+                                                        }
+                                                        // Execute trade with Alpaca
+                                                        else if let Some(alpaca) = &alpaca_client {
+                                                            info!("📊 Signal generated: {} {} @ ${}", 
+                                                                  signal.signal, signal.symbol, signal.price);
+                                                            
+                                                            // ⚠️ Alpaca crypto only supports LONG (spot buy) - skip SHORT signals
+                                                            if matches!(signal.signal, crate::types::SignalType::SHORT) {
+                                                                warn!("⚠️ Alpaca crypto doesn't support SHORT positions - signal ignored");
+                                                                warn!("   Use a margin/futures platform if you want to short crypto");
+                                                                continue;
+                                                            }
                                                             
                                                             let entry_price = signal.price;
                                                             
                                                             // Build a temporary order to get SL/TP for position sizing
-                                                            let temp_order = alpaca::build_bracket_order(&signal, ctx, rust_decimal::Decimal::ZERO);
-                                                            let sl_price = temp_order.stop_loss.as_ref().map(|sl| sl.stop_price).unwrap_or(entry_price);
-                                                            let tp_price = temp_order.take_profit.as_ref().map(|tp| tp.limit_price).unwrap_or(entry_price);
+                                                            let (temp_order, sl_price, tp_price) = alpaca::build_market_entry_order(&signal, ctx, rust_decimal::Decimal::ZERO);
                                                             
                                                             // Calculate dynamic position size
                                                             match alpaca.calculate_position_size(
@@ -244,22 +378,44 @@ async fn main() -> anyhow::Result<()> {
                                                                 None, // Use default 1% risk
                                                             ).await {
                                                                 Ok(qty) => {
-                                                                    // Build final bracket order with calculated qty
-                                                                    let order = alpaca::build_bracket_order(&signal, ctx, qty);
+                                                                    // Build final market entry order with calculated qty
+                                                                    let (entry_order, sl, tp) = alpaca::build_market_entry_order(&signal, ctx, qty);
                                                                     
-                                                                    info!("🚀 Submitting bracket order:");
-                                                                    info!("   Symbol: {}, Side: {:?}, Qty: {}", order.symbol, order.side, order.qty);
-                                                                    info!("   Entry: ${}, SL: ${}, TP: ${}", entry_price, sl_price, tp_price);
+                                                                    info!("🚀 Submitting market entry order:");
+                                                                    info!("   Symbol: {}, Side: {:?}, Qty: {}", entry_order.symbol, entry_order.side, entry_order.qty);
+                                                                    info!("   Entry: ${}, SL: ${}, TP: ${}", entry_price, sl, tp);
                                                                     
-                                                                    // Submit order with retry
-                                                                    match alpaca.submit_order_with_retry(order).await {
+                                                                    // Step 1: Submit entry order with retry
+                                                                    match alpaca.submit_order_with_retry(entry_order.clone()).await {
                                                                         Ok(response) => {
-                                                                            info!("✅ Order placed successfully!");
+                                                                            info!("✅ Entry order placed successfully!");
                                                                             info!("   Order ID: {}", response.id);
                                                                             info!("   Status: {}", response.status);
+                                                                            
+                                                                            // Step 2: Submit OCO orders (SL/TP) after entry
+                                                                            // Get opposite side for exit orders
+                                                                            let exit_side = alpaca::get_exit_side(&entry_order.side);
+                                                                            
+                                                                            info!("🎯 Submitting OCO orders (SL/TP)...");
+                                                                            match alpaca.submit_oco_orders(
+                                                                                &entry_order.symbol,
+                                                                                exit_side,
+                                                                                qty,
+                                                                                sl,
+                                                                                tp,
+                                                                            ).await {
+                                                                                Ok(oco_response) => {
+                                                                                    info!("✅ OCO orders placed successfully!");
+                                                                                    info!("   OCO Order ID: {}", oco_response.id);
+                                                                                }
+                                                                                Err(e) => {
+                                                                                    error!("⚠️ Entry filled but failed to submit OCO orders: {}", e);
+                                                                                    error!("   Manual intervention may be required!");
+                                                                                }
+                                                                            }
                                                                         }
                                                                         Err(e) => {
-                                                                            error!("❌ Failed to submit order: {}", e);
+                                                                            error!("❌ Failed to submit entry order: {}", e);
                                                                         }
                                                                     }
                                                                 }
@@ -308,4 +464,33 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn load_lstm_filter(config: &Option<MlConfig>) -> Option<LstmFilter> {
+    let cfg = config.as_ref()?;
+    if !cfg.enabled {
+        return None;
+    }
+    match LstmFilter::load(
+        &cfg.model_path,
+        &cfg.meta_path,
+        cfg.onnxruntime_path.as_deref(),
+    ) {
+        Ok(filter) => Some(filter),
+        Err(err) => {
+            warn!("LSTM filter load failed: {}", err);
+            None
+        }
+    }
+}
+
+fn load_lstm_mode(config: &Option<MlConfig>) -> LstmMode {
+    let Some(cfg) = config.as_ref() else {
+        return LstmMode::Filter;
+    };
+
+    match cfg.mode.as_deref() {
+        Some("lstm_only") => LstmMode::LstmOnly,
+        _ => LstmMode::Filter,
+    }
 }
