@@ -1,14 +1,14 @@
+use crate::state::SymbolContext;
+use crate::types::{SignalType, StopLossSpec, TradeSignal};
 use anyhow::{Context, Result};
 use reqwest::{Client, Url};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{info, error, warn};
-use crate::types::{TradeSignal, SignalType, StopLossSpec};
-use crate::state::SymbolContext;
+use tracing::{error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct AlpacaClient {
@@ -108,9 +108,11 @@ pub struct OrderResponse {
 impl AlpacaClient {
     pub fn new() -> Result<Self> {
         let api_key = env::var("ALPACA_API_KEY").context("ALPACA_API_KEY must be set in .env")?;
-        let api_secret = env::var("ALPACA_SECRET_KEY").context("ALPACA_SECRET_KEY must be set in .env")?;
-        let base_url = env::var("ALPACA_BASE_URL").unwrap_or_else(|_| "https://paper-api.alpaca.markets".to_string());
-        
+        let api_secret =
+            env::var("ALPACA_SECRET_KEY").context("ALPACA_SECRET_KEY must be set in .env")?;
+        let base_url = env::var("ALPACA_BASE_URL")
+            .unwrap_or_else(|_| "https://paper-api.alpaca.markets".to_string());
+
         info!("🦙 Alpaca API Bağlantısı Başlatılıyor: {}", base_url);
 
         Ok(Self {
@@ -130,12 +132,8 @@ impl AlpacaClient {
 
     pub async fn get_account(&self) -> Result<Account> {
         let url = self.base_url.join("/v2/account")?;
-        let resp = self.client
-            .get(url)
-            .headers(self.headers())
-            .send()
-            .await?;
-            
+        let resp = self.client.get(url).headers(self.headers()).send().await?;
+
         if !resp.status().is_success() {
             let error_text = resp.text().await?;
             error!("Alpaca Account Error: {}", error_text);
@@ -149,8 +147,9 @@ impl AlpacaClient {
     pub async fn submit_order(&self, order: OrderRequest) -> Result<OrderResponse> {
         let url = self.base_url.join("/v2/orders")?;
         info!("Submitting order: {:?}", order);
-        
-        let resp = self.client
+
+        let resp = self
+            .client
             .post(url)
             .headers(self.headers())
             .json(&order)
@@ -165,15 +164,19 @@ impl AlpacaClient {
         }
 
         let response: OrderResponse = resp.json().await?;
-        info!("Order submitted successfully: ID: {}, Status: {}", response.id, response.status);
+        info!(
+            "Order submitted successfully: ID: {}, Status: {}",
+            response.id, response.status
+        );
         Ok(response)
     }
 
     /// Get order status by ID
     pub async fn get_order(&self, order_id: &str) -> Result<OrderResponse> {
         let url = self.base_url.join(&format!("/v2/orders/{}", order_id))?;
-        
-        let resp = self.client
+
+        let resp = self
+            .client
             .get(url)
             .headers(self.headers())
             .timeout(Duration::from_secs(10))
@@ -201,7 +204,7 @@ impl AlpacaClient {
         tp_price: Decimal,
     ) -> Result<OrderResponse> {
         let url = self.base_url.join("/v2/orders")?;
-        
+
         // Create OCO order: take_profit as limit, stop_loss as stop
         let oco_order = OrderRequest {
             symbol: symbol.to_string(),
@@ -218,23 +221,27 @@ impl AlpacaClient {
                 limit_price: None,
             }),
         };
-        
-        info!("Submitting OCO orders: TP @ ${}, SL @ ${}", tp_price, sl_price);
-        
-        let resp = self.client
+
+        info!(
+            "Submitting OCO orders: TP @ ${}, SL @ ${}",
+            tp_price, sl_price
+        );
+
+        let resp = self
+            .client
             .post(url)
             .headers(self.headers())
             .json(&oco_order)
             .timeout(Duration::from_secs(10))
             .send()
             .await?;
-        
+
         if !resp.status().is_success() {
             let error_text = resp.text().await?;
             error!("Failed to submit OCO orders: {}", error_text);
             anyhow::bail!("Failed to submit OCO orders: {}", error_text);
         }
-        
+
         let response: OrderResponse = resp.json().await?;
         info!("✅ OCO orders submitted successfully");
         Ok(response)
@@ -245,12 +252,12 @@ impl AlpacaClient {
     pub async fn submit_order_with_retry(&self, order: OrderRequest) -> Result<OrderResponse> {
         const MAX_RETRIES: u32 = 3;
         const INITIAL_BACKOFF_MS: u64 = 1000;
-        
+
         let mut attempt = 0;
-        
+
         loop {
             attempt += 1;
-            
+
             match self.submit_order_internal(order.clone()).await {
                 Ok(response) => return Ok(response),
                 Err(e) if attempt >= MAX_RETRIES => {
@@ -258,9 +265,12 @@ impl AlpacaClient {
                     return Err(e);
                 }
                 Err(e) => {
-                    let backoff = Duration::from_millis(INITIAL_BACKOFF_MS * 2_u64.pow(attempt - 1));
-                    warn!("⚠️ Order attempt {}/{} failed: {}. Retrying in {:?}...", 
-                          attempt, MAX_RETRIES, e, backoff);
+                    let backoff =
+                        Duration::from_millis(INITIAL_BACKOFF_MS * 2_u64.pow(attempt - 1));
+                    warn!(
+                        "⚠️ Order attempt {}/{} failed: {}. Retrying in {:?}...",
+                        attempt, MAX_RETRIES, e, backoff
+                    );
                     sleep(backoff).await;
                 }
             }
@@ -269,43 +279,50 @@ impl AlpacaClient {
 
     async fn submit_order_internal(&self, order: OrderRequest) -> Result<OrderResponse> {
         let url = self.base_url.join("/v2/orders")?;
-        
-        let resp = self.client
+
+        let resp = self
+            .client
             .post(url)
             .headers(self.headers())
             .json(&order)
             .timeout(Duration::from_secs(10))
             .send()
             .await?;
-        
+
         let status = resp.status();
-        
+
         // Retry on server errors (5xx) or rate limiting (429)
         if status.is_server_error() || status.as_u16() == 429 {
-            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = resp
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             anyhow::bail!("Retryable error ({}): {}", status, error_text);
         }
-        
+
         // Non-retryable client errors (4xx except 429)
         if !status.is_success() {
             let error_text = resp.text().await?;
             error!("Alpaca Order Error (non-retryable): {}", error_text);
             anyhow::bail!("Failed to submit order: {}", error_text);
         }
-        
+
         let response: OrderResponse = resp.json().await?;
-        info!("✅ Order submitted successfully: ID: {}, Status: {}", response.id, response.status);
+        info!(
+            "✅ Order submitted successfully: ID: {}, Status: {}",
+            response.id, response.status
+        );
         Ok(response)
     }
 
     /// Calculate dynamic position size based on account balance and risk parameters
-    /// 
+    ///
     /// # Arguments
     /// * `entry_price` - Entry price for the trade
     /// * `sl_price` - Stop loss price
     /// * `confidence` - Signal confidence (0-100)
     /// * `risk_percent` - Risk percentage of portfolio per trade (default: 0.01 = 1%)
-    /// 
+    ///
     /// # Returns
     /// Position size in base currency (e.g., BTC amount for BTC/USD)
     pub async fn calculate_position_size(
@@ -325,51 +342,61 @@ impl AlpacaClient {
 
         // Use default 1% risk if not specified
         let risk_pct = risk_percent.unwrap_or_else(|| Decimal::from_str("0.01").unwrap());
-        
+
         // Calculate risk amount in USD
         let risk_amount = portfolio_value * risk_pct;
-        
+
         // Calculate risk per unit (distance from entry to SL)
         let risk_per_unit = (entry_price - sl_price).abs();
-        
+
         // Prevent division by zero
         if risk_per_unit == Decimal::ZERO {
             warn!("⚠️ Risk per unit is zero, using minimum position size");
             return Ok(Decimal::from_str("0.001").unwrap());
         }
-        
+
         // Base position size
         let base_position_size = risk_amount / risk_per_unit;
-        
+
         // Apply confidence multiplier
         let confidence_tier = ConfidenceTier::from_score(confidence as i32);
-        let confidence_multiplier = Decimal::from_f64(confidence_tier.position_size_multiplier())
-            .unwrap_or(Decimal::ZERO);
-        
+        let confidence_multiplier =
+            Decimal::from_f64(confidence_tier.position_size_multiplier()).unwrap_or(Decimal::ZERO);
+
         let final_position_size = base_position_size * confidence_multiplier;
-        
+
         // Apply safety limits
         let max_position_value = portfolio_value * Decimal::from_str("0.10").unwrap(); // Max 10% of portfolio
         let position_value = final_position_size * entry_price;
-        
+
         let safe_position_size = if position_value > max_position_value {
             warn!("⚠️ Position size exceeds 10% of portfolio, capping at max");
             max_position_value / entry_price
         } else {
             final_position_size
         };
-        
+
         // Minimum position size check
         let min_position_size = Decimal::from_str("0.001").unwrap();
         let result = safe_position_size.max(min_position_size);
-        
+
         info!("💰 Position Size Calculation:");
         info!("   Portfolio Value: ${}", portfolio_value);
-        info!("   Risk Amount ({}%): ${}", risk_pct * Decimal::from(100), risk_amount);
-        info!("   Entry: ${}, SL: ${}, Risk/Unit: ${}", entry_price, sl_price, risk_per_unit);
-        info!("   Base Size: {}, Confidence Tier: {:?} ({}x)", base_position_size, confidence_tier, confidence_multiplier);
+        info!(
+            "   Risk Amount ({}%): ${}",
+            risk_pct * Decimal::from(100),
+            risk_amount
+        );
+        info!(
+            "   Entry: ${}, SL: ${}, Risk/Unit: ${}",
+            entry_price, sl_price, risk_per_unit
+        );
+        info!(
+            "   Base Size: {}, Confidence Tier: {:?} ({}x)",
+            base_position_size, confidence_tier, confidence_multiplier
+        );
         info!("   Final Position Size: {}", result);
-        
+
         Ok(result)
     }
 }
@@ -377,12 +404,12 @@ impl AlpacaClient {
 /// Build market entry order for crypto (without bracket)
 /// Alpaca crypto doesn't support bracket orders, so we submit entry first,
 /// then submit OCO orders (SL/TP) after entry is filled
-/// 
+///
 /// # Arguments
 /// * `signal` - The trade signal to convert into an order
 /// * `ctx` - Symbol context for pivot-based SL/TP calculation
 /// * `qty` - Position size in base currency
-/// 
+///
 /// # Returns
 /// OrderRequest for market entry (simple order) and (sl_price, tp_price) tuple
 pub fn build_market_entry_order(
@@ -428,32 +455,36 @@ pub fn get_exit_side(entry_side: &Side) -> Side {
 
 /// Calculate SL/TP based on pivots and risk/reward
 /// Extracted from backtest/runner.rs for reusability
-fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) -> (Decimal, Decimal) {
-    
-
+fn calculate_sl_tp(
+    signal: &TradeSignal,
+    ctx: &SymbolContext,
+    entry: Decimal,
+) -> (Decimal, Decimal) {
     let default_rr = Decimal::from_f64(1.5).unwrap();
     let min_profit_pct = Decimal::from_f64(0.005).unwrap(); // Min 0.5% profit target
 
     match signal.signal {
         SignalType::LONG => {
             // SL = Last Swing Low, or 1% below entry
-            let sl = ctx.structure.last_pivot_low
+            let sl = ctx
+                .structure
+                .last_pivot_low
                 .unwrap_or(entry * Decimal::from_f64(0.99).unwrap());
-            
+
             // Safety: Minimum 0.2% distance if SL too close
             let safe_sl = if (entry - sl) / entry < Decimal::from_f64(0.002).unwrap() {
                 entry * Decimal::from_f64(0.995).unwrap()
             } else {
                 sl
             };
-            
+
             let risk = entry - safe_sl;
 
             // TP STRATEGY: Pivot-Based Target
             // Target: Nearest Pivot High above entry
             let mut target_tp = None;
             let mut best_tp = Decimal::MAX;
-            
+
             for &pivot in &ctx.pivot_high_history {
                 // Pivot must be at least 0.5% above entry
                 if pivot > entry * (Decimal::ONE + min_profit_pct) {
@@ -463,21 +494,23 @@ fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) ->
                     }
                 }
             }
-            
+
             let tp = target_tp.unwrap_or_else(|| entry + (risk * default_rr));
             (safe_sl, tp)
-        },
+        }
         SignalType::SHORT => {
             // SL = Last Swing High, or 1% above entry
-            let sl = ctx.structure.last_pivot_high
+            let sl = ctx
+                .structure
+                .last_pivot_high
                 .unwrap_or(entry * Decimal::from_f64(1.01).unwrap());
-            
+
             let safe_sl = if (sl - entry) / entry < Decimal::from_f64(0.002).unwrap() {
                 entry * Decimal::from_f64(1.005).unwrap()
             } else {
                 sl
             };
-            
+
             let risk = safe_sl - entry;
 
             // TP STRATEGY: Pivot-Based Target

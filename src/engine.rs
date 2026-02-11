@@ -280,30 +280,31 @@ impl SignalEngine {
         let lstm_only = self.lstm_mode == LstmMode::LstmOnly;
         let is_15m = ctx.timeframe == "15m";
         let is_30m = ctx.timeframe == "30m";
+        let use_ema_cross = true;
         let use_supertrend = true;
         let use_div_confirmation = is_30m;
         let enable_long = true;
         let enable_short = true;
+        let kama_filter_long = !is_15m || ctx.pine_kama_long_filter;
+        let kama_filter_short = !is_15m || ctx.pine_kama_short_filter;
 
         let direction = if lstm_only {
             let ema_above = match ctx.pine_ema_above_kama {
                 Some(val) => val,
                 None => return None,
             };
-            if ctx.pine_trend == 1 && ema_above && ctx.pine_kama_long_filter {
+            if ctx.pine_trend == 1 && ema_above && kama_filter_long {
                 SignalType::LONG
-            } else if ctx.pine_trend == -1 && !ema_above && ctx.pine_kama_short_filter {
+            } else if ctx.pine_trend == -1 && !ema_above && kama_filter_short {
                 SignalType::SHORT
             } else {
                 return None;
             }
         } else {
-            // SuperKAMA direct: Use KAMA quality filter as primary entry signal
-            // (replaces EMA×KAMA crossover — KAMA slope/position is the trigger now)
-            let kama_long = ctx.pine_kama_long_filter
+            let ema_long = ctx.pine_ema_cross_above
                 && ctx.pine_trend == 1
                 && (!use_div_confirmation || ctx.pine_bullish_div);
-            let kama_short = ctx.pine_kama_short_filter
+            let ema_short = ctx.pine_ema_cross_below
                 && ctx.pine_trend == -1
                 && (!use_div_confirmation || ctx.pine_bearish_div);
 
@@ -314,15 +315,17 @@ impl SignalEngine {
 
             let long_entry = enable_long
                 && if is_15m {
-                    kama_long && (use_supertrend && st_long)
+                    (use_ema_cross && ema_long) && (use_supertrend && st_long) && kama_filter_long
                 } else {
-                    kama_long || (use_supertrend && st_long)
+                    (use_ema_cross && ema_long) || (use_supertrend && st_long)
                 };
             let short_entry = enable_short
                 && if is_15m {
-                    kama_short && (use_supertrend && st_short)
+                    (use_ema_cross && ema_short)
+                        && (use_supertrend && st_short)
+                        && kama_filter_short
                 } else {
-                    kama_short || (use_supertrend && st_short)
+                    (use_ema_cross && ema_short) || (use_supertrend && st_short)
                 };
 
             if !long_entry && !short_entry {
@@ -339,9 +342,6 @@ impl SignalEngine {
             }
         };
 
-        // ============================================================
-        // LSTM FILTER
-        // ============================================================
         let mut lstm_score: Option<f32> = None;
         if let Some(filter) = &self.lstm_filter {
             match filter.score(ctx) {
@@ -438,8 +438,10 @@ impl SignalEngine {
         let mut reasons = Vec::new();
         if lstm_only {
             reasons.push("LSTM-only: direction from EMA+Supertrend alignment".to_string());
+        } else if use_ema_cross {
+            reasons.push("Pine entry: EMAxKAMA cross with SuperTrend filter".to_string());
         } else {
-            reasons.push("SuperKAMA direct entry with SuperTrend filter".to_string());
+            reasons.push("Pine entry: SuperTrend trend change".to_string());
         }
 
         if ctx.pine_bullish_div || ctx.pine_bearish_div {

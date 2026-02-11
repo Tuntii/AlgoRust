@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-const FEATURE_COUNT: usize = 20;
+const FEATURE_COUNT: usize = 15;
 
 #[derive(Debug, Deserialize)]
 struct MetaFile {
@@ -150,79 +150,51 @@ fn build_feature_window(
         times.push(c.open_time);
     }
 
-    // ── Returns (1h, 2h, 4h, 12h, 24h) ──
     let log_return = log_returns(&closes);
-    let return_2h = multi_bar_log_return(&closes, 2);
-    let return_4h = multi_bar_log_return(&closes, 4);
-    let return_12h = multi_bar_log_return(&closes, 12);
-    let return_24h = multi_bar_log_return(&closes, 24);
-
-    // ── Volatility / ATR ──
     let rolling_vol_20 = rolling_std(&log_return, 20);
     let atr_14 = atr_series(&highs, &lows, &closes, 14);
-    let return_over_atr_v = return_over_atr(&log_return, &atr_14, &closes);
+    let return_over_atr = return_over_atr(&log_return, &atr_14, &closes);
 
-    // ── Volatility regime (ATR / ATR_168) ──
-    let vol_regime = vol_regime_series(&atr_14, 168);
-
-    // ── Oscillators ──
-    let rsi_14 = rsi_series(&closes, 14);
-    let macd_signal_diff = macd_hist_normalized(&closes, 12, 26, 9);
-    let bb_position = bollinger_position(&closes, 20, 2.0);
-
-    // ── KAMA ──
     let kama = kama_series(&closes, 10, 2, 20);
     let kama_slope = diff_over_close(&kama, &closes);
-    let close_kama_over_atr_v = close_minus_kama_over_atr(&closes, &kama, &atr_14);
+    let close_kama_over_atr = close_minus_kama_over_atr(&closes, &kama, &atr_14);
 
-    // ── Volume ──
     let volume_zscore = rolling_zscore(&volumes, 20);
-    let obv_slope = obv_slope_series(&closes, &volumes, 20);
-
-    // ── VWAP ──
     let vwap_distance = daily_vwap_distance(&closes, &volumes, &times);
+    let (time_sin, time_cos) = time_sin_cos(&times);
 
-    // ── Time ──
-    let (hour_sin, hour_cos) = time_sin_cos(&times);
+    // New V2 features
+    let rsi_14 = rsi_series(&closes, 14);
+    let macd_hist_norm = macd_hist_normalized(&closes, 12, 26, 9);
+    let adx_norm = adx_series(&highs, &lows, &closes, 14);
+    let bb_position = bollinger_position(&closes, 20, 2.0);
 
-    // Build output: 20 features per timestep, MUST match Python FEATURE_COLUMNS order:
-    // log_return, return_2h, return_4h, return_12h, return_24h,
-    // rolling_vol_20, atr_14, return_over_atr, vol_regime,
-    // rsi_14, macd_signal_diff, bb_position,
-    // kama, kama_slope, close_kama_over_atr,
-    // volume_zscore, obv_slope, vwap_distance,
-    // hour_sin, hour_cos
     let mut out = Vec::with_capacity(lookback * FEATURE_COUNT);
     for i in start..n {
         let close = closes[i];
         let close_safe = if close == 0.0 { 1.0 } else { close };
-        let atr_pct = atr_14[i] / close_safe; // atr_14 normalized by close
 
         let raw = [
             log_return[i],
-            return_2h[i],
-            return_4h[i],
-            return_12h[i],
-            return_24h[i],
             rolling_vol_20[i],
-            atr_pct,
-            return_over_atr_v[i],
-            vol_regime[i],
-            rsi_14[i],
-            macd_signal_diff[i],
-            bb_position[i],
+            atr_14[i],
+            return_over_atr[i],
             if close_safe == 0.0 {
-                1.0
+                0.0
             } else {
                 kama[i] / close_safe
             },
             kama_slope[i],
-            close_kama_over_atr_v[i],
+            close_kama_over_atr[i],
             volume_zscore[i],
-            obv_slope[i],
             vwap_distance[i],
-            hour_sin[i],
-            hour_cos[i],
+            time_sin[i],
+            time_cos[i],
+            // V2 features
+            rsi_14[i],
+            macd_hist_norm[i],
+            adx_norm[i],
+            bb_position[i],
         ];
 
         for (j, v) in raw.iter().enumerate() {
@@ -412,69 +384,6 @@ fn time_sin_cos(times: &[chrono::DateTime<chrono::Utc>]) -> (Vec<f64>, Vec<f64>)
         cos_out.push(angle.cos());
     }
     (sin_out, cos_out)
-}
-
-// ===== Multi-bar log return =====
-
-fn multi_bar_log_return(closes: &[f64], bars: usize) -> Vec<f64> {
-    let mut out = Vec::with_capacity(closes.len());
-    for i in 0..closes.len() {
-        if i < bars || closes[i - bars] == 0.0 || closes[i] == 0.0 {
-            out.push(0.0);
-        } else {
-            out.push((closes[i] / closes[i - bars]).ln());
-        }
-    }
-    out
-}
-
-// ===== Volatility Regime (ATR / slow ATR) =====
-
-fn vol_regime_series(atr: &[f64], slow_period: usize) -> Vec<f64> {
-    let n = atr.len();
-    let mut out = Vec::with_capacity(n);
-    for i in 0..n {
-        let start = if i + 1 >= slow_period {
-            i + 1 - slow_period
-        } else {
-            0
-        };
-        let slice = &atr[start..=i];
-        let mean = slice.iter().sum::<f64>() / slice.len() as f64;
-        if mean == 0.0 {
-            out.push(1.0);
-        } else {
-            out.push((atr[i] / mean).clamp(0.0, 5.0));
-        }
-    }
-    out
-}
-
-// ===== OBV Slope =====
-
-fn obv_slope_series(closes: &[f64], volumes: &[f64], period: usize) -> Vec<f64> {
-    let n = closes.len();
-    let mut obv = vec![0.0f64; n];
-    for i in 1..n {
-        if closes[i] > closes[i - 1] {
-            obv[i] = obv[i - 1] + volumes[i];
-        } else if closes[i] < closes[i - 1] {
-            obv[i] = obv[i - 1] - volumes[i];
-        } else {
-            obv[i] = obv[i - 1];
-        }
-    }
-    // OBV slope: (OBV[i] - OBV[i-period]) / abs(OBV[i-period])
-    let mut out = vec![0.0f64; n];
-    for i in period..n {
-        let denom = obv[i - period].abs();
-        if denom == 0.0 {
-            out[i] = 0.0;
-        } else {
-            out[i] = ((obv[i] - obv[i - period]) / denom).clamp(-5.0, 5.0);
-        }
-    }
-    out
 }
 
 // ===== V2 Feature Functions =====

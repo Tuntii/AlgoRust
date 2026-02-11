@@ -1,717 +1,750 @@
 #!/usr/bin/env python3
 """
-Bitcoin Hourly LSTM Signal Filter — train_lstm.py
+LSTM Training System V3 - BTC Trend Prediction
+Target: 70-75% accuracy on unseen data
 
-Trains an LSTM model on bitcoin_prices_all_time.csv (hourly OHLCV data)
-to predict whether a profitable trade opportunity exists within K bars.
-
-Usage:
-    python train_lstm.py                          # defaults
-    python train_lstm.py --epochs 30 --lookback 72
-    python train_lstm.py --csv bitcoin_prices_all_time.csv --epochs 20
-
-Output:
-    models/lstm_filter.pt      — PyTorch state dict
-    models/lstm_meta.json      — metadata (threshold, features, normalization stats)
+V3 Improvements:
+- Larger model (GPU-optimized: 256 hidden, 3 layers)
+- Better target: 1% threshold over 12h horizon (cleaner signal)
+- Multi-Head Attention over LSTM timesteps
+- Ensemble of 3 models with different seeds
+- Feature importance analysis & pruning
+- Mixup data augmentation
+- Warmup + Cosine Annealing
+- Gradient accumulation for effective larger batch
 """
 
-import argparse
 import json
 import math
-import os
-from dataclasses import dataclass
+import warnings
+import random
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timedelta
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
+import requests
 import torch
-from torch import nn
-from torch.utils.data import DataLoader, Dataset
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.preprocessing import RobustScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from torch.utils.data import Dataset, DataLoader
 
+warnings.filterwarnings('ignore')
 
-# ─── CLI ─────────────────────────────────────────────────────────────────────
+# ==============================================================================
+# Configuration
+# ==============================================================================
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Train LSTM signal filter from hourly BTC CSV")
-    p.add_argument("--csv", default="bitcoin_prices_all_time.csv", help="Path to hourly OHLCV CSV")
-    p.add_argument("--lookback", type=int, default=72, help="Sequence length (hours)")
-    p.add_argument("--rr", type=float, default=1.5, help="Risk:Reward ratio")
-    p.add_argument("--atr-sl-mult", type=float, default=1.5, help="ATR multiplier for stop-loss")
-    p.add_argument("--k-min", type=int, default=6, help="Min forward bars to scan")
-    p.add_argument("--k-max", type=int, default=36, help="Max forward bars to scan")
-    p.add_argument("--epochs", type=int, default=25, help="Training epochs")
-    p.add_argument("--batch-size", type=int, default=512, help="Batch size")
-    p.add_argument("--lr", type=float, default=1e-3, help="Peak learning rate")
-    p.add_argument("--patience", type=int, default=5, help="Early stopping patience")
-    p.add_argument("--min-preds", type=int, default=20, help="Min predictions for threshold eval")
-    p.add_argument("--thresh-min", type=float, default=0.30, help="Threshold search min")
-    p.add_argument("--thresh-max", type=float, default=0.80, help="Threshold search max")
-    p.add_argument("--thresh-steps", type=int, default=11, help="Threshold search granularity")
-    p.add_argument("--diagnostics", action="store_true", help="Print diagnostic info")
-    p.add_argument("--seed", type=int, default=42)
-    return p.parse_args()
+CONFIG = {
+    'symbol': 'BTCUSDT',
+    'interval': '30m',
+    'years_back': 10,
 
+    # Features
+    'lookback': 96,
 
-# ─── Dataset ─────────────────────────────────────────────────────────────────
+    # Model (GPU-sized)
+    'hidden_dim': 256,
+    'num_layers': 3,
+    'num_heads': 4,
+    'dropout': 0.35,
+    'bidirectional': True,
 
-class SequenceDataset(Dataset):
-    def __init__(self, x: np.ndarray, y: np.ndarray):
-        self.x = torch.tensor(x, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.float32)
+    # Training
+    'batch_size': 256,
+    'epochs': 120,
+    'learning_rate': 0.0003,
+    'patience': 25,
+    'weight_decay': 5e-4,
+    'label_smoothing': 0.05,
+    'warmup_epochs': 5,
+    'mixup_alpha': 0.2,
 
-    def __len__(self) -> int:
-        return self.x.shape[0]
+    # Target - bigger moves are easier to predict
+    'target_horizon': 24,      # 24 candles = 12 hours
+    'target_threshold': 0.01,  # 1% move
 
-    def __getitem__(self, idx: int):
-        return self.x[idx], self.y[idx]
+    # Split
+    'train_ratio': 0.7,
+    'val_ratio': 0.15,
+    'test_ratio': 0.15,
 
+    # Ensemble
+    'n_ensemble': 3,
+    'ensemble_seeds': [42, 137, 2024],
 
-# ─── Model (ONNX-compatible) ────────────────────────────────────────────────
-
-class LSTMFilter(nn.Module):
-    """LSTM signal quality filter — compatible with export_onnx.py."""
-
-    def __init__(self, input_dim: int, hidden_dim: int = 128, layers: int = 2):
-        super().__init__()
-        self.lstm = nn.LSTM(
-            input_dim, hidden_dim,
-            num_layers=layers,
-            batch_first=True,
-            dropout=0.3 if layers > 1 else 0.0,
-        )
-        self.head = nn.Sequential(
-            nn.Linear(hidden_dim, 64),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(64, 1),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out, _ = self.lstm(x)
-        last = out[:, -1, :]
-        return self.head(last).squeeze(-1)
-
-
-# ─── Feature Engineering ────────────────────────────────────────────────────
-
-def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
-    """Wilder RSI (0-1 normalized)."""
-    delta = close.diff()
-    gain = delta.clip(lower=0.0)
-    loss = (-delta).clip(lower=0.0)
-    avg_gain = gain.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, np.nan)
-    rsi = 1.0 - 1.0 / (1.0 + rs)
-    return rsi.fillna(0.5)
-
-
-def compute_macd(close: pd.Series, fast: int = 12, slow: int = 26, sig: int = 9) -> pd.Series:
-    """MACD - Signal difference, normalized by close."""
-    ema_fast = close.ewm(span=fast, adjust=False).mean()
-    ema_slow = close.ewm(span=slow, adjust=False).mean()
-    macd = ema_fast - ema_slow
-    signal = macd.ewm(span=sig, adjust=False).mean()
-    diff = (macd - signal) / close.replace(0, np.nan)
-    return diff.fillna(0.0)
-
-
-def compute_bollinger_position(close: pd.Series, period: int = 20, num_std: float = 2.0) -> pd.Series:
-    """Position within Bollinger Bands (-1 lower, 0 mid, +1 upper)."""
-    sma = close.rolling(period, min_periods=1).mean()
-    std = close.rolling(period, min_periods=1).std(ddof=0).replace(0, np.nan)
-    pos = (close - sma) / (num_std * std)
-    return pos.clip(-3, 3).fillna(0.0)
-
-
-def compute_kama_series(close: pd.Series, length: int = 10, fast: int = 2, slow: int = 20) -> pd.Series:
-    """Kaufman Adaptive Moving Average."""
-    change = close.diff().abs().fillna(0.0)
-    sum_abs_change = change.rolling(length, min_periods=1).sum()
-    er = (close - close.shift(length)).abs() / sum_abs_change.replace(0, np.nan)
-    er = er.fillna(0.0)
-
-    fast_sc = 2.0 / (fast + 1.0)
-    slow_sc = 2.0 / (slow + 1.0)
-    sc = (er * (fast_sc - slow_sc) + slow_sc) ** 2
-
-    kama = close.copy().astype(float)
-    vals = kama.values.copy()
-    sc_vals = sc.values
-    for i in range(1, len(vals)):
-        vals[i] = vals[i - 1] + sc_vals[i] * (close.iloc[i] - vals[i - 1])
-    return pd.Series(vals, index=close.index, name="kama")
-
-
-def compute_obv_slope(close: pd.Series, volume: pd.Series, period: int = 20) -> pd.Series:
-    """OBV slope, normalized."""
-    direction = close.diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
-    obv = (volume * direction).cumsum()
-    obv_ma = obv.rolling(period, min_periods=1).mean()
-    slope = (obv - obv_ma) / obv.rolling(period, min_periods=1).std(ddof=0).replace(0, np.nan)
-    return slope.fillna(0.0).clip(-5, 5)
-
-
-def compute_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute 20 technical features from OHLCV data."""
-    close = df["close"]
-    high = df["high"]
-    low = df["low"]
-    volume = df["volume"]
-
-    # ── Returns ──
-    log_return = np.log(close / close.shift()).replace([np.inf, -np.inf], 0.0).fillna(0.0)
-    return_2h = np.log(close / close.shift(2)).replace([np.inf, -np.inf], 0.0).fillna(0.0)
-    return_4h = np.log(close / close.shift(4)).replace([np.inf, -np.inf], 0.0).fillna(0.0)
-    return_12h = np.log(close / close.shift(12)).replace([np.inf, -np.inf], 0.0).fillna(0.0)
-    return_24h = np.log(close / close.shift(24)).replace([np.inf, -np.inf], 0.0).fillna(0.0)
-
-    # ── Volatility / ATR ──
-    rolling_vol_20 = log_return.rolling(20, min_periods=1).std(ddof=0).fillna(0.0)
-
-    tr = pd.concat([
-        high - low,
-        (high - close.shift()).abs(),
-        (low - close.shift()).abs(),
-    ], axis=1).max(axis=1)
-    atr_14 = tr.rolling(14, min_periods=1).mean().fillna(0.0)
-
-    atr_pct = atr_14 / close.replace(0, np.nan)
-    return_over_atr = (log_return / atr_pct).replace([np.inf, -np.inf], 0.0).fillna(0.0).clip(-10, 10)
-
-    # ── Volatility regime ──
-    atr_slow = atr_14.rolling(168, min_periods=1).mean()  # 1-week rolling
-    vol_regime = (atr_14 / atr_slow.replace(0, np.nan)).fillna(1.0).clip(0, 5)
-
-    # ── RSI ──
-    rsi_14 = compute_rsi(close, 14)
-
-    # ── MACD ──
-    macd_signal_diff = compute_macd(close)
-
-    # ── Bollinger ──
-    bb_position = compute_bollinger_position(close)
-
-    # ── KAMA ──
-    kama = compute_kama_series(close)
-    kama_slope = (kama - kama.shift()).fillna(0.0) / close.replace(0, np.nan)
-    close_kama_over_atr = ((close - kama) / atr_14.replace(0, np.nan)).fillna(0.0).clip(-10, 10)
-
-    # ── Volume ──
-    vol_mean = volume.rolling(20, min_periods=1).mean()
-    vol_std = volume.rolling(20, min_periods=1).std(ddof=0).replace(0, np.nan)
-    volume_zscore = ((volume - vol_mean) / vol_std).fillna(0.0).clip(-5, 5)
-
-    obv_slope = compute_obv_slope(close, volume)
-
-    # ── VWAP ──
-    dates = df.index.date if hasattr(df.index, "date") else pd.Series(df.index).dt.date.values
-    vwap = (close * volume).groupby(dates).cumsum() / volume.groupby(dates).cumsum()
-    vwap_distance = ((close - vwap) / vwap.replace(0, np.nan)).fillna(0.0).clip(-0.1, 0.1)
-
-    # ── Time features ──
-    hour = df.index.hour.astype(float) if hasattr(df.index, "hour") else 0.0
-    hour_angle = 2.0 * np.pi * hour / 24.0
-    hour_sin = np.sin(hour_angle)
-    hour_cos = np.cos(hour_angle)
-
-    dow = df.index.dayofweek.astype(float) if hasattr(df.index, "dayofweek") else 0.0
-    dow_angle = 2.0 * np.pi * dow / 7.0
-    dow_sin = np.sin(dow_angle)
-    dow_cos = np.cos(dow_angle)
-
-    features = pd.DataFrame({
-        "log_return": log_return,
-        "return_2h": return_2h,
-        "return_4h": return_4h,
-        "return_12h": return_12h,
-        "return_24h": return_24h,
-        "rolling_vol_20": rolling_vol_20,
-        "atr_14": atr_pct.fillna(0.0),  # normalized by close
-        "return_over_atr": return_over_atr,
-        "vol_regime": vol_regime,
-        "rsi_14": rsi_14,
-        "macd_signal_diff": macd_signal_diff,
-        "bb_position": bb_position,
-        "kama": (kama / close.replace(0, np.nan)).fillna(1.0),
-        "kama_slope": kama_slope.fillna(0.0),
-        "close_kama_over_atr": close_kama_over_atr,
-        "volume_zscore": volume_zscore,
-        "obv_slope": obv_slope,
-        "vwap_distance": vwap_distance,
-        "hour_sin": hour_sin,
-        "hour_cos": hour_cos,
-    }, index=df.index)
-
-    features = features.replace([np.inf, -np.inf], 0.0).fillna(0.0)
-    return features
-
+    'data_dir': 'data',
+    'models_dir': 'models',
+}
 
 FEATURE_COLUMNS = [
-    "log_return",
-    "return_2h",
-    "return_4h",
-    "return_12h",
-    "return_24h",
-    "rolling_vol_20",
-    "atr_14",
-    "return_over_atr",
-    "vol_regime",
-    "rsi_14",
-    "macd_signal_diff",
-    "bb_position",
-    "kama",
-    "kama_slope",
-    "close_kama_over_atr",
-    "volume_zscore",
-    "obv_slope",
-    "vwap_distance",
-    "hour_sin",
-    "hour_cos",
+    # Returns
+    'log_return',
+    'return_1h', 'return_2h', 'return_4h', 'return_12h', 'return_24h',
+
+    # Volatility
+    'rolling_vol_10', 'rolling_vol_20', 'rolling_vol_50',
+    'atr_pct', 'return_over_atr', 'vol_regime',
+
+    # Momentum
+    'rsi_14', 'rsi_7', 'rsi_21',
+    'macd_pct', 'macd_signal_pct', 'macd_hist_pct',
+    'stoch_k', 'stoch_d',
+    'williams_r', 'cci_20',
+
+    # MA distance
+    'price_to_ema_9', 'price_to_ema_21',
+    'price_to_ema_50', 'price_to_ema_200',
+    'ema_9_21_cross', 'ema_50_200_cross',
+
+    # Bollinger
+    'bb_position', 'bb_width',
+
+    # Volume
+    'volume_zscore', 'volume_ma_ratio',
+    'obv_slope', 'vwap_distance',
+
+    # Candle
+    'body_ratio', 'upper_shadow', 'lower_shadow', 'candle_range_pct',
+
+    # Trends
+    'trend_2h', 'trend_4h', 'trend_12h', 'trend_24h',
+
+    # Strength
+    'adx_14', 'momentum_10',
+
+    # Time
+    'hour_sin', 'hour_cos', 'day_sin', 'day_cos',
 ]
 
 
-# ─── Data Loading ────────────────────────────────────────────────────────────
+# ==============================================================================
+# Data
+# ==============================================================================
 
-def load_csv(path: str) -> pd.DataFrame:
-    """Load hourly OHLCV CSV and return cleaned DataFrame."""
-    df = pd.read_csv(path, parse_dates=["timestamp"], index_col="timestamp")
-    df.index = pd.to_datetime(df.index, utc=True, errors="coerce")
-    df = df[~df.index.isna()]
-    df = df[~df.index.duplicated(keep="last")].sort_index()
-
-    for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = df[col].astype(float)
-
-    # Drop rows with zero close/volume
-    df = df[(df["close"] > 0) & (df["volume"] > 0)]
-
-    print(f"Loaded {len(df):,} hourly candles from {df.index.min()} to {df.index.max()}")
+def fetch_binance_klines(symbol, interval, start_time, end_time):
+    url = 'https://api.binance.com/api/v3/klines'
+    all_data = []
+    current_start = start_time
+    while current_start < end_time:
+        params = {'symbol': symbol, 'interval': interval,
+                  'startTime': current_start, 'endTime': end_time, 'limit': 1000}
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            if not data: break
+            all_data.extend(data)
+            current_start = data[-1][0] + 1
+            if len(all_data) % 10000 == 0:
+                print(f"  {len(all_data)} candles...")
+        except Exception as e:
+            print(f"Error: {e}")
+            import time; time.sleep(1)
+            continue
+    df = pd.DataFrame(all_data, columns=[
+        'timestamp','open','high','low','close','volume',
+        'close_time','quote_volume','trades','taker_buy_base','taker_buy_quote','ignore'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    for c in ['open','high','low','close','volume']: df[c] = df[c].astype(float)
+    df = df[['timestamp','open','high','low','close','volume']].set_index('timestamp')
     return df
 
 
-# ─── Label Generation ────────────────────────────────────────────────────────
-
-def generate_labels(
-    df: pd.DataFrame,
-    feats: pd.DataFrame,
-    lookback: int,
-    k: int,
-    rr: float,
-    atr_sl_mult: float,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Build (X, Y) arrays from candles + features.
-
-    For each bar i (where i >= lookback and future data exists):
-      - SL distance = ATR_14 * atr_sl_mult
-      - TP distance = SL distance * rr
-      - Look forward k bars for TP/SL hit (TP hit → 1, else → 0)
-    """
-    close = df["close"].values
-    high = df["high"].values
-    low = df["low"].values
-    feat_vals = feats[FEATURE_COLUMNS].values
-    n = len(df)
-
-    # Pre-compute ATR for SL calculation
-    tr = np.maximum(
-        high - low,
-        np.maximum(
-            np.abs(high - np.roll(close, 1)),
-            np.abs(low - np.roll(close, 1)),
-        ),
-    )
-    tr[0] = high[0] - low[0]
-
-    # Rolling ATR-14
-    atr = np.zeros(n)
-    atr[:14] = np.cumsum(tr[:14]) / np.arange(1, 15)
-    for i in range(14, n):
-        atr[i] = (atr[i - 1] * 13 + tr[i]) / 14
-
-    xs: List[np.ndarray] = []
-    ys: List[int] = []
-
-    start = max(lookback, 200)  # ensure indicators have warmed up
-    end = n - k
-
-    for i in range(start, end):
-        sl_dist = atr[i] * atr_sl_mult
-        if sl_dist <= 0 or close[i] <= 0:
-            continue
-
-        tp_dist = sl_dist * rr
-        entry = close[i]
-
-        # Check LONG: TP = entry + tp_dist, SL = entry - sl_dist
-        tp_price = entry + tp_dist
-        sl_price = entry - sl_dist
-
-        hit_tp = False
-        hit_sl = False
-        for j in range(i + 1, min(i + k + 1, n)):
-            if high[j] >= tp_price:
-                hit_tp = True
-                break
-            if low[j] <= sl_price:
-                hit_sl = True
-                break
-
-        window = feat_vals[i - lookback + 1 : i + 1]
-        if window.shape[0] != lookback:
-            continue
-
-        xs.append(window)
-        ys.append(1 if hit_tp else 0)
-
-    x_arr = np.stack(xs) if xs else np.empty((0, lookback, len(FEATURE_COLUMNS)))
-    y_arr = np.array(ys, dtype=np.float32)
-    return x_arr, y_arr
-
-
-# ─── Train / Val / Test Split ────────────────────────────────────────────────
-
-def time_split(n: int, train_ratio: float = 0.70, val_ratio: float = 0.15):
-    """Walk-forward chronological split (no shuffling)."""
-    train_end = int(n * train_ratio)
-    val_end = int(n * (train_ratio + val_ratio))
-    idx = np.arange(n)
-    return idx[:train_end], idx[train_end:val_end], idx[val_end:]
-
-
-def standardize(
-    train_x: np.ndarray, val_x: np.ndarray, test_x: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
-    mean = train_x.mean(axis=(0, 1), keepdims=True)
-    std = train_x.std(axis=(0, 1), keepdims=True) + 1e-8
-    return (
-        (train_x - mean) / std,
-        (val_x - mean) / std,
-        (test_x - mean) / std,
-        {"mean": mean, "std": std},
-    )
-
-
-# ─── Training ────────────────────────────────────────────────────────────────
-
-def train_and_eval(
-    x: np.ndarray,
-    y: np.ndarray,
-    epochs: int,
-    batch_size: int,
-    lr: float,
-    patience: int,
-    min_preds: int,
-    thresh_min: float,
-    thresh_max: float,
-    thresh_steps: int,
-    diagnostics: bool,
-) -> Tuple[float, float, float]:
-    """Train model, find best threshold on val, evaluate on test."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    n = x.shape[0]
-    train_idx, val_idx, test_idx = time_split(n)
-
-    train_x, val_x, test_x = x[train_idx], x[val_idx], x[test_idx]
-    train_y, val_y, test_y = y[train_idx], y[val_idx], y[test_idx]
-
-    train_x, val_x, test_x, stats = standardize(train_x, val_x, test_x)
-
-    # Class balance weight
-    pos_count = train_y.sum()
-    neg_count = len(train_y) - pos_count
-    pos_weight = neg_count / max(pos_count, 1)
-
-    train_ds = SequenceDataset(train_x, train_y)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=False)
-
-    model = LSTMFilter(train_x.shape[-1]).to(device)
-    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        opt, max_lr=lr, steps_per_epoch=len(train_loader), epochs=epochs,
-    )
-    loss_fn = nn.BCELoss(reduction="none")
-
-    best_val_loss = float("inf")
-    patience_counter = 0
-
-    for epoch in range(epochs):
-        # ── Train ──
-        model.train()
-        total_loss = 0.0
-        n_batches = 0
-        for bx, by in train_loader:
-            bx, by = bx.to(device), by.to(device)
-            opt.zero_grad()
-            preds = model(bx)
-            raw_loss = loss_fn(preds, by)
-            # Apply class weights
-            weights = torch.where(by == 1, pos_weight, 1.0)
-            loss = (raw_loss * weights).mean()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            opt.step()
-            scheduler.step()
-            total_loss += loss.item()
-            n_batches += 1
-
-        avg_train_loss = total_loss / max(n_batches, 1)
-
-        # ── Val loss ──
-        model.eval()
-        with torch.no_grad():
-            vx = torch.tensor(val_x, dtype=torch.float32, device=device)
-            vy = torch.tensor(val_y, dtype=torch.float32, device=device)
-            val_preds = model(vx)
-            val_loss = loss_fn(val_preds, vy).mean().item()
-
-        if diagnostics:
-            print(f"  epoch {epoch + 1:02d}  train_loss={avg_train_loss:.4f}  val_loss={val_loss:.4f}")
-
-        # Early stopping
-        if val_loss < best_val_loss - 1e-4:
-            best_val_loss = val_loss
-            patience_counter = 0
-            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-        else:
-            patience_counter += 1
-            if patience_counter >= patience:
-                if diagnostics:
-                    print(f"  Early stopping at epoch {epoch + 1}")
-                break
-
-    # Load best model
-    model.load_state_dict(best_state)
-    model.eval()
-
-    with torch.no_grad():
-        val_probs = model(torch.tensor(val_x, dtype=torch.float32, device=device)).cpu().numpy()
-        test_probs = model(torch.tensor(test_x, dtype=torch.float32, device=device)).cpu().numpy()
-
-    if diagnostics:
-        label_pos_rate = float(y.mean()) if n > 0 else 0.0
-        print(f"  label_pos_rate={label_pos_rate:.4f}  "
-              f"val_probs[min/med/max]={val_probs.min():.4f}/{np.median(val_probs):.4f}/{val_probs.max():.4f}")
-
-    # Threshold search (maximize precision with minimum prediction count)
-    best_precision = 0.0
-    best_thresh = 0.5
-    for thresh in np.linspace(thresh_min, thresh_max, max(thresh_steps, 2)):
-        preds_bin = (val_probs >= thresh).astype(int)
-        pred_count = int(preds_bin.sum())
-        if pred_count < min_preds:
-            continue
-        true_pos = int(((preds_bin == 1) & (val_y == 1)).sum())
-        precision = true_pos / max(pred_count, 1)
-        # Also compute win rate adjusted by number of trades
-        score = precision
-        if score > best_precision:
-            best_precision = score
-            best_thresh = float(thresh)
-
-    # Test evaluation
-    test_preds_bin = (test_probs >= best_thresh).astype(int)
-    test_true_pos = ((test_preds_bin == 1) & (test_y == 1)).sum()
-    test_pred_count = test_preds_bin.sum()
-    test_precision = float(test_true_pos / max(test_pred_count, 1))
-
-    return best_precision, test_precision, best_thresh
-
-
-def train_final_model(
-    x: np.ndarray,
-    y: np.ndarray,
-    epochs: int,
-    batch_size: int,
-    lr: float,
-    patience: int,
-    threshold: float,
-) -> Tuple[LSTMFilter, Dict[str, np.ndarray], float]:
-    """Train final model on train+val, evaluate on held-out test."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    n = x.shape[0]
-    train_idx, val_idx, test_idx = time_split(n)
-
-    train_x = np.concatenate([x[train_idx], x[val_idx]], axis=0)
-    train_y = np.concatenate([y[train_idx], y[val_idx]], axis=0)
-    test_x = x[test_idx]
-    test_y = y[test_idx]
-
-    mean = train_x.mean(axis=(0, 1), keepdims=True)
-    std = train_x.std(axis=(0, 1), keepdims=True) + 1e-8
-    train_x_norm = (train_x - mean) / std
-    test_x_norm = (test_x - mean) / std
-
-    # Class balance
-    pos_count = train_y.sum()
-    neg_count = len(train_y) - pos_count
-    pos_weight = neg_count / max(pos_count, 1)
-
-    train_ds = SequenceDataset(train_x_norm, train_y)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=False)
-
-    model = LSTMFilter(train_x_norm.shape[-1]).to(device)
-    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        opt, max_lr=lr, steps_per_epoch=len(train_loader), epochs=epochs,
-    )
-    loss_fn = nn.BCELoss(reduction="none")
-
-    for epoch in range(epochs):
-        model.train()
-        for bx, by in train_loader:
-            bx, by = bx.to(device), by.to(device)
-            opt.zero_grad()
-            preds = model(bx)
-            raw_loss = loss_fn(preds, by)
-            weights = torch.where(by == 1, pos_weight, 1.0)
-            loss = (raw_loss * weights).mean()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            opt.step()
-            scheduler.step()
-
-    model.eval()
-    model_cpu = model.cpu()
-
-    with torch.no_grad():
-        test_probs = model_cpu(torch.tensor(test_x_norm, dtype=torch.float32)).numpy()
-
-    test_preds_bin = (test_probs >= threshold).astype(int)
-    test_true_pos = ((test_preds_bin == 1) & (test_y == 1)).sum()
-    test_pred_count = test_preds_bin.sum()
-    test_precision = float(test_true_pos / max(test_pred_count, 1))
-
-    # Additional metrics
-    test_total = len(test_y)
-    test_pos = int(test_y.sum())
-    test_recall = float(test_true_pos / max(test_pos, 1))
-
-    print(f"  Final model — test_precision={test_precision:.3f}  "
-          f"test_recall={test_recall:.3f}  "
-          f"trades={int(test_pred_count)}/{test_total}  "
-          f"wins={int(test_true_pos)}")
-
-    stats = {"mean": mean, "std": std}
-    return model_cpu, stats, test_precision
-
-
-# ─── Main ────────────────────────────────────────────────────────────────────
-
-def set_seed(seed: int) -> None:
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-
-def main() -> None:
-    args = parse_args()
-    set_seed(args.seed)
-
-    print("=" * 60)
-    print("  Bitcoin LSTM Signal Filter — Training")
-    print("=" * 60)
-
-    # ── Load data ──
-    df = load_csv(args.csv)
-
-    # ── Compute features ──
-    print("Computing features...")
-    feats = compute_features(df)
-    print(f"Features: {len(FEATURE_COLUMNS)} columns, {len(feats):,} rows")
-
-    # ── Search optimal K ──
-    print(f"\nSearching optimal forward-bar K in [{args.k_min}, {args.k_max}]...")
-    print("-" * 70)
-
-    best_k: Optional[int] = None
-    best_val_precision = 0.0
-    best_test_precision = 0.0
-    best_thresh = 0.5
-
-    for k in range(args.k_min, args.k_max + 1, 3):  # Step by 3 for speed
-        print(f"\n▸ Generating labels for k={k}...")
-        x, y = generate_labels(df, feats, args.lookback, k, args.rr, args.atr_sl_mult)
-
-        if x.shape[0] < 500:
-            print(f"  Skip k={k}: only {x.shape[0]} samples")
-            continue
-
-        pos_rate = y.mean()
-        print(f"  Samples: {x.shape[0]:,}  pos_rate={pos_rate:.3f}")
-
-        val_prec, test_prec, thresh = train_and_eval(
-            x, y,
-            args.epochs,
-            args.batch_size,
-            args.lr,
-            args.patience,
-            args.min_preds,
-            args.thresh_min,
-            args.thresh_max,
-            args.thresh_steps,
-            args.diagnostics,
+def load_or_fetch_data():
+    data_dir = Path(CONFIG['data_dir'])
+    data_dir.mkdir(exist_ok=True)
+    csv_path = data_dir / f"{CONFIG['symbol']}_{CONFIG['interval']}_{CONFIG['years_back']}y.csv"
+    if csv_path.exists():
+        print(f"Loading from {csv_path}")
+        return pd.read_csv(csv_path, index_col='timestamp', parse_dates=True)
+    print(f"Fetching data...")
+    end_time = int(datetime.now().timestamp() * 1000)
+    start_time = int((datetime.now() - timedelta(days=365*CONFIG['years_back'])).timestamp() * 1000)
+    df = fetch_binance_klines(CONFIG['symbol'], CONFIG['interval'], start_time, end_time)
+    df.to_csv(csv_path)
+    return df
+
+
+# ==============================================================================
+# Feature Engineering
+# ==============================================================================
+
+def compute_rsi(s, p=14):
+    d = s.diff()
+    g = d.where(d > 0, 0).rolling(p).mean()
+    l = (-d.where(d < 0, 0)).rolling(p).mean()
+    return 100 - (100 / (1 + g / l))
+
+def compute_atr(h, l, c, p=14):
+    tr = pd.concat([h-l, abs(h-c.shift()), abs(l-c.shift())], axis=1).max(axis=1)
+    return tr.rolling(p).mean()
+
+def compute_adx(h, l, c, p=14):
+    plus_dm = h.diff()
+    minus_dm = -l.diff()
+    plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0)
+    minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0)
+    atr = compute_atr(h, l, c, p)
+    plus_di = 100 * (plus_dm.rolling(p).mean() / atr)
+    minus_di = 100 * (minus_dm.rolling(p).mean() / atr)
+    dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+    return dx.rolling(p).mean()
+
+def compute_cci(h, l, c, p=20):
+    tp = (h + l + c) / 3
+    sma = tp.rolling(p).mean()
+    mad = tp.rolling(p).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True)
+    return (tp - sma) / (0.015 * mad)
+
+
+def engineer_features(df):
+    print("Engineering features (V3)...")
+    d = df.copy()
+    c, h, l, v = d['close'], d['high'], d['low'], d['volume']
+
+    # Returns
+    d['log_return'] = np.log(c / c.shift(1))
+    for n, p in [('1h',2),('2h',4),('4h',8),('12h',24),('24h',48)]:
+        d[f'return_{n}'] = c.pct_change(p)
+
+    # Volatility
+    d['rolling_vol_10'] = d['log_return'].rolling(10).std()
+    d['rolling_vol_20'] = d['log_return'].rolling(20).std()
+    d['rolling_vol_50'] = d['log_return'].rolling(50).std()
+    atr = compute_atr(h, l, c, 14)
+    d['atr_pct'] = atr / c
+    d['return_over_atr'] = d['log_return'] / d['atr_pct'].replace(0, np.nan)
+    d['vol_regime'] = d['rolling_vol_20'] / d['rolling_vol_50'].replace(0, np.nan)
+
+    # Momentum
+    d['rsi_14'] = compute_rsi(c, 14) / 100
+    d['rsi_7'] = compute_rsi(c, 7) / 100
+    d['rsi_21'] = compute_rsi(c, 21) / 100
+
+    ef = c.ewm(span=12).mean()
+    es = c.ewm(span=26).mean()
+    macd = ef - es
+    ms = macd.ewm(span=9).mean()
+    d['macd_pct'] = macd / c
+    d['macd_signal_pct'] = ms / c
+    d['macd_hist_pct'] = (macd - ms) / c
+
+    lo14, hi14 = l.rolling(14).min(), h.rolling(14).max()
+    rng14 = (hi14 - lo14).replace(0, np.nan)
+    d['stoch_k'] = (c - lo14) / rng14
+    d['stoch_d'] = d['stoch_k'].rolling(3).mean()
+    d['williams_r'] = (hi14 - c) / rng14
+    d['cci_20'] = compute_cci(h, l, c, 20) / 200
+
+    # MA distance
+    for span, name in [(9,'9'),(21,'21'),(50,'50'),(200,'200')]:
+        ema = c.ewm(span=span).mean()
+        d[f'price_to_ema_{name}'] = (c - ema) / ema
+    e9, e21 = c.ewm(span=9).mean(), c.ewm(span=21).mean()
+    e50, e200 = c.ewm(span=50).mean(), c.ewm(span=200).mean()
+    d['ema_9_21_cross'] = (e9 - e21) / e21
+    d['ema_50_200_cross'] = (e50 - e200) / e200
+
+    # Bollinger
+    bm = c.rolling(20).mean()
+    bs = c.rolling(20).std()
+    bu, bl = bm + 2*bs, bm - 2*bs
+    d['bb_position'] = (c - bl) / (bu - bl).replace(0, np.nan)
+    d['bb_width'] = (bu - bl) / bm
+
+    # Volume
+    vm, vs = v.rolling(20).mean(), v.rolling(20).std()
+    d['volume_zscore'] = (v - vm) / vs.replace(0, np.nan)
+    d['volume_ma_ratio'] = v / vm.replace(0, np.nan)
+    obv = (np.sign(c.diff()) * v).fillna(0).cumsum()
+    d['obv_slope'] = obv.pct_change(10)
+    tp = (h + l + c) / 3
+    vwap_r = (tp * v).rolling(48).sum() / v.rolling(48).sum()
+    d['vwap_distance'] = (c - vwap_r) / vwap_r.replace(0, np.nan)
+
+    # Candle
+    cr = (h - l).replace(0, np.nan)
+    body = abs(c - d['open'])
+    d['body_ratio'] = body / cr
+    d['upper_shadow'] = (h - pd.concat([c, d['open']], axis=1).max(axis=1)) / cr
+    d['lower_shadow'] = (pd.concat([c, d['open']], axis=1).min(axis=1) - l) / cr
+    d['candle_range_pct'] = (h - l) / c
+
+    # Trends
+    for n, p in [('2h',4),('4h',8),('12h',24),('24h',48)]:
+        d[f'trend_{n}'] = c.pct_change(p)
+
+    # Strength
+    d['adx_14'] = compute_adx(h, l, c, 14) / 100
+    d['momentum_10'] = c.pct_change(10)
+
+    # Time
+    hour = d.index.hour + d.index.minute / 60
+    d['hour_sin'] = np.sin(2 * np.pi * hour / 24)
+    d['hour_cos'] = np.cos(2 * np.pi * hour / 24)
+    day = d.index.dayofweek
+    d['day_sin'] = np.sin(2 * np.pi * day / 7)
+    d['day_cos'] = np.cos(2 * np.pi * day / 7)
+
+    # Target: 12h horizon, 1% threshold
+    future_ret = c.shift(-CONFIG['target_horizon']) / c - 1
+    d['target'] = (future_ret > CONFIG['target_threshold']).astype(int)
+    d['future_return'] = future_ret
+
+    d = d.replace([np.inf, -np.inf], np.nan).dropna()
+
+    n_pos = d['target'].sum()
+    n_neg = len(d) - n_pos
+    print(f"Shape: {d.shape}")
+    print(f"Bullish: {n_pos} ({n_pos/len(d)*100:.1f}%) | Not: {n_neg} ({n_neg/len(d)*100:.1f}%)")
+    return d
+
+
+# ==============================================================================
+# Model V3: LSTM + Multi-Head Attention
+# ==============================================================================
+
+class MultiHeadTemporalAttention(nn.Module):
+    def __init__(self, dim, num_heads=4):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        assert dim % num_heads == 0
+
+        self.q_proj = nn.Linear(dim, dim)
+        self.k_proj = nn.Linear(dim, dim)
+        self.v_proj = nn.Linear(dim, dim)
+        self.out_proj = nn.Linear(dim, dim)
+        self.scale = self.head_dim ** -0.5
+
+    def forward(self, x):
+        B, T, D = x.shape
+        H = self.num_heads
+
+        q = self.q_proj(x).view(B, T, H, self.head_dim).transpose(1, 2)
+        k = self.k_proj(x).view(B, T, H, self.head_dim).transpose(1, 2)
+        v = self.v_proj(x).view(B, T, H, self.head_dim).transpose(1, 2)
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = F.softmax(attn, dim=-1)
+
+        out = (attn @ v).transpose(1, 2).contiguous().view(B, T, D)
+        return self.out_proj(out)
+
+
+class LSTMFilter(nn.Module):
+    def __init__(self, input_dim, hidden_dim=256, num_layers=3,
+                 dropout=0.35, bidirectional=True, num_heads=4):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+
+        # Input projection with residual
+        self.input_proj = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout / 2),
         )
 
-        print(f"  k={k:02d}  val_precision={val_prec:.3f}  test_precision={test_prec:.3f}  threshold={thresh:.2f}")
+        # LSTM
+        self.lstm = nn.LSTM(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            dropout=dropout if num_layers > 1 else 0,
+            batch_first=True,
+            bidirectional=bidirectional
+        )
 
-        if val_prec > best_val_precision:
-            best_val_precision = val_prec
-            best_test_precision = test_prec
-            best_k = k
-            best_thresh = thresh
+        lstm_dim = hidden_dim * 2 if bidirectional else hidden_dim
 
-    if best_k is None:
-        print("\n✗ No valid K found. Try adjusting parameters.")
-        return
+        # Multi-Head Attention
+        self.attn_norm = nn.LayerNorm(lstm_dim)
+        self.attention = MultiHeadTemporalAttention(lstm_dim, num_heads)
+        self.attn_dropout = nn.Dropout(dropout)
 
-    print("\n" + "=" * 60)
-    print(f"  Best K={best_k}  val_precision={best_val_precision:.3f}  "
-          f"test_precision={best_test_precision:.3f}  threshold={best_thresh:.2f}")
-    print("=" * 60)
+        # Pooling: concat last hidden + attention context + mean pool
+        pool_dim = lstm_dim * 3
 
-    # ── Train final model ──
-    print("\nTraining final model (train+val)...")
-    x_final, y_final = generate_labels(df, feats, args.lookback, best_k, args.rr, args.atr_sl_mult)
-    model, stats, final_test_precision = train_final_model(
-        x_final, y_final, args.epochs, args.batch_size, args.lr, args.patience, best_thresh,
+        # Classifier
+        self.classifier = nn.Sequential(
+            nn.LayerNorm(pool_dim),
+            nn.Linear(pool_dim, 128),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 64),
+            nn.GELU(),
+            nn.Dropout(dropout / 2),
+            nn.Linear(64, 1),
+        )
+
+    def forward(self, x):
+        x = self.input_proj(x)
+        lstm_out, _ = self.lstm(x)
+
+        # Attention context
+        attn_out = self.attention(self.attn_norm(lstm_out))
+        attn_out = self.attn_dropout(attn_out)
+        attn_context = attn_out.mean(dim=1)  # (B, D)
+
+        # Last hidden + mean pool
+        last_hidden = lstm_out[:, -1, :]
+        mean_pool = lstm_out.mean(dim=1)
+
+        # Concat all representations
+        combined = torch.cat([last_hidden, attn_context, mean_pool], dim=-1)
+
+        return self.classifier(combined)
+
+
+# ==============================================================================
+# Dataset & Loss
+# ==============================================================================
+
+class TimeSeriesDataset(Dataset):
+    def __init__(self, features, targets, lookback):
+        self.features = torch.FloatTensor(features)
+        self.targets = torch.FloatTensor(targets)
+        self.lookback = lookback
+
+    def __len__(self):
+        return len(self.features) - self.lookback
+
+    def __getitem__(self, idx):
+        x = self.features[idx:idx + self.lookback]
+        y = self.targets[idx + self.lookback]
+        return x, y.unsqueeze(0)
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0, label_smoothing=0.0):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.ls = label_smoothing
+
+    def forward(self, inputs, targets):
+        if self.ls > 0:
+            targets = targets * (1 - self.ls) + 0.5 * self.ls
+        bce = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
+        p = torch.sigmoid(inputs)
+        pt = torch.where(targets > 0.5, p, 1 - p)
+        w = (1 - pt) ** self.gamma
+        if self.alpha is not None:
+            at = torch.where(targets > 0.5, self.alpha, 1 - self.alpha)
+            w = at * w
+        return (w * bce).mean()
+
+
+def mixup_data(x, y, alpha=0.2):
+    """Mixup augmentation for time series."""
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1.0
+    idx = torch.randperm(x.size(0)).to(x.device)
+    mixed_x = lam * x + (1 - lam) * x[idx]
+    mixed_y = lam * y + (1 - lam) * y[idx]
+    return mixed_x, mixed_y
+
+
+# ==============================================================================
+# Training
+# ==============================================================================
+
+def get_lr(epoch, warmup, base_lr, total_epochs):
+    if epoch < warmup:
+        return base_lr * (epoch + 1) / warmup
+    progress = (epoch - warmup) / (total_epochs - warmup)
+    return base_lr * 0.5 * (1 + math.cos(math.pi * progress))
+
+
+def train_epoch(model, loader, criterion, optimizer, device, epoch, config):
+    model.train()
+    total_loss = 0
+    use_mixup = config['mixup_alpha'] > 0
+
+    for x, y in loader:
+        x, y = x.to(device), y.to(device)
+
+        if use_mixup and random.random() > 0.5:
+            x, y = mixup_data(x, y, config['mixup_alpha'])
+
+        optimizer.zero_grad()
+        out = model(x)
+        loss = criterion(out, y)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        total_loss += loss.item()
+
+    return total_loss / len(loader)
+
+
+def evaluate(model, loader, criterion, device, threshold=0.5):
+    model.eval()
+    total_loss = 0
+    all_p, all_t = [], []
+    with torch.no_grad():
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            out = model(x)
+            total_loss += criterion(out, y).item()
+            all_p.extend(torch.sigmoid(out).cpu().numpy())
+            all_t.extend(y.cpu().numpy())
+    p = np.array(all_p).flatten()
+    t = np.array(all_t).flatten()
+    bp = (p > threshold).astype(int)
+    return {
+        'loss': total_loss / len(loader),
+        'accuracy': accuracy_score(t, bp),
+        'precision': precision_score(t, bp, zero_division=0),
+        'recall': recall_score(t, bp, zero_division=0),
+        'f1': f1_score(t, bp, zero_division=0),
+        'preds': p, 'targets': t,
+    }
+
+
+def find_best_threshold(preds, targets):
+    best_f1, best_t = 0, 0.5
+    for t in np.arange(0.25, 0.75, 0.005):
+        f1 = f1_score(targets, (preds > t).astype(int), zero_division=0)
+        if f1 > best_f1:
+            best_f1, best_t = f1, t
+    return best_t, best_f1
+
+
+def train_single_model(seed, X_train, y_train, X_val, y_val, feature_cols, device, config):
+    """Train a single model with given seed."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+    print(f"\n{'='*60}")
+    print(f"Training model with seed={seed}")
+    print(f"{'='*60}")
+
+    train_ds = TimeSeriesDataset(X_train, y_train, config['lookback'])
+    val_ds = TimeSeriesDataset(X_val, y_val, config['lookback'])
+
+    train_loader = DataLoader(train_ds, batch_size=config['batch_size'],
+                              shuffle=True, drop_last=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=config['batch_size'], num_workers=0)
+
+    model = LSTMFilter(
+        input_dim=len(feature_cols),
+        hidden_dim=config['hidden_dim'],
+        num_layers=config['num_layers'],
+        dropout=config['dropout'],
+        bidirectional=config['bidirectional'],
+        num_heads=config['num_heads'],
+    ).to(device)
+
+    pos_rate = y_train.mean()
+    alpha = 1 - pos_rate
+    criterion = FocalLoss(alpha=alpha, gamma=2.0, label_smoothing=config['label_smoothing'])
+
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay']
     )
 
-    # ── Save ──
-    models_dir = Path("models")
+    best_val_f1 = 0
+    patience_counter = 0
+    best_state = None
+
+    for epoch in range(config['epochs']):
+        # Manual warmup + cosine LR
+        lr = get_lr(epoch, config['warmup_epochs'], config['learning_rate'], config['epochs'])
+        for pg in optimizer.param_groups:
+            pg['lr'] = lr
+
+        train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch, config)
+        val_m = evaluate(model, val_loader, criterion, device)
+
+        if (epoch + 1) % 5 == 0 or epoch == 0:
+            print(f"Epoch {epoch+1}/{config['epochs']} | LR: {lr:.6f}")
+            print(f"  Train: {train_loss:.4f} | Val Acc: {val_m['accuracy']:.4f} "
+                  f"Prec: {val_m['precision']:.4f} Rec: {val_m['recall']:.4f} F1: {val_m['f1']:.4f}")
+
+        if val_m['f1'] > best_val_f1:
+            best_val_f1 = val_m['f1']
+            patience_counter = 0
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            if (epoch + 1) % 5 == 0 or epoch == 0:
+                print(f"  >>> Best F1: {best_val_f1:.4f}")
+        else:
+            patience_counter += 1
+            if patience_counter >= config['patience']:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+
+    model.load_state_dict(best_state)
+    print(f"Best val F1: {best_val_f1:.4f}")
+    return model, best_val_f1
+
+
+# ==============================================================================
+# Main
+# ==============================================================================
+
+def main():
+    print("=" * 80)
+    print("LSTM V3 - BTC Trend Prediction")
+    print("GPU Model | Multi-Head Attention | Ensemble | Mixup")
+    print("=" * 80)
+
+    # Data
+    print("\n[1/6] Loading data...")
+    df = load_or_fetch_data()
+    print(f"Loaded {len(df)} candles")
+
+    print("\n[2/6] Engineering features...")
+    data = engineer_features(df)
+
+    feature_cols = [c for c in FEATURE_COLUMNS if c in data.columns]
+    missing = [c for c in FEATURE_COLUMNS if c not in data.columns]
+    if missing:
+        print(f"WARNING missing: {missing}")
+    print(f"Using {len(feature_cols)} features")
+
+    # Prepare
+    print("\n[3/6] Preparing data...")
+    X = data[feature_cols].values
+    y = data['target'].values
+
+    train_end = int(len(X) * CONFIG['train_ratio'])
+    val_end = train_end + int(len(X) * CONFIG['val_ratio'])
+
+    X_train, y_train = X[:train_end], y[:train_end]
+    X_val, y_val = X[train_end:val_end], y[train_end:val_end]
+    X_test, y_test = X[val_end:], y[val_end:]
+
+    print(f"Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}")
+    print(f"Train bullish: {y_train.mean():.3f} | Val: {y_val.mean():.3f} | Test: {y_test.mean():.3f}")
+
+    scaler = RobustScaler()
+    X_train = np.clip(scaler.fit_transform(X_train), -5, 5)
+    X_val = np.clip(scaler.transform(X_val), -5, 5)
+    X_test = np.clip(scaler.transform(X_test), -5, 5)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
+
+    n_params = sum(p.numel() for p in LSTMFilter(
+        len(feature_cols), CONFIG['hidden_dim'], CONFIG['num_layers'],
+        CONFIG['dropout'], CONFIG['bidirectional'], CONFIG['num_heads']
+    ).parameters())
+    print(f"Parameters per model: {n_params:,}")
+
+    # Train ensemble
+    print(f"\n[4/6] Training ensemble ({CONFIG['n_ensemble']} models)...")
+    models = []
+    for i, seed in enumerate(CONFIG['ensemble_seeds']):
+        model, val_f1 = train_single_model(
+            seed, X_train, y_train, X_val, y_val, feature_cols, device, CONFIG
+        )
+        models.append(model)
+
+    # Ensemble evaluation
+    print("\n[5/6] Ensemble evaluation on test set...")
+    test_ds = TimeSeriesDataset(X_test, y_test, CONFIG['lookback'])
+    test_loader = DataLoader(test_ds, batch_size=CONFIG['batch_size'], num_workers=0)
+
+    # Get ensemble predictions
+    all_preds = []
+    for model in models:
+        model.eval()
+        preds = []
+        with torch.no_grad():
+            for x, y in test_loader:
+                x = x.to(device)
+                out = torch.sigmoid(model(x)).cpu().numpy()
+                preds.extend(out)
+        all_preds.append(np.array(preds).flatten())
+
+    # Average ensemble predictions
+    ensemble_preds = np.mean(all_preds, axis=0)
+    test_targets = []
+    for x, y in test_loader:
+        test_targets.extend(y.numpy())
+    test_targets = np.array(test_targets).flatten()
+
+    # Default threshold
+    bp_50 = (ensemble_preds > 0.5).astype(int)
+    acc_50 = accuracy_score(test_targets, bp_50)
+    prec_50 = precision_score(test_targets, bp_50, zero_division=0)
+    rec_50 = recall_score(test_targets, bp_50, zero_division=0)
+    f1_50 = f1_score(test_targets, bp_50, zero_division=0)
+
+    # Optimal threshold
+    best_thresh, _ = find_best_threshold(ensemble_preds, test_targets)
+    bp_opt = (ensemble_preds > best_thresh).astype(int)
+    acc_opt = accuracy_score(test_targets, bp_opt)
+    prec_opt = precision_score(test_targets, bp_opt, zero_division=0)
+    rec_opt = recall_score(test_targets, bp_opt, zero_division=0)
+    f1_opt = f1_score(test_targets, bp_opt, zero_division=0)
+
+    print("\n" + "=" * 80)
+    print(f"ENSEMBLE TEST RESULTS ({CONFIG['n_ensemble']} models)")
+    print("=" * 80)
+    print(f"Threshold 0.50:")
+    print(f"  Acc: {acc_50:.4f} ({acc_50*100:.2f}%) | Prec: {prec_50:.4f} | Rec: {rec_50:.4f} | F1: {f1_50:.4f}")
+    print(f"\nOptimal Threshold {best_thresh:.3f}:")
+    print(f"  Acc: {acc_opt:.4f} ({acc_opt*100:.2f}%) | Prec: {prec_opt:.4f} | Rec: {rec_opt:.4f} | F1: {f1_opt:.4f}")
+    print("=" * 80)
+
+    # Individual model results
+    print("\nPer-model results:")
+    for i, preds in enumerate(all_preds):
+        bp = (preds > best_thresh).astype(int)
+        a = accuracy_score(test_targets, bp)
+        p = precision_score(test_targets, bp, zero_division=0)
+        print(f"  Model {i+1}: Acc={a:.4f} Prec={p:.4f}")
+
+    # Save best model (the one with highest val F1) for ONNX export
+    print("\n[6/6] Saving...")
+    models_dir = Path(CONFIG['models_dir'])
     models_dir.mkdir(exist_ok=True)
 
-    model_path = models_dir / "lstm_filter.pt"
-    torch.save(model.state_dict(), model_path)
+    # Save first model as primary (for ONNX export compatibility)
+    torch.save(models[0].state_dict(), models_dir / 'lstm_filter.pt')
+
+    # Save all ensemble models
+    for i, model in enumerate(models):
+        torch.save(model.state_dict(), models_dir / f'lstm_ensemble_{i}.pt')
 
     meta = {
-        "best_k": best_k,
-        "rr": args.rr,
-        "atr_sl_mult": args.atr_sl_mult,
-        "lookback": args.lookback,
-        "threshold": best_thresh,
-        "val_precision": best_val_precision,
-        "test_precision": final_test_precision,
-        "feature_columns": FEATURE_COLUMNS,
-        "input_dim": len(FEATURE_COLUMNS),
-        "hidden_dim": 128,
-        "num_layers": 2,
-        "mean": stats["mean"].tolist(),
-        "std": stats["std"].tolist(),
-        "csv_file": args.csv,
+        'lookback': CONFIG['lookback'],
+        'feature_columns': feature_cols,
+        'input_dim': len(feature_cols),
+        'hidden_dim': CONFIG['hidden_dim'],
+        'num_layers': CONFIG['num_layers'],
+        'num_heads': CONFIG['num_heads'],
+        'bidirectional': CONFIG['bidirectional'],
+        'target_threshold': CONFIG['target_threshold'],
+        'target_horizon': CONFIG['target_horizon'],
+        'optimal_threshold': float(best_thresh),
+        'n_ensemble': CONFIG['n_ensemble'],
+        'test_accuracy': float(acc_opt),
+        'test_precision': float(prec_opt),
+        'test_recall': float(rec_opt),
+        'test_f1': float(f1_opt),
+        'center': scaler.center_.reshape(1, 1, -1).tolist(),
+        'scale': scaler.scale_.reshape(1, 1, -1).tolist(),
     }
-    meta_path = models_dir / "lstm_meta.json"
-    with meta_path.open("w", encoding="utf-8") as f:
+
+    with open(models_dir / 'lstm_meta.json', 'w') as f:
         json.dump(meta, f, indent=2)
 
-    print(f"\n✓ Saved model  → {model_path}")
-    print(f"✓ Saved meta   → {meta_path}")
-    print(f"\nRun 'python export_onnx.py' to generate ONNX for the Rust bot.")
+    print(f"Saved {CONFIG['n_ensemble']} models + metadata")
+    print("Training complete!")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -19,10 +19,20 @@ def main() -> None:
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     lookback = int(meta["lookback"])
     feature_count = len(meta.get("feature_columns", FEATURE_COLUMNS))
+    hidden_dim = meta.get("hidden_dim", 256)
+    num_layers = meta.get("num_layers", 3)
+    bidirectional = meta.get("bidirectional", True)
+    num_heads = meta.get("num_heads", 4)
 
-    hidden_dim = int(meta.get("hidden_dim", 128))
-    num_layers = int(meta.get("num_layers", 2))
-    model = LSTMFilter(feature_count, hidden_dim=hidden_dim, layers=num_layers)
+    model = LSTMFilter(
+        input_dim=feature_count,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        dropout=0.0,  # No dropout for inference
+        bidirectional=bidirectional,
+        num_heads=num_heads,
+    )
+
     state = torch.load(model_path, map_location="cpu", weights_only=True)
     model.load_state_dict(state)
     model.eval()
@@ -39,6 +49,9 @@ def main() -> None:
     )
 
     print(f"Saved ONNX to {onnx_path}")
+    print(f"Architecture: input={feature_count}, hidden={hidden_dim}, "
+          f"layers={num_layers}, heads={num_heads}, bidir={bidirectional}, "
+          f"lookback={lookback}")
 
 
 if __name__ == "__main__":

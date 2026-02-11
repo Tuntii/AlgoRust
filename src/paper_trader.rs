@@ -1,14 +1,14 @@
+use crate::state::SymbolContext;
+use crate::types::{SignalType, TradeSignal};
 use anyhow::{Context, Result};
-use rust_decimal::Decimal;
+use chrono::{DateTime, Utc};
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use chrono::{DateTime, Utc};
 use tracing::{info, warn};
-use crate::types::{TradeSignal, SignalType};
-use crate::state::SymbolContext;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaperTrader {
@@ -78,19 +78,17 @@ impl PaperTrader {
 
     /// Load paper trader state from JSON file
     pub fn load_from_file(path: &Path) -> Result<Self> {
-        let content = fs::read_to_string(path)
-            .context("Failed to read paper trader state file")?;
-        let trader: PaperTrader = serde_json::from_str(&content)
-            .context("Failed to parse paper trader state")?;
+        let content = fs::read_to_string(path).context("Failed to read paper trader state file")?;
+        let trader: PaperTrader =
+            serde_json::from_str(&content).context("Failed to parse paper trader state")?;
         Ok(trader)
     }
 
     /// Save paper trader state to JSON file
     pub fn save_to_file(&self, path: &Path) -> Result<()> {
-        let json = serde_json::to_string_pretty(self)
-            .context("Failed to serialize paper trader state")?;
-        fs::write(path, json)
-            .context("Failed to write paper trader state file")?;
+        let json =
+            serde_json::to_string_pretty(self).context("Failed to serialize paper trader state")?;
+        fs::write(path, json).context("Failed to write paper trader state file")?;
         Ok(())
     }
 
@@ -104,25 +102,25 @@ impl PaperTrader {
     ) -> Decimal {
         // Risk amount in USD
         let risk_amount = self.current_balance * risk_percent;
-        
+
         // Risk per unit (distance from entry to SL)
         let risk_per_unit = (entry_price - sl_price).abs();
-        
+
         if risk_per_unit == Decimal::ZERO {
             warn!("⚠️ Risk per unit is zero, using minimum position size");
             return Decimal::from_f64(0.001).unwrap();
         }
-        
+
         // Base position size
         let base_size = risk_amount / risk_per_unit;
-        
+
         // Apply confidence multiplier
         let final_size = base_size * confidence_multiplier;
-        
+
         // Cap at 10% of portfolio value
         let max_position_value = self.current_balance * Decimal::from_f64(0.10).unwrap();
         let position_value = final_size * entry_price;
-        
+
         if position_value > max_position_value {
             warn!("⚠️ Position size exceeds 10% of portfolio, capping at max");
             max_position_value / entry_price
@@ -153,8 +151,10 @@ impl PaperTrader {
         // Check if we have enough balance
         let required_balance = quantity * entry_price;
         if required_balance > self.current_balance {
-            warn!("⚠️ Insufficient balance: required ${}, available ${}", 
-                  required_balance, self.current_balance);
+            warn!(
+                "⚠️ Insufficient balance: required ${}, available ${}",
+                required_balance, self.current_balance
+            );
             return Ok(());
         }
 
@@ -177,12 +177,25 @@ impl PaperTrader {
         // Deduct balance (for both long and short - margin simulation)
         self.current_balance -= required_balance;
 
-        let open_count = self.positions.values().filter(|p| p.symbol == signal.symbol).count();
-        info!("📈 OPENED POSITION: {} {} @ ${} (pos #{} for {})", 
-              signal.signal, signal.symbol, entry_price, open_count + 1, signal.symbol);
+        let open_count = self
+            .positions
+            .values()
+            .filter(|p| p.symbol == signal.symbol)
+            .count();
+        info!(
+            "📈 OPENED POSITION: {} {} @ ${} (pos #{} for {})",
+            signal.signal,
+            signal.symbol,
+            entry_price,
+            open_count + 1,
+            signal.symbol
+        );
         info!("   Qty: {}, SL: ${}, TP: ${}", quantity, sl_price, tp_price);
-        info!("   Balance: ${} -> ${}", 
-              self.current_balance + required_balance, self.current_balance);
+        info!(
+            "   Balance: ${} -> ${}",
+            self.current_balance + required_balance,
+            self.current_balance
+        );
 
         self.positions.insert(signal.signal_id.clone(), position);
         Ok(())
@@ -201,19 +214,31 @@ impl PaperTrader {
             match position.side {
                 PositionSide::Long => {
                     if current_price <= position.stop_loss {
-                        info!("🛑 STOP LOSS HIT: {} @ ${} (sig: {})", symbol, current_price, sig_tag);
+                        info!(
+                            "🛑 STOP LOSS HIT: {} @ ${} (sig: {})",
+                            symbol, current_price, sig_tag
+                        );
                         to_close.push((signal_id.clone(), ExitReason::StopLoss));
                     } else if current_price >= position.take_profit {
-                        info!("🎯 TAKE PROFIT HIT: {} @ ${} (sig: {})", symbol, current_price, sig_tag);
+                        info!(
+                            "🎯 TAKE PROFIT HIT: {} @ ${} (sig: {})",
+                            symbol, current_price, sig_tag
+                        );
                         to_close.push((signal_id.clone(), ExitReason::TakeProfit));
                     }
                 }
                 PositionSide::Short => {
                     if current_price >= position.stop_loss {
-                        info!("🛑 STOP LOSS HIT: {} @ ${} (sig: {})", symbol, current_price, sig_tag);
+                        info!(
+                            "🛑 STOP LOSS HIT: {} @ ${} (sig: {})",
+                            symbol, current_price, sig_tag
+                        );
                         to_close.push((signal_id.clone(), ExitReason::StopLoss));
                     } else if current_price <= position.take_profit {
-                        info!("🎯 TAKE PROFIT HIT: {} @ ${} (sig: {})", symbol, current_price, sig_tag);
+                        info!(
+                            "🎯 TAKE PROFIT HIT: {} @ ${} (sig: {})",
+                            symbol, current_price, sig_tag
+                        );
                         to_close.push((signal_id.clone(), ExitReason::TakeProfit));
                     }
                 }
@@ -228,8 +253,15 @@ impl PaperTrader {
     }
 
     /// Close position and calculate P&L
-    fn close_position(&mut self, signal_id: &str, exit_price: Decimal, reason: ExitReason) -> Result<()> {
-        let position = self.positions.remove(signal_id)
+    fn close_position(
+        &mut self,
+        signal_id: &str,
+        exit_price: Decimal,
+        reason: ExitReason,
+    ) -> Result<()> {
+        let position = self
+            .positions
+            .remove(signal_id)
             .context("Position not found")?;
 
         // Calculate P&L
@@ -253,7 +285,7 @@ impl PaperTrader {
         // Update statistics
         self.total_trades += 1;
         self.total_pnl += pnl;
-        
+
         if pnl > Decimal::ZERO {
             self.winning_trades += 1;
         } else if pnl < Decimal::ZERO {
@@ -276,7 +308,10 @@ impl PaperTrader {
 
         let sig_short = &signal_id[..signal_id.len().min(8)];
         let pnl_emoji = if pnl > Decimal::ZERO { "💰" } else { "📉" };
-        info!("{} CLOSED POSITION: {} @ ${} (sig: {})", pnl_emoji, &position.symbol, exit_price, sig_short);
+        info!(
+            "{} CLOSED POSITION: {} @ ${} (sig: {})",
+            pnl_emoji, &position.symbol, exit_price, sig_short
+        );
         info!("   P&L: ${} ({:.2}%)", pnl, pnl_percent);
         info!("   Balance: ${}", self.current_balance);
 
@@ -287,42 +322,56 @@ impl PaperTrader {
     /// Print current portfolio status
     pub fn print_status(&self) {
         info!("💼 PORTFOLIO STATUS:");
-        info!("   Balance: ${} (Initial: ${})", self.current_balance, self.initial_balance);
-        info!("   Total P&L: ${} ({:.2}%)", 
-              self.total_pnl, 
-              (self.total_pnl / self.initial_balance) * Decimal::from(100));
+        info!(
+            "   Balance: ${} (Initial: ${})",
+            self.current_balance, self.initial_balance
+        );
+        info!(
+            "   Total P&L: ${} ({:.2}%)",
+            self.total_pnl,
+            (self.total_pnl / self.initial_balance) * Decimal::from(100)
+        );
         info!("   Open Positions: {}", self.positions.len());
-        info!("   Total Trades: {} (W: {}, L: {})", 
-              self.total_trades, self.winning_trades, self.losing_trades);
-        
+        info!(
+            "   Total Trades: {} (W: {}, L: {})",
+            self.total_trades, self.winning_trades, self.losing_trades
+        );
+
         if self.total_trades > 0 {
-            let win_rate = (Decimal::from(self.winning_trades) / Decimal::from(self.total_trades)) * Decimal::from(100);
+            let win_rate = (Decimal::from(self.winning_trades) / Decimal::from(self.total_trades))
+                * Decimal::from(100);
             info!("   Win Rate: {:.1}%", win_rate);
         }
     }
 }
 
 /// Calculate SL/TP based on pivots (same logic as alpaca.rs)
-fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) -> (Decimal, Decimal) {
+fn calculate_sl_tp(
+    signal: &TradeSignal,
+    ctx: &SymbolContext,
+    entry: Decimal,
+) -> (Decimal, Decimal) {
     let default_rr = Decimal::from_f64(1.5).unwrap();
     let min_profit_pct = Decimal::from_f64(0.005).unwrap();
 
     match signal.signal {
         SignalType::LONG => {
-            let sl = ctx.structure.last_pivot_low
+            let sl = ctx
+                .structure
+                .last_pivot_low
                 .unwrap_or(entry * Decimal::from_f64(0.99).unwrap());
-            
+
             let safe_sl = if (entry - sl) / entry < Decimal::from_f64(0.002).unwrap() {
                 entry * Decimal::from_f64(0.995).unwrap()
             } else {
                 sl
             };
-            
+
             let risk = entry - safe_sl;
 
             let mut target_tp = None;
             let mut best_tp = Decimal::MAX;
-            
+
             for &pivot in &ctx.pivot_high_history {
                 if pivot > entry * (Decimal::ONE + min_profit_pct) {
                     if pivot < best_tp {
@@ -331,20 +380,22 @@ fn calculate_sl_tp(signal: &TradeSignal, ctx: &SymbolContext, entry: Decimal) ->
                     }
                 }
             }
-            
+
             let tp = target_tp.unwrap_or_else(|| entry + (risk * default_rr));
             (safe_sl, tp)
-        },
+        }
         SignalType::SHORT => {
-            let sl = ctx.structure.last_pivot_high
+            let sl = ctx
+                .structure
+                .last_pivot_high
                 .unwrap_or(entry * Decimal::from_f64(1.01).unwrap());
-            
+
             let safe_sl = if (sl - entry) / entry < Decimal::from_f64(0.002).unwrap() {
                 entry * Decimal::from_f64(1.005).unwrap()
             } else {
                 sl
             };
-            
+
             let risk = safe_sl - entry;
 
             let mut target_tp = None;
