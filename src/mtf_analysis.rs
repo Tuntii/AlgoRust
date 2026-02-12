@@ -502,6 +502,7 @@ mod tests {
             low: Decimal::from_f64(low).unwrap(),
             close: Decimal::from_f64(close).unwrap(),
             volume: Decimal::from(1000),
+            close_time: None,
         }
     }
 

@@ -3,6 +3,7 @@ use crate::indicators::{
     Adx, Atr, Ema, Kama, Macd, Rsi, StochRsi, check_divergence, is_pivot_high, is_pivot_low,
     DivergenceType,
 };
+use crate::order_block::OrderBlockTracker;
 use crate::policy::BootstrapState;
 use std::collections::VecDeque;
 use rust_decimal::Decimal;
@@ -103,6 +104,9 @@ pub struct SymbolContext {
     // Last pivot candle indices
     pub last_pivot_high_idx: Option<usize>,
     pub last_pivot_low_idx: Option<usize>,
+    
+    // ORDER BLOCK: Smart Money TP/SL sistemi
+    pub ob_tracker: OrderBlockTracker,
 }
 
 impl SymbolContext {
@@ -177,6 +181,9 @@ impl SymbolContext {
             last_bos_candle_idx: None,
             last_pivot_high_idx: None,
             last_pivot_low_idx: None,
+            
+            // Order Block tracker
+            ob_tracker: OrderBlockTracker::new(),
         }
     }
     
@@ -333,6 +340,15 @@ impl SymbolContext {
             }
         }
         
+        // ORDER BLOCK: BOS tespitinden sonra OB tracker'ı güncelle
+        self.ob_tracker.update(
+            &candle,
+            self.total_candles_processed,
+            self.atr_14.current_value,
+            self.just_broke_high,  // Yukarı BOS
+            self.just_broke_low,   // Aşağı BOS
+        );
+
         // Track EMA50 history - EMA update() returns Decimal directly
         self.ema_50_slope_history.push_back(cur_ema50);
         if self.ema_50_slope_history.len() > 20 { self.ema_50_slope_history.pop_front(); }

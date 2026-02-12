@@ -942,83 +942,20 @@ fn calculate_sl_tp(
     ctx: &SymbolContext,
     entry: Decimal,
 ) -> (Decimal, Decimal) {
-    let default_rr = Decimal::from_f64(1.0).unwrap();
-    let min_profit_pct = Decimal::from_f64(0.003).unwrap(); // Hedef en az %0.3 uzakta olmalı
+    let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
 
-    match signal.signal {
-        SignalType::LONG => {
-            // SL = Last Swing Low. Eğer yoksa %1 altı.
-            let sl = ctx
-                .structure
-                .last_pivot_low
-                .unwrap_or(entry * Decimal::from_f64(0.99).unwrap());
-            // Koruma: Çok yakın SL varsa minimum %0.2 mesafe koy
-            let safe_sl = if (entry - sl) / entry < Decimal::from_f64(0.0015).unwrap() {
-                entry * Decimal::from_f64(0.9965).unwrap()
-            } else {
-                sl
-            };
-
-            let risk = entry - safe_sl;
-
-            // TP STRATEGY: Pivot-Based Target
-            // Hedef: Entry üzerinde olan en yakın Pivot High seviyesi
-            // Eğer pivot history boşsa veya hepsi entry'nin altındaysa -> Fallback 1.5R
-            let mut target_tp = None;
-            let mut best_tp = Decimal::MAX;
-
-            for &pivot in &ctx.pivot_high_history {
-                // Pivot entry'den en az %0.5 yukarıda olmalı ki R/R mantıklı olsun
-                if pivot > entry * (Decimal::ONE + min_profit_pct) {
-                    // En yakın (en düşük) pivotu bul
-                    if pivot < best_tp {
-                        best_tp = pivot;
-                        target_tp = Some(pivot);
-                    }
-                }
-            }
-
-            let tp = target_tp.unwrap_or_else(|| {
-                // Pivot bulunamazsa default RR kullan
-                entry + (risk * default_rr)
-            });
-
-            (safe_sl, tp)
-        }
-        SignalType::SHORT => {
-            let sl = ctx
-                .structure
-                .last_pivot_high
-                .unwrap_or(entry * Decimal::from_f64(1.01).unwrap());
-            let safe_sl = if (sl - entry) / entry < Decimal::from_f64(0.0015).unwrap() {
-                entry * Decimal::from_f64(1.0035).unwrap()
-            } else {
-                sl
-            };
-
-            let risk = safe_sl - entry;
-
-            // TP STRATEGY: Pivot-Based Target
-            // Hedef: Entry altında olan en yakın Pivot Low seviyesi
-            let mut target_tp = None;
-            let mut best_tp = Decimal::MIN; // En yüksek 'düşük' seviyeyi arıyoruz (entry'e en yakın destek)
-
-            for &pivot in &ctx.pivot_low_history {
-                // Pivot entry'den en az %0.5 aşağıda olmalı
-                if pivot < entry * (Decimal::ONE - min_profit_pct) {
-                    // Entry'e en yakın olanı (en yüksek değeri) seç
-                    if pivot > best_tp {
-                        best_tp = pivot;
-                        target_tp = Some(pivot);
-                    }
-                }
-            }
-
-            let tp = target_tp.unwrap_or_else(|| entry - (risk * default_rr));
-
-            (safe_sl, tp)
-        }
-    }
+    // ORDER BLOCK TABANLI TP/SL
+    // OB tracker varsa ve geçerli OB'ler mevcutsa, OB tabanlı hesapla
+    // Fallback olarak pivot seviyeleri kullanılır
+    ctx.ob_tracker.calculate_ob_sl_tp(
+        &signal.signal,
+        entry,
+        atr,
+        ctx.structure.last_pivot_low,
+        ctx.structure.last_pivot_high,
+        &ctx.pivot_high_history,
+        &ctx.pivot_low_history,
+    )
 }
 
 // =============================================================================

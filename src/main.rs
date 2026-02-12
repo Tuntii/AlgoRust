@@ -5,6 +5,7 @@ mod engine;
 mod indicators;
 mod mtf_analysis;
 mod ml_filter;
+mod order_block;
 mod policy;
 mod safemode;
 mod state;

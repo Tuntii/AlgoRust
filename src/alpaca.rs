@@ -453,85 +453,25 @@ pub fn get_exit_side(entry_side: &Side) -> Side {
     }
 }
 
-/// Calculate SL/TP based on pivots and risk/reward
-/// Extracted from backtest/runner.rs for reusability
+/// Calculate SL/TP based on Order Blocks (Smart Money TP/SL)
+/// Fallback: pivot seviyeleri ve ATR tabanlı hesaplama
 fn calculate_sl_tp(
     signal: &TradeSignal,
     ctx: &SymbolContext,
     entry: Decimal,
 ) -> (Decimal, Decimal) {
-    let default_rr = Decimal::from_f64(1.5).unwrap();
-    let min_profit_pct = Decimal::from_f64(0.005).unwrap(); // Min 0.5% profit target
+    let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
 
-    match signal.signal {
-        SignalType::LONG => {
-            // SL = Last Swing Low, or 1% below entry
-            let sl = ctx
-                .structure
-                .last_pivot_low
-                .unwrap_or(entry * Decimal::from_f64(0.99).unwrap());
-
-            // Safety: Minimum 0.2% distance if SL too close
-            let safe_sl = if (entry - sl) / entry < Decimal::from_f64(0.002).unwrap() {
-                entry * Decimal::from_f64(0.995).unwrap()
-            } else {
-                sl
-            };
-
-            let risk = entry - safe_sl;
-
-            // TP STRATEGY: Pivot-Based Target
-            // Target: Nearest Pivot High above entry
-            let mut target_tp = None;
-            let mut best_tp = Decimal::MAX;
-
-            for &pivot in &ctx.pivot_high_history {
-                // Pivot must be at least 0.5% above entry
-                if pivot > entry * (Decimal::ONE + min_profit_pct) {
-                    if pivot < best_tp {
-                        best_tp = pivot;
-                        target_tp = Some(pivot);
-                    }
-                }
-            }
-
-            let tp = target_tp.unwrap_or_else(|| entry + (risk * default_rr));
-            (safe_sl, tp)
-        }
-        SignalType::SHORT => {
-            // SL = Last Swing High, or 1% above entry
-            let sl = ctx
-                .structure
-                .last_pivot_high
-                .unwrap_or(entry * Decimal::from_f64(1.01).unwrap());
-
-            let safe_sl = if (sl - entry) / entry < Decimal::from_f64(0.002).unwrap() {
-                entry * Decimal::from_f64(1.005).unwrap()
-            } else {
-                sl
-            };
-
-            let risk = safe_sl - entry;
-
-            // TP STRATEGY: Pivot-Based Target
-            // Target: Nearest Pivot Low below entry
-            let mut target_tp = None;
-            let mut best_tp = Decimal::MIN;
-
-            for &pivot in &ctx.pivot_low_history {
-                // Pivot must be at least 0.5% below entry
-                if pivot < entry * (Decimal::ONE - min_profit_pct) {
-                    if pivot > best_tp {
-                        best_tp = pivot;
-                        target_tp = Some(pivot);
-                    }
-                }
-            }
-
-            let tp = target_tp.unwrap_or_else(|| entry - (risk * default_rr));
-            (safe_sl, tp)
-        }
-    }
+    // ORDER BLOCK TABANLI TP/SL
+    ctx.ob_tracker.calculate_ob_sl_tp(
+        &signal.signal,
+        entry,
+        atr,
+        ctx.structure.last_pivot_low,
+        ctx.structure.last_pivot_high,
+        &ctx.pivot_high_history,
+        &ctx.pivot_low_history,
+    )
 }
 
 /// Convert Binance symbol format to Alpaca format
