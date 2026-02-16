@@ -3,11 +3,9 @@ mod backtest;
 mod connect;
 mod engine;
 mod indicators;
-mod mtf_analysis;
 mod ml_filter;
 mod order_block;
 mod policy;
-mod safemode;
 mod state;
 mod types;
 mod alpaca;
@@ -32,6 +30,8 @@ struct AppSettings {
     app: AppConfig,
     trading: TradingConfig,
     backtest: Option<BacktestConfig>,
+    #[serde(default)]
+    binance: connect::BinanceSettings,
     #[serde(default)]
     ml: Option<MlConfig>,
 }
@@ -69,7 +69,7 @@ fn default_csv_symbol() -> String {
     "BTCUSDT".to_string()
 }
 fn default_csv_timeframe() -> String {
-    "1h".to_string()
+    "1m".to_string()
 }
 
 fn default_exit_mode() -> String {
@@ -133,6 +133,7 @@ async fn main() -> anyhow::Result<()> {
         .add_source(config::File::with_name("config"))
         .build()?;
     let conf: AppSettings = settings.try_deserialize()?;
+    info!("Binance market: {}", conf.binance.market_name());
 
     info!(
         "Ayarlar yüklendi: {} pairs izleniyor. MOD: {}",
@@ -168,6 +169,7 @@ async fn main() -> anyhow::Result<()> {
                 &bt_conf.exit_mode,
                 bt_conf.send_alpaca_signals,
                 &bt_conf.output_dir,
+                &conf.binance,
                 lstm_filter.clone(),
                 lstm_mode,
             )
@@ -186,7 +188,7 @@ async fn main() -> anyhow::Result<()> {
     }
     engine.set_lstm_mode(load_lstm_mode(&conf.ml));
     let mut contexts: HashMap<String, SymbolContext> = HashMap::new();
-    let client = connect::BinanceClient::new();
+    let client = connect::BinanceClient::with_settings(&conf.binance);
 
     // Initialize Alpaca client if execute_trades is enabled
     let alpaca_client = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
@@ -283,7 +285,7 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         info!("WebSocket başlatılıyor...");
-        match connect::connect_stream(&conf.trading.symbols, &conf.trading.timeframes).await {
+        match connect::connect_stream(&conf.trading.symbols, &conf.trading.timeframes, &conf.binance).await {
             Ok(mut ws_stream) => {
                 info!("✅ Bağlantı başarılı. Sinyaller bekleniyor...");
 
@@ -369,7 +371,7 @@ async fn main() -> anyhow::Result<()> {
                                                             let entry_price = signal.price;
                                                             
                                                             // Build a temporary order to get SL/TP for position sizing
-                                                            let (temp_order, sl_price, tp_price) = alpaca::build_market_entry_order(&signal, ctx, rust_decimal::Decimal::ZERO);
+                                                            let (_temp_order, sl_price, _tp_price) = alpaca::build_market_entry_order(&signal, ctx, rust_decimal::Decimal::ZERO);
                                                             
                                                             // Calculate dynamic position size
                                                             match alpaca.calculate_position_size(
@@ -432,7 +434,7 @@ async fn main() -> anyhow::Result<()> {
                                         }
                                     }
                                 }
-                                Err(e) => {
+                                Err(_e) => {
                                     // Keepalive veya diğer mesajlar olabilir
                                     // error!("JSON parse error: {}", e);
                                 }
@@ -495,3 +497,5 @@ fn load_lstm_mode(config: &Option<MlConfig>) -> LstmMode {
         _ => LstmMode::Filter,
     }
 }
+
+

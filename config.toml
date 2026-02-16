@@ -1,8 +1,18 @@
 [app]
 # Başlangıç modu: "live" veya "backtest"
-mode = "backtest" 
+mode = "live" 
 bootstrap_limit = 10000
 auto_reconnect = true
+
+[binance]
+# true: Binance USD-M futures (fapi/fstream), false: spot (api/stream)
+use_futures = true
+# Optional: API credentials (needed for private endpoints/order APIs)
+api_key = ""
+api_secret = ""
+# Optional URL overrides
+# rest_base_url = "https://fapi.binance.com"
+# ws_base_url = "wss://fstream.binance.com"
 
 [backtest]
 output_dir = "backtest_results"
@@ -12,17 +22,17 @@ send_alpaca_signals = false
 # Local CSV backtest (optional - comment out to use Binance API)
 # csv_file = "backtest_results/bitcoin_prices_all_time.csv"
 # csv_symbol = "BTCUSDT"
-# csv_timeframe = "1h"
+# csv_timeframe = "1m"
 
 [trading]
-# PHASE A: Active scalping pairs (15m/30m/1h)
+# 1m only mode
 symbols = ["BTCUSDT", "ETHUSDT"]
-timeframes = ["15m", "30m", "1h"]
+timeframes = ["1m"]
 # Live trade execution control
 execute_trades = true
 # Paper trading (simulated trading without real money)
 use_paper_trader = true
-paper_initial_balance = 100000.0
+paper_initial_balance = 300.0
 paper_state_file = "paper_trader_state.json"
 
 [indicators]

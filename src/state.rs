@@ -9,6 +9,11 @@ use std::collections::VecDeque;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 
+const SUPERKAMA_LENGTH: usize = 2584;
+const SUPERKAMA_FAST_PERIOD: usize = 34;
+const SUPERKAMA_SLOW_PERIOD: usize = 55;
+const SUPERKAMA_ATR_PERIOD: usize = 33;
+
 pub struct SymbolContext {
     pub symbol: String,
     pub timeframe: String,
@@ -24,6 +29,7 @@ pub struct SymbolContext {
 
     pub atr_14: Atr,
     pub rsi_14: Rsi, // RSI Indicator
+    pub superkama_atr: Atr,
 
     // Pine strategy indicators (15m optimized)
     pub kama_10: Kama,
@@ -34,6 +40,7 @@ pub struct SymbolContext {
     pub stoch_rsi_10: StochRsi,
 
     pub kama_10_series: VecDeque<Decimal>,
+    pub superkama_atr_series: VecDeque<Decimal>,
     pub rsi_10_series: VecDeque<Option<Decimal>>,
     pub stoch_k_series: VecDeque<Option<Decimal>>,
 
@@ -44,6 +51,12 @@ pub struct SymbolContext {
     pub pine_ema_cross_above: bool,
     pub pine_ema_cross_below: bool,
     pub pine_ema_above_kama: Option<bool>,
+    pub pine_upper_band: Option<Decimal>,
+    pub pine_lower_band: Option<Decimal>,
+    pub pine_buy_signal: bool,
+    pub pine_sell_signal: bool,
+    pub pine_strong_buy: bool,
+    pub pine_strong_sell: bool,
     pub pine_kama_long_filter: bool,
     pub pine_kama_short_filter: bool,
     pub pine_kama_quality_score: i32,
@@ -55,21 +68,6 @@ pub struct SymbolContext {
     pub pine_rsi_bearish_div: bool,
     pub pine_stoch_bullish_div: bool,
     pub pine_stoch_bearish_div: bool,
-
-    pub pine_last_price_high: Option<Decimal>,
-    pub pine_last_price_low: Option<Decimal>,
-    pub pine_last_price_high_bar: Option<usize>,
-    pub pine_last_price_low_bar: Option<usize>,
-
-    pub pine_last_rsi_high: Option<Decimal>,
-    pub pine_last_rsi_low: Option<Decimal>,
-    pub pine_last_rsi_high_bar: Option<usize>,
-    pub pine_last_rsi_low_bar: Option<usize>,
-
-    pub pine_last_stoch_high: Option<Decimal>,
-    pub pine_last_stoch_low: Option<Decimal>,
-    pub pine_last_stoch_high_bar: Option<usize>,
-    pub pine_last_stoch_low_bar: Option<usize>,
 
     pub atr_ratio_history: VecDeque<Decimal>, // Median ATR hesaplamak için tarihçe
     pub ema_50_slope_history: VecDeque<Decimal>, // EMA50 tarihçesi eğim hesabı için
@@ -130,13 +128,19 @@ impl SymbolContext {
             ema_200: Ema::new(200),
             atr_14: Atr::new(14),
             rsi_14: Rsi::new(14),
-            kama_10: Kama::new(10, 2, 20),
+            kama_10: Kama::new(
+                SUPERKAMA_LENGTH,
+                SUPERKAMA_FAST_PERIOD,
+                SUPERKAMA_SLOW_PERIOD,
+            ),
             macd_8_21_5: Macd::new(8, 21, 5),
             adx_10_10: Adx::new(10, 10),
             atr_10: Atr::new(10),
             rsi_10: Rsi::new(10),
             stoch_rsi_10: StochRsi::new(10, 3, 3),
+            superkama_atr: Atr::new(SUPERKAMA_ATR_PERIOD),
             kama_10_series: VecDeque::new(),
+            superkama_atr_series: VecDeque::new(),
             rsi_10_series: VecDeque::new(),
             stoch_k_series: VecDeque::new(),
             pine_supertrend: None,
@@ -146,6 +150,12 @@ impl SymbolContext {
             pine_ema_cross_above: false,
             pine_ema_cross_below: false,
             pine_ema_above_kama: None,
+            pine_upper_band: None,
+            pine_lower_band: None,
+            pine_buy_signal: false,
+            pine_sell_signal: false,
+            pine_strong_buy: false,
+            pine_strong_sell: false,
             pine_kama_long_filter: false,
             pine_kama_short_filter: false,
             pine_kama_quality_score: 0,
@@ -156,18 +166,6 @@ impl SymbolContext {
             pine_rsi_bearish_div: false,
             pine_stoch_bullish_div: false,
             pine_stoch_bearish_div: false,
-            pine_last_price_high: None,
-            pine_last_price_low: None,
-            pine_last_price_high_bar: None,
-            pine_last_price_low_bar: None,
-            pine_last_rsi_high: None,
-            pine_last_rsi_low: None,
-            pine_last_rsi_high_bar: None,
-            pine_last_rsi_low_bar: None,
-            pine_last_stoch_high: None,
-            pine_last_stoch_low: None,
-            pine_last_stoch_high_bar: None,
-            pine_last_stoch_low_bar: None,
             just_confirmed_pivot_high: false,
             just_confirmed_pivot_low: false,
             current_divergence: DivergenceType::None,
@@ -240,17 +238,6 @@ impl SymbolContext {
         (*current - *old) / *old
     }
     
-    // T5.2: Get average ATR for regime determination
-    pub fn get_avg_atr(&self) -> Decimal {
-        if let Some(atr) = self.atr_14.current_value {
-            // Simple approximation using current ATR as baseline
-            // In production, could track ATR history for better average
-            atr
-        } else {
-            Decimal::ZERO
-        }
-    }
-
     pub fn add_candle(&mut self, candle: Candle) {
         // Increment total candles counter (for cooldown tracking)
         self.total_candles_processed += 1;
@@ -267,6 +254,12 @@ impl SymbolContext {
         self.pine_trend_changed_bearish = false;
         self.pine_ema_cross_above = false;
         self.pine_ema_cross_below = false;
+        self.pine_upper_band = None;
+        self.pine_lower_band = None;
+        self.pine_buy_signal = false;
+        self.pine_sell_signal = false;
+        self.pine_strong_buy = false;
+        self.pine_strong_sell = false;
         self.pine_kama_long_filter = false;
         self.pine_kama_short_filter = false;
         self.pine_kama_quality_score = 0;
@@ -296,6 +289,15 @@ impl SymbolContext {
         let rsi_10_val = self.rsi_10.update(candle.close);
         self.rsi_10_series.push_back(rsi_10_val);
         if self.rsi_10_series.len() > 2000 { self.rsi_10_series.pop_front(); }
+        if let Some(sk_atr) = self
+            .superkama_atr
+            .update(candle.high, candle.low, candle.close)
+        {
+            self.superkama_atr_series.push_back(sk_atr);
+            if self.superkama_atr_series.len() > 2000 {
+                self.superkama_atr_series.pop_front();
+            }
+        }
 
         let stoch_update = if let Some(rsi_val) = rsi_10_val {
             self.stoch_rsi_10.update(rsi_val)
@@ -369,7 +371,7 @@ impl SymbolContext {
 
         self.update_structure();
 
-        // Pine SuperTrend + EMAxKAMA cross + divergence
+        // SuperKAMA state (trend + crossover + band signals)
         self.update_pine_state(close, cur_kama);
         
         // T0.2 — Update Bootstrap State (TF-aware)
@@ -475,379 +477,125 @@ impl SymbolContext {
     }
 
     fn update_pine_state(&mut self, close: Decimal, kama: Decimal) {
-        let ema = match self.ema_13.current_value {
+        // indicator.pine parity:
+        // upper/lower bands = KAMA +/- ATR(33) * 1.0
+        let atr = match self.superkama_atr.current_value {
             Some(val) => val,
             None => return,
         };
-        let atr = match self.atr_10.current_value {
-            Some(val) => val,
-            None => return,
-        };
-        let macd_hist = match self.macd_8_21_5.hist {
-            Some(val) => val,
-            None => return,
-        };
-        let adx = match self.adx_10_10.adx {
-            Some(val) => val,
-            None => return,
-        };
+        let atr_multiplier = Decimal::ONE;
+        let upper_band = kama + atr * atr_multiplier;
+        let lower_band = kama - atr * atr_multiplier;
 
-        let macd_weight_k = Decimal::from_f64(0.5).unwrap();
-        let weight_min = Decimal::from_f64(0.3).unwrap();
-        let weight_max = Decimal::from_f64(0.7).unwrap();
-        let adx_threshold = Decimal::from_f64(18.0).unwrap();
-        let adx_weight_k = Decimal::from_f64(0.5).unwrap();
-        let atr_multiplier = Decimal::from_f64(2.0).unwrap();
+        self.pine_upper_band = Some(upper_band);
+        self.pine_lower_band = Some(lower_band);
+        // Keep legacy field populated for compatibility with existing report/exit plumbing.
+        self.pine_supertrend = Some(kama);
 
-        let macd_hist_norm = if close.is_zero() { Decimal::ZERO } else { macd_hist / close };
-        let ema_weight_raw = Decimal::from_f64(0.5).unwrap() + macd_weight_k * macd_hist_norm;
-        let mut ema_weight = ema_weight_raw.clamp(weight_min, weight_max);
-
-        let adx_factor = if adx > adx_threshold {
-            Decimal::ONE + adx_weight_k * ((adx - adx_threshold) / adx_threshold)
+        let prev_close = if self.candles.len() >= 2 {
+            self.candles.get(self.candles.len() - 2).map(|c| c.close)
         } else {
-            Decimal::ONE
+            None
         };
-        ema_weight = (ema_weight * adx_factor).clamp(weight_min, weight_max);
+        let prev_kama = if self.kama_10_series.len() >= 2 {
+            self.kama_10_series.get(self.kama_10_series.len() - 2).copied()
+        } else {
+            None
+        };
+        let prev_atr = if self.superkama_atr_series.len() >= 2 {
+            self.superkama_atr_series
+                .get(self.superkama_atr_series.len() - 2)
+                .copied()
+        } else {
+            None
+        };
 
-        let hybrid_base = ema * ema_weight + kama * (Decimal::ONE - ema_weight);
-        let st_upper = hybrid_base + atr * atr_multiplier;
-        let st_lower = hybrid_base - atr * atr_multiplier;
+        let kama_rising = prev_kama.as_ref().map(|prev| kama > *prev).unwrap_or(false);
+        let kama_falling = prev_kama.as_ref().map(|prev| kama < *prev).unwrap_or(false);
+        let price_above_kama = close > kama;
+        let price_below_kama = close < kama;
+
+        let bullish_trend = kama_rising && price_above_kama;
+        let bearish_trend = kama_falling && price_below_kama;
 
         let prev_trend = self.pine_trend;
-        if self.pine_supertrend.is_none() {
-            self.pine_trend = if close > hybrid_base { 1 } else { -1 };
-            self.pine_supertrend = Some(if self.pine_trend == 1 { st_lower } else { st_upper });
-        } else if self.pine_trend == 1 {
-            if close < st_lower {
-                self.pine_trend = -1;
-                self.pine_supertrend = Some(st_upper);
+        self.pine_trend = if bullish_trend {
+            1
+        } else if bearish_trend {
+            -1
+        } else {
+            0
+        };
+        self.pine_trend_changed_bullish = self.pine_trend == 1 && prev_trend != 1;
+        self.pine_trend_changed_bearish = self.pine_trend == -1 && prev_trend != -1;
+
+        let buy_signal = if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
+            close > kama && *prev_c <= *prev_k && kama_rising
+        } else {
+            false
+        };
+        let sell_signal = if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
+            close < kama && *prev_c >= *prev_k && kama_falling
+        } else {
+            false
+        };
+
+        let (strong_buy, strong_sell) = if let (Some(prev_c), Some(prev_k), Some(prev_a)) =
+            (prev_close.as_ref(), prev_kama.as_ref(), prev_atr.as_ref())
+        {
+            let prev_upper = *prev_k + *prev_a * atr_multiplier;
+            let prev_lower = *prev_k - *prev_a * atr_multiplier;
+            (
+                close > lower_band && *prev_c <= prev_lower && kama_rising,
+                close < upper_band && *prev_c >= prev_upper && kama_falling,
+            )
+        } else {
+            (false, false)
+        };
+
+        self.pine_buy_signal = buy_signal;
+        self.pine_sell_signal = sell_signal;
+        self.pine_strong_buy = strong_buy;
+        self.pine_strong_sell = strong_sell;
+
+        // Legacy aliases consumed by existing engine wiring.
+        self.pine_ema_cross_above = buy_signal;
+        self.pine_ema_cross_below = sell_signal;
+        self.pine_ema_above_kama = Some(price_above_kama);
+        self.pine_kama_long_filter = kama_rising;
+        self.pine_kama_short_filter = kama_falling;
+
+        self.pine_kama_slope_norm = if let Some(prev) = prev_kama.as_ref() {
+            if atr.is_zero() {
+                Some(Decimal::ZERO)
             } else {
-                let prev = self.pine_supertrend.unwrap_or(st_lower);
-                self.pine_supertrend = Some(if st_lower > prev { st_lower } else { prev });
+                Some((kama - *prev) / atr)
             }
-        } else if close > st_upper {
-            self.pine_trend = 1;
-            self.pine_supertrend = Some(st_lower);
         } else {
-            let prev = self.pine_supertrend.unwrap_or(st_upper);
-            self.pine_supertrend = Some(if st_upper < prev { st_upper } else { prev });
-        }
+            Some(Decimal::ZERO)
+        };
 
-        self.pine_trend_changed_bullish = self.pine_trend == 1 && prev_trend == -1;
-        self.pine_trend_changed_bearish = self.pine_trend == -1 && prev_trend == 1;
-
-        let ema_above_kama = ema > kama;
-        if let Some(prev) = self.pine_ema_above_kama {
-            self.pine_ema_cross_above = !prev && ema_above_kama;
-            self.pine_ema_cross_below = prev && !ema_above_kama;
-        }
-        self.pine_ema_above_kama = Some(ema_above_kama);
-
-        // KAMA Quality Filter (15m-optimized):
-        // 1) Trend alignment, 2) KAMA slope strength, 3) ADX trend strength,
-        // 4) Reasonable distance from KAMA (avoid overextended entries),
-        // 5) RSI regime, 6) Momentum confirmation.
-        let slope_lookback = 4usize;
-        let kama_prev = if self.kama_10_series.len() > slope_lookback {
-            let idx = self.kama_10_series.len() - 1 - slope_lookback;
-            self.kama_10_series.get(idx).copied().unwrap_or(kama)
+        self.pine_kama_quality_score = if strong_buy {
+            2
+        } else if strong_sell {
+            -2
+        } else if buy_signal {
+            1
+        } else if sell_signal {
+            -1
         } else {
-            kama
-        };
-        let slope_norm = if atr.is_zero() {
-            Decimal::ZERO
-        } else {
-            (kama - kama_prev) / atr
-        };
-        self.pine_kama_slope_norm = Some(slope_norm);
-
-        let dist_from_kama = if atr.is_zero() {
-            Decimal::ZERO
-        } else {
-            (close - kama) / atr
+            0
         };
 
-        let slope_threshold = Decimal::from_f64(0.12).unwrap();
-        let adx_threshold = Decimal::from_f64(18.0).unwrap();
-        let max_extension = Decimal::from_f64(1.8).unwrap();
-        let long_pullback_min = Decimal::from_f64(-0.6).unwrap();
-        let short_pullback_max = Decimal::from_f64(0.6).unwrap();
-
-        let long_rsi_min = Decimal::from_f64(46.0).unwrap();
-        let long_rsi_max = Decimal::from_f64(70.0).unwrap();
-        let short_rsi_min = Decimal::from_f64(30.0).unwrap();
-        let short_rsi_max = Decimal::from_f64(54.0).unwrap();
-
-        let trend_long = close > kama && ema > kama && self.pine_trend == 1;
-        let trend_short = close < kama && ema < kama && self.pine_trend == -1;
-        let slope_long = slope_norm >= slope_threshold;
-        let slope_short = slope_norm <= -slope_threshold;
-        let adx_ok = adx >= adx_threshold;
-        let long_distance_ok = dist_from_kama >= long_pullback_min && dist_from_kama <= max_extension;
-        let short_distance_ok = dist_from_kama <= short_pullback_max && dist_from_kama >= -max_extension;
-        let long_rsi_ok = self
-            .rsi_10
-            .current_value
-            .map(|v| v >= long_rsi_min && v <= long_rsi_max)
-            .unwrap_or(false);
-        let short_rsi_ok = self
-            .rsi_10
-            .current_value
-            .map(|v| v >= short_rsi_min && v <= short_rsi_max)
-            .unwrap_or(false);
-        let long_momentum_ok = macd_hist >= Decimal::ZERO;
-        let short_momentum_ok = macd_hist <= Decimal::ZERO;
-
-        let long_score = (if trend_long { 1 } else { 0 })
-            + (if slope_long { 1 } else { 0 })
-            + (if adx_ok { 1 } else { 0 })
-            + (if long_distance_ok { 1 } else { 0 })
-            + (if long_rsi_ok { 1 } else { 0 })
-            + (if long_momentum_ok { 1 } else { 0 });
-        let short_score = (if trend_short { 1 } else { 0 })
-            + (if slope_short { 1 } else { 0 })
-            + (if adx_ok { 1 } else { 0 })
-            + (if short_distance_ok { 1 } else { 0 })
-            + (if short_rsi_ok { 1 } else { 0 })
-            + (if short_momentum_ok { 1 } else { 0 });
-
-        self.pine_kama_long_filter = trend_long && slope_long && long_score >= 4;
-        self.pine_kama_short_filter = trend_short && slope_short && short_score >= 4;
-        self.pine_kama_quality_score = if self.pine_kama_long_filter {
-            long_score
-        } else if self.pine_kama_short_filter {
-            -short_score
-        } else {
-            long_score - short_score
-        };
-
-        let lookback_left = 5usize;
-        let lookback_right = 5usize;
-        let max_div_range = 30usize;
-        let rsi_div_min_pct = Decimal::from_f64(4.0).unwrap();
-        let stoch_div_min_pct = Decimal::from_f64(4.0).unwrap();
-
-        if self.candles.len() <= lookback_left + lookback_right {
-            return;
-        }
-
-        let pivot_idx = self.candles.len() - 1 - lookback_right;
-        if pivot_idx < lookback_left {
-            return;
-        }
-
-        let highs: Vec<_> = self.candles.iter().map(|c| c.high).collect();
-        let lows: Vec<_> = self.candles.iter().map(|c| c.low).collect();
-
-        let price_pivot_high = Self::is_pivot_high_lr(&highs, pivot_idx, lookback_left, lookback_right);
-        let price_pivot_low = Self::is_pivot_low_lr(&lows, pivot_idx, lookback_left, lookback_right);
-
-        let rsi_pivot_high = Self::is_pivot_high_opt(&self.rsi_10_series, pivot_idx, lookback_left, lookback_right);
-        let rsi_pivot_low = Self::is_pivot_low_opt(&self.rsi_10_series, pivot_idx, lookback_left, lookback_right);
-
-        let stoch_pivot_high = Self::is_pivot_high_opt(&self.stoch_k_series, pivot_idx, lookback_left, lookback_right);
-        let stoch_pivot_low = Self::is_pivot_low_opt(&self.stoch_k_series, pivot_idx, lookback_left, lookback_right);
-
-        let pivot_bar = self.total_candles_processed.saturating_sub(lookback_right);
-
-        let prev_price_high = self.pine_last_price_high;
-        let prev_price_low = self.pine_last_price_low;
-        let prev_price_high_bar = self.pine_last_price_high_bar;
-        let prev_price_low_bar = self.pine_last_price_low_bar;
-
-        let prev_rsi_high = self.pine_last_rsi_high;
-        let prev_rsi_low = self.pine_last_rsi_low;
-        let prev_stoch_high = self.pine_last_stoch_high;
-        let prev_stoch_low = self.pine_last_stoch_low;
-
-        if price_pivot_high {
-            self.pine_last_price_high = Some(highs[pivot_idx]);
-            self.pine_last_price_high_bar = Some(pivot_bar);
-        }
-        if price_pivot_low {
-            self.pine_last_price_low = Some(lows[pivot_idx]);
-            self.pine_last_price_low_bar = Some(pivot_bar);
-        }
-
-        if rsi_pivot_high {
-            if let Some(val) = Self::series_value(&self.rsi_10_series, pivot_idx) {
-                self.pine_last_rsi_high = Some(val);
-                self.pine_last_rsi_high_bar = Some(pivot_bar);
-            }
-        }
-        if rsi_pivot_low {
-            if let Some(val) = Self::series_value(&self.rsi_10_series, pivot_idx) {
-                self.pine_last_rsi_low = Some(val);
-                self.pine_last_rsi_low_bar = Some(pivot_bar);
-            }
-        }
-
-        if stoch_pivot_high {
-            if let Some(val) = Self::series_value(&self.stoch_k_series, pivot_idx) {
-                self.pine_last_stoch_high = Some(val);
-                self.pine_last_stoch_high_bar = Some(pivot_bar);
-            }
-        }
-        if stoch_pivot_low {
-            if let Some(val) = Self::series_value(&self.stoch_k_series, pivot_idx) {
-                self.pine_last_stoch_low = Some(val);
-                self.pine_last_stoch_low_bar = Some(pivot_bar);
-            }
-        }
-
-        if price_pivot_low {
-            if let (Some(prev_price), Some(prev_bar), Some(prev_rsi)) = (prev_price_low, prev_price_low_bar, prev_rsi_low) {
-                let bars_since = pivot_bar.saturating_sub(prev_bar);
-                if bars_since > 0 && bars_since <= max_div_range {
-                    let price_ll = lows[pivot_idx] < prev_price;
-                    let rsi_hl = if let Some(curr_rsi) = Self::series_value(&self.rsi_10_series, pivot_idx) {
-                        curr_rsi > prev_rsi
-                    } else {
-                        false
-                    };
-                    if prev_rsi != Decimal::ZERO {
-                        let rsi_diff_pct = (Self::series_value(&self.rsi_10_series, pivot_idx).unwrap_or(prev_rsi) - prev_rsi)
-                            / prev_rsi * Decimal::from(100);
-                        self.pine_rsi_bullish_div = price_ll && rsi_hl && rsi_diff_pct > rsi_div_min_pct;
-                    }
-                }
-            }
-
-            if let (Some(prev_price), Some(prev_bar), Some(prev_stoch)) = (prev_price_low, prev_price_low_bar, prev_stoch_low) {
-                let bars_since = pivot_bar.saturating_sub(prev_bar);
-                if bars_since > 0 && bars_since <= max_div_range {
-                    let price_ll = lows[pivot_idx] < prev_price;
-                    let stoch_hl = if let Some(curr_stoch) = Self::series_value(&self.stoch_k_series, pivot_idx) {
-                        curr_stoch > prev_stoch
-                    } else {
-                        false
-                    };
-                    let denom = if prev_stoch.is_zero() { Decimal::from_f64(0.01).unwrap() } else { prev_stoch };
-                    let stoch_diff_pct = (Self::series_value(&self.stoch_k_series, pivot_idx).unwrap_or(prev_stoch) - prev_stoch)
-                        / denom * Decimal::from(100);
-                    self.pine_stoch_bullish_div = price_ll && stoch_hl && stoch_diff_pct > stoch_div_min_pct;
-                }
-            }
-        }
-
-        if price_pivot_high {
-            if let (Some(prev_price), Some(prev_bar), Some(prev_rsi)) = (prev_price_high, prev_price_high_bar, prev_rsi_high) {
-                let bars_since = pivot_bar.saturating_sub(prev_bar);
-                if bars_since > 0 && bars_since <= max_div_range {
-                    let price_hh = highs[pivot_idx] > prev_price;
-                    let rsi_lh = if let Some(curr_rsi) = Self::series_value(&self.rsi_10_series, pivot_idx) {
-                        curr_rsi < prev_rsi
-                    } else {
-                        false
-                    };
-                    if prev_rsi != Decimal::ZERO {
-                        let rsi_diff_pct = (prev_rsi - Self::series_value(&self.rsi_10_series, pivot_idx).unwrap_or(prev_rsi))
-                            / prev_rsi * Decimal::from(100);
-                        self.pine_rsi_bearish_div = price_hh && rsi_lh && rsi_diff_pct > rsi_div_min_pct;
-                    }
-                }
-            }
-
-            if let (Some(prev_price), Some(prev_bar), Some(prev_stoch)) = (prev_price_high, prev_price_high_bar, prev_stoch_high) {
-                let bars_since = pivot_bar.saturating_sub(prev_bar);
-                if bars_since > 0 && bars_since <= max_div_range {
-                    let price_hh = highs[pivot_idx] > prev_price;
-                    let stoch_lh = if let Some(curr_stoch) = Self::series_value(&self.stoch_k_series, pivot_idx) {
-                        curr_stoch < prev_stoch
-                    } else {
-                        false
-                    };
-                    let denom = if prev_stoch.is_zero() { Decimal::from_f64(0.01).unwrap() } else { prev_stoch };
-                    let stoch_diff_pct = (prev_stoch - Self::series_value(&self.stoch_k_series, pivot_idx).unwrap_or(prev_stoch))
-                        / denom * Decimal::from(100);
-                    self.pine_stoch_bearish_div = price_hh && stoch_lh && stoch_diff_pct > stoch_div_min_pct;
-                }
-            }
-        }
-
-        self.pine_bullish_div = self.pine_rsi_bullish_div || self.pine_stoch_bullish_div;
-        self.pine_bearish_div = self.pine_rsi_bearish_div || self.pine_stoch_bearish_div;
+        // This indicator does not include divergence logic.
+        self.pine_bullish_div = false;
+        self.pine_bearish_div = false;
+        self.pine_rsi_bullish_div = false;
+        self.pine_rsi_bearish_div = false;
+        self.pine_stoch_bullish_div = false;
+        self.pine_stoch_bearish_div = false;
     }
 
-    fn is_pivot_high_lr(values: &[Decimal], idx: usize, left: usize, right: usize) -> bool {
-        if idx < left || idx + right >= values.len() {
-            return false;
-        }
-        let current = values[idx];
-        values[idx - left..idx].iter().all(|&v| v < current)
-            && values[idx + 1..=idx + right].iter().all(|&v| v < current)
-    }
-
-    fn is_pivot_low_lr(values: &[Decimal], idx: usize, left: usize, right: usize) -> bool {
-        if idx < left || idx + right >= values.len() {
-            return false;
-        }
-        let current = values[idx];
-        values[idx - left..idx].iter().all(|&v| v > current)
-            && values[idx + 1..=idx + right].iter().all(|&v| v > current)
-    }
-
-    fn is_pivot_high_opt(
-        values: &VecDeque<Option<Decimal>>,
-        idx: usize,
-        left: usize,
-        right: usize,
-    ) -> bool {
-        if idx < left || idx + right >= values.len() {
-            return false;
-        }
-        let current = match values.get(idx).and_then(|v| *v) {
-            Some(val) => val,
-            None => return false,
-        };
-        for i in idx - left..=idx + right {
-            if i == idx {
-                continue;
-            }
-            if let Some(val) = values.get(i).and_then(|v| *v) {
-                if val >= current {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn is_pivot_low_opt(
-        values: &VecDeque<Option<Decimal>>,
-        idx: usize,
-        left: usize,
-        right: usize,
-    ) -> bool {
-        if idx < left || idx + right >= values.len() {
-            return false;
-        }
-        let current = match values.get(idx).and_then(|v| *v) {
-            Some(val) => val,
-            None => return false,
-        };
-        for i in idx - left..=idx + right {
-            if i == idx {
-                continue;
-            }
-            if let Some(val) = values.get(i).and_then(|v| *v) {
-                if val <= current {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn series_value(values: &VecDeque<Option<Decimal>>, idx: usize) -> Option<Decimal> {
-        values.get(idx).and_then(|v| *v)
-    }
-    
     /// Equal high/low tespiti: Son pivot'lar arasında %0.15 toleransla eşit seviye var mı?
     fn check_equal_levels(&self, pivots: &VecDeque<Decimal>) -> bool {
         if pivots.len() < 2 { return false; }

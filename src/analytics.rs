@@ -2,11 +2,10 @@
 // ANALYTICS MODULE — Phase 5 Backtest Analytics + Phase 6 Production Metrics
 // ============================================================================
 
-use rust_decimal::Decimal;
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::types::{RegimeContext, TradeSignal};
+use crate::types::RegimeContext;
 
 // =============================================================================
 // BLOCK STATISTICS TRACKER
@@ -48,34 +47,6 @@ pub struct BlockStats {
 impl BlockStats {
     pub fn new() -> Self {
         Self::default()
-    }
-    
-    pub fn merge(&mut self, other: &BlockStats) {
-        self.wick_trap_blocks += other.wick_trap_blocks;
-        self.flat_ema_blocks += other.flat_ema_blocks;
-        self.low_atr_blocks += other.low_atr_blocks;
-        self.bootstrap_incomplete += other.bootstrap_incomplete;
-        self.cooldown_blocks += other.cooldown_blocks;
-        self.open_trade_blocks += other.open_trade_blocks;
-        self.score_too_low += other.score_too_low;
-        self.policy_blocked += other.policy_blocked;
-        self.lstm_filtered += other.lstm_filtered;
-        self.total_evaluations += other.total_evaluations;
-        self.total_signals_generated += other.total_signals_generated;
-        // Multi-position blocks
-        self.max_trades_reached += other.max_trades_reached;
-        self.duplicate_context += other.duplicate_context;
-        self.hedge_blocked += other.hedge_blocked;
-        self.context_cooldown_blocks += other.context_cooldown_blocks;
-        // Phase 8 blocks
-        self.trend_saturation_blocks += other.trend_saturation_blocks;
-        self.weak_trade_replaced += other.weak_trade_replaced;
-        // Phase 9 stats
-        self.max_duration_exits += other.max_duration_exits;
-        self.be_applied_count += other.be_applied_count;
-        self.partial_tp_count += other.partial_tp_count;
-        // Phase 10 stats
-        self.kill_switch_triggered += other.kill_switch_triggered;
     }
     
     pub fn total_blocks(&self) -> u32 {
@@ -515,138 +486,6 @@ impl RegimeReport {
 }
 
 // =============================================================================
-// T4.1 — Centralized Penalty Engine
-// =============================================================================
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum PenaltyReason {
-    // Hard blocks (score → 0)
-    LowATR,
-    FlatSlope,
-    RecentSignal,
-    WickTrap,
-    BootstrapIncomplete,
-    
-    // Soft penalties
-    NoDisplacement,
-    NoLiquiditySweep,
-    AgainstMajorTrend,
-    WeakStructure,
-    LowVolume,
-    SessionOverlap,
-    HighSpread,
-    RecentVolatilitySpike,
-}
-
-impl PenaltyReason {
-    pub fn penalty_value(&self) -> i32 {
-        match self {
-            // Hard blocks
-            PenaltyReason::LowATR => -1000,
-            PenaltyReason::RecentSignal => -1000,
-            PenaltyReason::WickTrap => -1000,
-            PenaltyReason::BootstrapIncomplete => -1000,
-            
-            // Soft penalties (optimized for more signals)
-            PenaltyReason::FlatSlope => -25,           // Was hard block, now soft
-            PenaltyReason::NoDisplacement => -8,       // Was -15
-            PenaltyReason::NoLiquiditySweep => -5,     // Was -10
-            PenaltyReason::AgainstMajorTrend => -20,   // Unchanged (important)
-            PenaltyReason::WeakStructure => -6,        // Was -12
-            PenaltyReason::LowVolume => -4,            // Was -8
-            PenaltyReason::SessionOverlap => 0,        // Disabled
-            PenaltyReason::HighSpread => -10,          // Unchanged (important)
-            PenaltyReason::RecentVolatilitySpike => -8, // Was -15
-        }
-    }
-    
-    pub fn is_hard_block(&self) -> bool {
-        self.penalty_value() <= -1000
-    }
-    
-    pub fn description(&self) -> &'static str {
-        match self {
-            PenaltyReason::LowATR => "ATR too low (< 0.8× avg)",
-            PenaltyReason::FlatSlope => "EMA slope too flat",
-            PenaltyReason::RecentSignal => "Cooldown active",
-            PenaltyReason::WickTrap => "Wick trap detected",
-            PenaltyReason::BootstrapIncomplete => "Bootstrap period incomplete",
-            PenaltyReason::NoDisplacement => "No displacement candle",
-            PenaltyReason::NoLiquiditySweep => "No liquidity sweep",
-            PenaltyReason::AgainstMajorTrend => "Against major trend",
-            PenaltyReason::WeakStructure => "Weak market structure",
-            PenaltyReason::LowVolume => "Below average volume",
-            PenaltyReason::SessionOverlap => "Low-activity session",
-            PenaltyReason::HighSpread => "High spread detected",
-            PenaltyReason::RecentVolatilitySpike => "Recent volatility spike",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct PenaltyEngine {
-    pub penalties: Vec<PenaltyReason>,
-    pub base_score: i32,
-}
-
-impl PenaltyEngine {
-    pub fn new(base_score: i32) -> Self {
-        Self {
-            penalties: Vec::new(),
-            base_score,
-        }
-    }
-    
-    pub fn add_penalty(&mut self, reason: PenaltyReason) {
-        self.penalties.push(reason);
-    }
-    
-    pub fn has_hard_block(&self) -> bool {
-        self.penalties.iter().any(|p| p.is_hard_block())
-    }
-    
-    pub fn final_score(&self) -> i32 {
-        if self.has_hard_block() {
-            return 0;
-        }
-        
-        let total_penalty: i32 = self.penalties.iter().map(|p| p.penalty_value()).sum();
-        (self.base_score + total_penalty).max(0)
-    }
-    
-    pub fn penalty_reasons(&self) -> Vec<String> {
-        self.penalties.iter().map(|p| p.description().to_string()).collect()
-    }
-}
-
-// =============================================================================
-// T4.2 — Timeframe-Based Score Threshold
-// =============================================================================
-
-pub struct ScoreThreshold;
-
-impl ScoreThreshold {
-    /// Returns minimum score required for a signal on given timeframe
-    /// OPTIMIZED: Lowered thresholds to allow more signals while maintaining quality
-    pub fn min_score_for_tf(timeframe: &str) -> i32 {
-        match timeframe {
-            "5m" => 68,     // Keep high for noise
-            "15m" => 65,    // Tighten for win rate
-            "30m" => 60,
-            "1h" => 55,
-            "4h" => 55,
-            "1d" => 50,
-            _ => 58,
-        }
-    }
-    
-    /// Check if score meets threshold
-    pub fn passes_threshold(timeframe: &str, score: i32) -> bool {
-        score >= Self::min_score_for_tf(timeframe)
-    }
-}
-
-// =============================================================================
 // T6.1 — Confidence-Based Routing
 // =============================================================================
 
@@ -674,81 +513,4 @@ impl ConfidenceTier {
         }
     }
     
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ConfidenceTier::High => "high",
-            ConfidenceTier::Medium => "medium",
-            ConfidenceTier::Low => "low",
-        }
-    }
-}
-
-// =============================================================================
-// Regime Determination Helpers
-// =============================================================================
-
-impl RegimeContext {
-    pub fn determine(
-        current_atr: Decimal,
-        avg_atr: Decimal,
-        ema_slope: Decimal,
-        hour_utc: u32,
-    ) -> Self {
-        // ATR Regime
-        let atr_ratio = if avg_atr > Decimal::ZERO {
-            current_atr / avg_atr
-        } else {
-            Decimal::ONE
-        };
-        
-        let atr_regime = if atr_ratio < Decimal::new(8, 1) {
-            "low"
-        } else if atr_ratio > Decimal::new(15, 1) {
-            "high"
-        } else {
-            "normal"
-        }.to_string();
-        
-        // Slope Regime
-        let slope_abs = ema_slope.abs();
-        let slope_regime = if slope_abs < Decimal::new(1, 3) { // < 0.001
-            "flat"
-        } else if ema_slope > Decimal::ZERO {
-            "trending_up"
-        } else {
-            "trending_down"
-        }.to_string();
-        
-        // Session by UTC hour
-        let session = match hour_utc {
-            0..=7 => "asia",      // 00:00 - 07:59 UTC
-            8..=15 => "london",   // 08:00 - 15:59 UTC
-            16..=23 => "ny",      // 16:00 - 23:59 UTC
-            _ => "unknown",
-        }.to_string();
-        
-        Self {
-            atr_regime,
-            slope_regime,
-            session,
-        }
-    }
-}
-
-// =============================================================================
-// Extended Backtest Result
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ExtendedBacktestResult {
-    pub symbol: String,
-    pub timeframe: String,
-    pub total_trades: u32,
-    pub wins: u32,
-    pub losses: u32,
-    pub win_rate: f64,
-    pub total_pnl_r: f64,
-    pub advanced_metrics: AdvancedMetrics,
-    pub regime_report: RegimeReport,
-    pub signals: Vec<TradeSignal>,
 }

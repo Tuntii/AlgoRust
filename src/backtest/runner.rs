@@ -146,6 +146,7 @@ pub async fn run_backtest(
     exit_mode: &str,
     send_alpaca_signals: bool,
     output_dir: &str,
+    binance_settings: &crate::connect::BinanceSettings,
     lstm_filter: Option<LstmFilter>,
     lstm_mode: LstmMode,
 ) -> anyhow::Result<()> {
@@ -155,7 +156,7 @@ pub async fn run_backtest(
     // Klasörü oluştur
     fs::create_dir_all(output_dir)?;
 
-    let client = BinanceClient::new();
+    let client = BinanceClient::with_settings(binance_settings);
     let mut engine = SignalEngine::new_backtest_mode(); // Backtest mode: bypasses policy
     if let Some(filter) = lstm_filter {
         engine.set_lstm_filter(filter);
@@ -189,7 +190,6 @@ pub async fn run_backtest(
     // Binance limit: 1000 candles per call.
     // Basitlik için backtest şimdilik son 1000 mum ile sınırlı,
     // ama pagination ile geriye gidilebilir.
-    let limit = 1000;
 
     for symbol in symbols {
         for interval in timeframes {
@@ -267,11 +267,6 @@ pub async fn run_backtest(
                                     // Sadece son 1 saat içindeki sinyalleri yolla (Koruma)
                                     // VEYA tüm sinyalleri yolla (Kullanıcı isteği - "backtestte yollasın")
                                     // Sorumluluk kullanıcıda. Rate limit yiyebilir.
-                                    let is_recent =
-                                        match (signal.timestamp - Utc::now()).num_hours().abs() {
-                                            0 => true,
-                                            _ => false, // Eğer çok eski ise yollama? Hayır, backtest replay olabilir.
-                                        };
 
                                     // Kullanıcı explicit olarak istediği için, zaman kontrolünü es geçiyoruz veya
                                     // basit bir log ile uyarıyoruz.
@@ -1584,3 +1579,4 @@ pub async fn run_csv_backtest(
 
     Ok(())
 }
+

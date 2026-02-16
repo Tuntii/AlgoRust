@@ -1,32 +1,93 @@
 use crate::types::Candle;
 use anyhow::Result;
-use rust_decimal::Decimal;
 use chrono::{DateTime, Utc};
+use futures_util::Stream;
+use reqwest::header::{HeaderMap, HeaderValue};
+use rust_decimal::Decimal;
+use serde::Deserialize;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tracing::{info, warn};
 use url::Url;
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct BinanceSettings {
+    #[serde(default = "default_use_futures")]
+    pub use_futures: bool,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub api_secret: Option<String>,
+    #[serde(default)]
+    pub rest_base_url: Option<String>,
+    #[serde(default)]
+    pub ws_base_url: Option<String>,
+}
+
+fn default_use_futures() -> bool {
+    true
+}
+
+impl Default for BinanceSettings {
+    fn default() -> Self {
+        Self {
+            use_futures: default_use_futures(),
+            api_key: None,
+            api_secret: None,
+            rest_base_url: None,
+            ws_base_url: None,
+        }
+    }
+}
+
+impl BinanceSettings {
+    pub fn market_name(&self) -> &'static str {
+        if self.use_futures {
+            "futures"
+        } else {
+            "spot"
+        }
+    }
+}
+
 pub struct BinanceClient {
-    base_url: String,
+    kline_url: String,
     client: reqwest::Client,
 }
 
 impl BinanceClient {
-    pub fn new() -> Self {
+    pub fn with_settings(settings: &BinanceSettings) -> Self {
+        let rest_base_url = settings
+            .rest_base_url
+            .as_deref()
+            .map(normalize_base_url)
+            .unwrap_or_else(|| normalize_base_url(default_rest_base_url(settings.use_futures)));
+        let kline_url = format!("{}{}", rest_base_url, kline_path(settings.use_futures));
+        let api_key = settings
+            .api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|key| !key.is_empty());
+        let _api_secret = settings
+            .api_secret
+            .as_deref()
+            .map(str::trim)
+            .filter(|secret| !secret.is_empty());
+
         Self {
-            base_url: "https://api.binance.com".to_string(),
-            client: reqwest::Client::new(),
+            kline_url,
+            client: build_http_client(api_key),
         }
     }
 
     pub async fn fetch_candles(&self, symbol: &str, interval: &str, limit: usize) -> Result<Vec<Candle>> {
-        let url = format!("{}/api/v3/klines", self.base_url);
+        let limit_str = limit.to_string();
         let params = [
             ("symbol", symbol),
             ("interval", interval),
-            ("limit", &limit.to_string()),
+            ("limit", limit_str.as_str()),
         ];
 
-        let resp = self.client.get(&url).query(&params).send().await?;
+        let resp = self.client.get(&self.kline_url).query(&params).send().await?;
         if !resp.status().is_success() {
              anyhow::bail!("Binance API error: {}", resp.status());
         }
@@ -58,7 +119,6 @@ impl BinanceClient {
                 break;
             }
 
-            let url = format!("{}/api/v3/klines", self.base_url);
             let params = [
                 ("symbol", symbol.to_string()),
                 ("interval", interval.to_string()),
@@ -69,7 +129,7 @@ impl BinanceClient {
             // Add small delay to avoid rate limits
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-            let resp = self.client.get(&url).query(&params).send().await?;
+            let resp = self.client.get(&self.kline_url).query(&params).send().await?;
             if !resp.status().is_success() {
                  tracing::error!("Binance API error fetching history: {}", resp.status());
                  // Try to continue with what we have
@@ -168,11 +228,62 @@ impl BinanceClient {
     }
 }
 
-// WebSocket implementation
-use futures_util::{Stream, SinkExt};
-use tracing::info;
+fn default_rest_base_url(use_futures: bool) -> &'static str {
+    if use_futures {
+        "https://fapi.binance.com"
+    } else {
+        "https://api.binance.com"
+    }
+}
 
-pub async fn connect_stream(symbols: &[String], intervals: &[String]) -> Result<impl Stream<Item = Result<Message, tokio_tungstenite::tungstenite::Error>>> {
+fn default_ws_base_url(use_futures: bool) -> &'static str {
+    if use_futures {
+        "wss://fstream.binance.com"
+    } else {
+        "wss://stream.binance.com:9443"
+    }
+}
+
+fn kline_path(use_futures: bool) -> &'static str {
+    if use_futures {
+        "/fapi/v1/klines"
+    } else {
+        "/api/v3/klines"
+    }
+}
+
+fn normalize_base_url(url: &str) -> String {
+    url.trim_end_matches('/').to_string()
+}
+
+fn build_http_client(api_key: Option<&str>) -> reqwest::Client {
+    let mut headers = HeaderMap::new();
+
+    if let Some(key) = api_key {
+        match HeaderValue::from_str(key) {
+            Ok(header_value) => {
+                headers.insert("X-MBX-APIKEY", header_value);
+            }
+            Err(err) => {
+                warn!("Invalid Binance API key format, continuing without header: {}", err);
+            }
+        }
+    }
+
+    match reqwest::Client::builder().default_headers(headers).build() {
+        Ok(client) => client,
+        Err(err) => {
+            warn!("Failed to build HTTP client with headers, using default client: {}", err);
+            reqwest::Client::new()
+        }
+    }
+}
+
+pub async fn connect_stream(
+    symbols: &[String],
+    intervals: &[String],
+    settings: &BinanceSettings,
+) -> Result<impl Stream<Item = Result<Message, tokio_tungstenite::tungstenite::Error>>> {
     let mut streams = Vec::new();
     for s in symbols {
         for i in intervals {
@@ -181,11 +292,19 @@ pub async fn connect_stream(symbols: &[String], intervals: &[String]) -> Result<
         }
     }
     let stream_query = streams.join("/");
-    // Binance stream URL: wss://stream.binance.com:9443/stream?streams=<streamName1>/<streamName2>...
-    let url_str = format!("wss://stream.binance.com:9443/stream?streams={}", stream_query);
+    let ws_base_url = settings
+        .ws_base_url
+        .as_deref()
+        .map(normalize_base_url)
+        .unwrap_or_else(|| normalize_base_url(default_ws_base_url(settings.use_futures)));
+    let url_str = format!("{}/stream?streams={}", ws_base_url, stream_query);
     let url = Url::parse(&url_str)?;
 
-    info!("Connecting to WebSocket: {}", url);
+    info!(
+        "Connecting to Binance {} WebSocket: {}",
+        settings.market_name(),
+        url
+    );
     let (ws_stream, _) = connect_async(url).await?;
     
     Ok(ws_stream)

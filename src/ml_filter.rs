@@ -18,7 +18,6 @@ struct MetaFile {
     threshold: f32,
     mean: JsonValue,
     std: JsonValue,
-    feature_columns: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -91,10 +90,6 @@ impl LstmFilter {
         Ok(Some(score))
     }
 
-    pub fn passes(&self, ctx: &SymbolContext) -> Result<Option<f32>> {
-        let score = self.score(ctx)?;
-        Ok(score.filter(|s| *s >= self.threshold))
-    }
 }
 
 fn flatten_meta(value: &JsonValue) -> Result<Vec<f32>> {

@@ -1,0 +1,154 @@
+//@version=5
+indicator("SuperKAMA - Kaufman Adaptive Moving Average", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// =============================================================================
+// INPUT PARAMETERS
+// =============================================================================
+
+// SuperKAMA Settings
+kama_length = input.int(2584, "KAMA Length", minval=1, group="SuperKAMA Settings")
+kama_fast = input.int(34, "Fast EMA Period", minval=1, group="SuperKAMA Settings")
+kama_slow = input.int(55, "Slow EMA Period", minval=1, group="SuperKAMA Settings")
+atr_multiplier = input.float(1.0, "ATR Multiplier", minval=0.1, maxval=10, step=0.1, group="SuperKAMA Settings")
+atr_period = input.int(33, "ATR Period", minval=1, group="SuperKAMA Settings")
+show_bands = input.bool(true, "Show Bands", group="SuperKAMA Settings")
+show_signals = input.bool(true, "Show Buy/Sell Signals", group="SuperKAMA Settings")
+
+// Color Settings
+bullish_color = input.color(color.new(color.green, 0), "Bullish Color", group="Colors")
+bearish_color = input.color(color.new(color.red, 0), "Bearish Color", group="Colors")
+neutral_color = input.color(color.new(color.gray, 0), "Neutral Color", group="Colors")
+
+// =============================================================================
+// KAMA CALCULATION (Kaufman Adaptive Moving Average)
+// =============================================================================
+
+// Calculate price change and volatility
+mom = math.abs(close - close[kama_length])
+volatility = math.sum(math.abs(close - close[1]), kama_length)
+
+// Efficiency Ratio (ER)
+er = volatility != 0 ? mom / volatility : 0
+
+// Smoothing Constant (SC)
+fastest = 2.0 / (kama_fast + 1)
+slowest = 2.0 / (kama_slow + 1)
+sc = math.pow(er * (fastest - slowest) + slowest, 2)
+
+// KAMA calculation
+var float kama = na
+kama := na(kama[1]) ? close : kama[1] + sc * (close - kama[1])
+
+// =============================================================================
+// ATR BANDS
+// =============================================================================
+
+atr = ta.atr(atr_period)
+upper_band = kama + (atr * atr_multiplier)
+lower_band = kama - (atr * atr_multiplier)
+
+// =============================================================================
+// TREND DETECTION
+// =============================================================================
+
+// Trend based on KAMA direction and price position
+kama_rising = kama > kama[1]
+kama_falling = kama < kama[1]
+price_above_kama = close > kama
+price_below_kama = close < kama
+
+// Trend states
+bullish_trend = kama_rising and price_above_kama
+bearish_trend = kama_falling and price_below_kama
+neutral_trend = not bullish_trend and not bearish_trend
+
+// Trend color
+kama_color = bullish_trend ? bullish_color : (bearish_trend ? bearish_color : neutral_color)
+
+// =============================================================================
+// TRADING SIGNALS
+// =============================================================================
+
+// Buy signal: price crosses above KAMA while KAMA is rising
+buy_signal = ta.crossover(close, kama) and kama_rising
+
+// Sell signal: price crosses below KAMA while KAMA is falling  
+sell_signal = ta.crossunder(close, kama) and kama_falling
+
+// Strong buy: price bounces from lower band
+strong_buy = ta.crossover(close, lower_band) and kama_rising
+
+// Strong sell: price rejects from upper band
+strong_sell = ta.crossunder(close, upper_band) and kama_falling
+
+// =============================================================================
+// VISUALIZATION
+// =============================================================================
+
+// Plot KAMA line
+plot(kama, "KAMA", color=kama_color, linewidth=3)
+
+// Plot ATR Bands
+plot(show_bands ? upper_band : na, "Upper Band", color=color.new(bullish_color, 70), linewidth=1, style=plot.style_stepline)
+plot(show_bands ? lower_band : na, "Lower Band", color=color.new(bearish_color, 70), linewidth=1, style=plot.style_stepline)
+
+// Fill between bands
+band_fill = show_bands ? kama_color : na
+fill_transparency = bullish_trend ? 95 : (bearish_trend ? 95 : 97)
+p1 = plot(show_bands ? upper_band : na, display=display.none)
+p2 = plot(show_bands ? lower_band : na, display=display.none)
+fill(p1, p2, color=color.new(kama_color, fill_transparency))
+
+// Plot buy/sell signals
+plotshape(show_signals and buy_signal, "Buy Signal", shape.labelup, location.belowbar, color=color.new(color.green, 0), text="BUY", textcolor=color.white, size=size.normal)
+plotshape(show_signals and sell_signal, "Sell Signal", shape.labeldown, location.abovebar, color=color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.normal)
+
+// Plot strong signals
+plotshape(show_signals and strong_buy, "Strong Buy", shape.triangleup, location.belowbar, color=color.new(color.lime, 0), size=size.small)
+plotshape(show_signals and strong_sell, "Strong Sell", shape.triangledown, location.abovebar, color=color.new(color.maroon, 0), size=size.small)
+
+// Background coloring
+bgcolor(bullish_trend ? color.new(color.green, 97) : (bearish_trend ? color.new(color.red, 97) : na))
+
+// =============================================================================
+// INFO TABLE
+// =============================================================================
+
+if barstate.islast
+    var table info_table = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    
+    // Header
+    table.cell(info_table, 0, 0, "SuperKAMA", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+    table.cell(info_table, 1, 0, "Value", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.normal)
+    
+    // KAMA Value
+    table.cell(info_table, 0, 1, "KAMA", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 1, str.tostring(kama, "#.##"), text_color=kama_color, text_size=size.small)
+    
+    // Efficiency Ratio
+    table.cell(info_table, 0, 2, "ER", text_color=color.white, text_size=size.small)
+    er_color = er > 0.5 ? color.green : (er > 0.3 ? color.yellow : color.red)
+    table.cell(info_table, 1, 2, str.tostring(er, "#.###"), text_color=er_color, text_size=size.small)
+    
+    // Trend
+    trend_text = bullish_trend ? "Bullish" : (bearish_trend ? "Bearish" : "Neutral")
+    table.cell(info_table, 0, 3, "Trend", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 3, trend_text, text_color=kama_color, text_size=size.small)
+    
+    // Upper Band
+    table.cell(info_table, 0, 4, "Upper", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 4, str.tostring(upper_band, "#.##"), text_color=bullish_color, text_size=size.small)
+    
+    // Lower Band
+    table.cell(info_table, 0, 5, "Lower", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 5, str.tostring(lower_band, "#.##"), text_color=bearish_color, text_size=size.small)
+
+// =============================================================================
+// ALERTS
+// =============================================================================
+
+alertcondition(buy_signal, "Buy Signal", "SuperKAMA: Buy signal detected!")
+alertcondition(sell_signal, "Sell Signal", "SuperKAMA: Sell signal detected!")
+alertcondition(strong_buy, "Strong Buy", "SuperKAMA: Strong buy signal at lower band!")
+alertcondition(strong_sell, "Strong Sell", "SuperKAMA: Strong sell signal at upper band!")
+alertcondition(ta.cross(close, kama), "KAMA Cross", "SuperKAMA: Price crossed KAMA!")
