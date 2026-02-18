@@ -31,6 +31,37 @@ impl ExitMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PoolConfigOverrides {
+    pub be_threshold_candles: Option<u32>,
+    pub be_min_profit_r: Option<f64>,
+}
+
+fn apply_pool_config_overrides(engine: &mut SignalEngine, overrides: Option<PoolConfigOverrides>) {
+    let Some(overrides) = overrides else {
+        return;
+    };
+
+    let pool_config = &mut engine.get_position_pool_mut().config;
+
+    if let Some(v) = overrides.be_threshold_candles {
+        pool_config.be_threshold_candles = v;
+        info!("T9.2 override: be_threshold_candles={}", v);
+    }
+
+    if let Some(v) = overrides.be_min_profit_r {
+        if let Some(decimal_v) = Decimal::from_f64(v) {
+            pool_config.be_min_profit_r = decimal_v;
+            info!("T9.2 override: be_min_profit_r={}", decimal_v);
+        } else {
+            warn!(
+                "Invalid be_min_profit_r override: {} (keeping default {})",
+                v, pool_config.be_min_profit_r
+            );
+        }
+    }
+}
+
 // =============================================================================
 // BACKTEST SUMMARY REPORT
 // =============================================================================
@@ -149,6 +180,7 @@ pub async fn run_backtest(
     binance_settings: &crate::connect::BinanceSettings,
     lstm_filter: Option<LstmFilter>,
     lstm_mode: LstmMode,
+    pool_overrides: Option<PoolConfigOverrides>,
 ) -> anyhow::Result<()> {
     info!("🔄 Backtest Başlatılıyor... (Son {} gün)", days);
     info!("═══════════════════════════════════════════════════════════════");
@@ -162,6 +194,7 @@ pub async fn run_backtest(
         engine.set_lstm_filter(filter);
     }
     engine.set_lstm_mode(lstm_mode);
+    apply_pool_config_overrides(&mut engine, pool_overrides);
     let policy = TimeframePolicy::new();
     let exit_mode = ExitMode::from_str(exit_mode);
 
@@ -1018,6 +1051,7 @@ pub async fn run_csv_backtest(
     output_dir: &str,
     lstm_filter: Option<LstmFilter>,
     lstm_mode: LstmMode,
+    pool_overrides: Option<PoolConfigOverrides>,
 ) -> anyhow::Result<()> {
     info!("═══════════════════════════════════════════════════════════════");
     info!("   🗂️  LOCAL CSV BACKTEST: {} ({})", symbol, timeframe);
@@ -1046,6 +1080,7 @@ pub async fn run_csv_backtest(
         engine.set_lstm_filter(filter);
     }
     engine.set_lstm_mode(lstm_mode);
+    apply_pool_config_overrides(&mut engine, pool_overrides);
     let exit_mode = ExitMode::from_str(exit_mode);
     let _ = send_alpaca_signals;
     let mut ctx = SymbolContext::new(symbol.to_string(), timeframe.to_string());

@@ -1,3 +1,4 @@
 /target
 .env
 paper_trader_state.json
+config.toml

@@ -1,0 +1,139 @@
+{
+  "total_symbols": 2,
+  "total_timeframes_tested": 2,
+  "total_trades": 3162,
+  "total_wins": 273,
+  "total_losses": 280,
+  "overall_win_rate": 49.36708860759494,
+  "overall_pnl_r": "403.17484567243349470503225390",
+  "overall_expectancy": 0.12750627630374242,
+  "overall_profit_factor": 403.17484567243355,
+  "best_performer": "ETHUSDT 1m",
+  "worst_performer": "BTCUSDT 1m",
+  "block_stats": {
+    "wick_trap_blocks": 0,
+    "flat_ema_blocks": 0,
+    "low_atr_blocks": 0,
+    "bootstrap_incomplete": 0,
+    "cooldown_blocks": 0,
+    "open_trade_blocks": 0,
+    "score_too_low": 0,
+    "policy_blocked": 0,
+    "lstm_filtered": 0,
+    "total_evaluations": 200000,
+    "total_signals_generated": 3162,
+    "max_trades_reached": 0,
+    "duplicate_context": 0,
+    "hedge_blocked": 0,
+    "context_cooldown_blocks": 0,
+    "trend_saturation_blocks": 0,
+    "weak_trade_replaced": 0,
+    "max_duration_exits": 1073,
+    "be_applied_count": 1536,
+    "partial_tp_count": 0,
+    "kill_switch_triggered": 2
+  },
+  "results_by_pair": [
+    {
+      "symbol": "BTCUSDT",
+      "timeframe": "1m",
+      "trades": 1489,
+      "wins": 98,
+      "losses": 102,
+      "win_rate": 49.0,
+      "pnl_r": "178.43440187775191588236091231",
+      "expectancy": -0.1200359013567557,
+      "profit_factor": 0.37764716078649446,
+      "sharpe": 0.26292876877896365,
+      "max_consec_loss": 115
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1m",
+      "trades": 1673,
+      "wins": 175,
+      "losses": 178,
+      "win_rate": 49.57507082152974,
+      "pnl_r": "224.74044379468157882267134159",
+      "expectancy": -0.12109588666167272,
+      "profit_factor": 0.48838787871173545,
+      "sharpe": 0.239797910689309,
+      "max_consec_loss": 55
+    }
+  ],
+  "dollar_pnl": {
+    "starting_capital_per_pair": 1000.0,
+    "total_starting_capital": 2000.0,
+    "risk_scenarios": [
+      {
+        "risk_percent": 1.0,
+        "risk_per_r": 10.0,
+        "total_dollar_pnl": 4031.7484567243355,
+        "total_final_capital": 6031.7484567243355,
+        "total_return_percent": 201.58742283621675,
+        "pair_results": [
+          {
+            "pair": "BTCUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 1784.3440187775193,
+            "final_capital": 2784.3440187775195,
+            "return_percent": 178.43440187775192
+          },
+          {
+            "pair": "ETHUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 2247.404437946816,
+            "final_capital": 3247.404437946816,
+            "return_percent": 224.7404437946816
+          }
+        ]
+      },
+      {
+        "risk_percent": 2.0,
+        "risk_per_r": 20.0,
+        "total_dollar_pnl": 8063.496913448671,
+        "total_final_capital": 10063.496913448671,
+        "total_return_percent": 403.1748456724335,
+        "pair_results": [
+          {
+            "pair": "BTCUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 3568.6880375550386,
+            "final_capital": 4568.688037555039,
+            "return_percent": 356.86880375550385
+          },
+          {
+            "pair": "ETHUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 4494.808875893632,
+            "final_capital": 5494.808875893632,
+            "return_percent": 449.4808875893632
+          }
+        ]
+      },
+      {
+        "risk_percent": 3.0,
+        "risk_per_r": 30.0,
+        "total_dollar_pnl": 12095.245370173005,
+        "total_final_capital": 14095.245370173005,
+        "total_return_percent": 604.7622685086503,
+        "pair_results": [
+          {
+            "pair": "BTCUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 5353.032056332558,
+            "final_capital": 6353.032056332558,
+            "return_percent": 535.3032056332557
+          },
+          {
+            "pair": "ETHUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 6742.213313840448,
+            "final_capital": 7742.213313840448,
+            "return_percent": 674.2213313840448
+          }
+        ]
+      }
+    ]
+  }
+}

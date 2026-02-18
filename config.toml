@@ -1,5 +1,5 @@
-[app]
-# Başlangıç modu: "live" veya "backtest"
+﻿[app]
+# Startup mode: "live" or "backtest"
 mode = "backtest" 
 bootstrap_limit = 10000
 auto_reconnect = true
@@ -45,3 +45,7 @@ enabled = true
 model_path = "models/lstm_filter.onnx"
 meta_path = "models/lstm_meta.json"
 onnxruntime_path = "C:/Users/tunay/AppData/Roaming/Python/Python313/site-packages/onnxruntime/capi/onnxruntime.dll"
+
+[backtest.pool]
+be_threshold_candles = 8
+be_min_profit_r = 0.0

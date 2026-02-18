@@ -63,6 +63,16 @@ struct BacktestConfig {
     exit_mode: String,
     #[serde(default = "default_send_alpaca_signals")]
     send_alpaca_signals: bool,
+    #[serde(default)]
+    pool: Option<BacktestPoolConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+struct BacktestPoolConfig {
+    #[serde(default)]
+    be_threshold_candles: Option<u32>,
+    #[serde(default)]
+    be_min_profit_r: Option<f64>,
 }
 
 fn default_csv_symbol() -> String {
@@ -145,6 +155,14 @@ async fn main() -> anyhow::Result<()> {
         let lstm_filter = load_lstm_filter(&conf.ml);
         let lstm_mode = load_lstm_mode(&conf.ml);
         if let Some(bt_conf) = conf.backtest {
+            let pool_overrides =
+                bt_conf
+                    .pool
+                    .as_ref()
+                    .map(|pool| backtest::runner::PoolConfigOverrides {
+                        be_threshold_candles: pool.be_threshold_candles,
+                        be_min_profit_r: pool.be_min_profit_r,
+                    });
             // Check if CSV file is specified for local backtest
             if let Some(csv_file) = bt_conf.csv_file {
                 info!("🗂️  Local CSV backtest mode");
@@ -157,6 +175,7 @@ async fn main() -> anyhow::Result<()> {
                     &bt_conf.output_dir,
                     lstm_filter.clone(),
                     lstm_mode,
+                    pool_overrides,
                 )
                 .await;
             }
@@ -172,6 +191,7 @@ async fn main() -> anyhow::Result<()> {
                 &conf.binance,
                 lstm_filter.clone(),
                 lstm_mode,
+                pool_overrides,
             )
             .await;
         } else {
@@ -497,5 +517,3 @@ fn load_lstm_mode(config: &Option<MlConfig>) -> LstmMode {
         _ => LstmMode::Filter,
     }
 }
-
-
