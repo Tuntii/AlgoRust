@@ -70,6 +70,9 @@ fn apply_pool_config_overrides(engine: &mut SignalEngine, overrides: Option<Pool
 pub struct BacktestSummary {
     pub total_symbols: usize,
     pub total_timeframes_tested: usize,
+    /// All trades that were opened (including BE and MAX_DURATION exits)
+    pub total_opened_trades: usize,
+    /// Only WIN + LOSS trades (decisive outcomes)
     pub total_trades: usize,
     pub total_wins: usize,
     pub total_losses: usize,
@@ -115,7 +118,10 @@ pub struct DollarPairResult {
 pub struct PairResult {
     pub symbol: String,
     pub timeframe: String,
+    /// Decisive trades (WIN + LOSS only)
     pub trades: usize,
+    /// All completed trades (WIN + LOSS + BE + MAX_DURATION)
+    pub opened_trades: usize,
     pub wins: usize,
     pub losses: usize,
     pub win_rate: f64,
@@ -124,6 +130,10 @@ pub struct PairResult {
     pub profit_factor: f64,
     pub sharpe: f64,
     pub max_consec_loss: u32,
+    /// Gross winning R (for overall PF calculation)
+    pub gross_wins_r: f64,
+    /// Gross losing R absolute value (for overall PF calculation)
+    pub gross_losses_r: f64,
 }
 
 // T5: Extended backtest result with advanced metrics
@@ -576,8 +586,8 @@ pub async fn run_backtest(
 
             // Sonuçları Yazma
             if !trades.is_empty() {
-                // First calculate stats from references
-                let completed_count = trades.iter().filter(|t| t.outcome.is_some()).count();
+                // Count all opened trades (including BE and MAX_DURATION)
+                let opened_count = trades.len();
                 let wins = trades
                     .iter()
                     .filter(|t| t.outcome.as_deref() == Some("WIN"))
@@ -592,6 +602,7 @@ pub async fn run_backtest(
                     .map(|t| t.pnl_r.unwrap_or_default())
                     .sum();
 
+                // Decisive trades = WIN + LOSS only (excludes BE and MAX_DURATION)
                 let decisive_trades = wins + losses;
                 let win_rate = if decisive_trades > 0 {
                     wins as f64 / decisive_trades as f64 * 100.0
@@ -600,9 +611,12 @@ pub async fn run_backtest(
                 };
 
                 // T5.1: Build trade records for advanced metrics
+                // Only include decisive trades (WIN/LOSS) for accurate metric calculation
                 let trade_records: Vec<TradeRecord> = trades
                     .iter()
-                    .filter(|t| t.outcome.is_some())
+                    .filter(|t| {
+                        t.outcome.as_deref() == Some("WIN") || t.outcome.as_deref() == Some("LOSS")
+                    })
                     .map(|t| TradeRecord {
                         pnl_r: t.pnl_r.map(|d| d.to_f64().unwrap_or(0.0)).unwrap_or(0.0),
                         is_win: t.outcome.as_deref() == Some("WIN"),
@@ -618,18 +632,29 @@ pub async fn run_backtest(
                     })
                     .collect();
 
-                // T5.1: Calculate advanced metrics
+                // T5.1: Calculate advanced metrics (on decisive trades only)
                 let advanced_metrics = AdvancedMetrics::calculate(&trade_records);
 
                 // T5.2: Generate regime report
                 let regime_report = RegimeReport::generate(&trade_records);
 
+                // Compute gross wins/losses R for correct overall Profit Factor
+                let gross_wins_r: f64 = trades
+                    .iter()
+                    .filter(|t| t.outcome.as_deref() == Some("WIN"))
+                    .map(|t| t.pnl_r.unwrap_or_default().to_f64().unwrap_or(0.0))
+                    .sum();
+                let gross_losses_r: f64 = trades
+                    .iter()
+                    .filter(|t| t.outcome.as_deref() == Some("LOSS"))
+                    .map(|t| t.pnl_r.unwrap_or_default().to_f64().unwrap_or(0.0).abs())
+                    .sum();
+
                 // Now we can move trades into result
-                let total_trades_count = trades.len();
                 let result = BacktestResult {
                     symbol: symbol.clone(),
                     timeframe: interval.clone(),
-                    total_trades: total_trades_count,
+                    total_trades: opened_count,
                     wins,
                     losses,
                     win_rate,
@@ -646,8 +671,8 @@ pub async fn run_backtest(
 
                 // T5.1: Enhanced logging with advanced metrics
                 info!(
-                    "📊 Rapor: {} {} -> PnL: {}R (%{:.1} WR, {} Trades)",
-                    symbol, interval, total_pnl, win_rate, completed_count
+                    "📊 Rapor: {} {} -> PnL: {}R (%{:.1} WR, {}/{} W/L, {} opened)",
+                    symbol, interval, total_pnl, win_rate, wins, losses, opened_count
                 );
                 info!(
                     "   📈 Expectancy: {:.3}R | PF: {:.2} | Sharpe: {:.2}",
@@ -666,7 +691,8 @@ pub async fn run_backtest(
                 let pair_result = PairResult {
                     symbol: symbol.clone(),
                     timeframe: interval.clone(),
-                    trades: completed_count,
+                    trades: decisive_trades,     // WIN + LOSS only
+                    opened_trades: opened_count, // all opened
                     wins,
                     losses,
                     win_rate,
@@ -675,6 +701,8 @@ pub async fn run_backtest(
                     profit_factor: advanced_metrics.profit_factor,
                     sharpe: advanced_metrics.sharpe_ratio_approx,
                     max_consec_loss: advanced_metrics.max_consecutive_losses,
+                    gross_wins_r,
+                    gross_losses_r,
                 };
 
                 // Track best/worst
@@ -688,7 +716,9 @@ pub async fn run_backtest(
                 }
 
                 // Accumulate totals
-                summary.total_trades += completed_count;
+                // total_trades = decisive (WIN+LOSS), total_opened_trades = all opened
+                summary.total_trades += decisive_trades;
+                summary.total_opened_trades += opened_count;
                 summary.total_wins += wins;
                 summary.total_losses += losses;
                 summary.overall_pnl_r += total_pnl;
@@ -709,31 +739,36 @@ pub async fn run_backtest(
 
     // Calculate overall metrics
     if summary.total_trades > 0 {
+        // Win rate: wins / (wins + losses) — excludes BE and MAX_DURATION
         let decisive_total = summary.total_wins + summary.total_losses;
         summary.overall_win_rate = if decisive_total > 0 {
             summary.total_wins as f64 / decisive_total as f64 * 100.0
         } else {
             0.0
         };
-        summary.overall_expectancy =
-            summary.overall_pnl_r.to_f64().unwrap_or(0.0) / summary.total_trades as f64;
 
-        let gross_wins: f64 = summary
-            .results_by_pair
-            .iter()
-            .filter(|r| r.pnl_r > Decimal::ZERO)
-            .map(|r| r.pnl_r.to_f64().unwrap_or(0.0))
-            .sum();
+        // Expectancy: total PnL / decisive trades (WIN+LOSS only)
+        // Using decisive_total so BE/MAX_DURATION don't dilute the expectancy
+        summary.overall_expectancy = if decisive_total > 0 {
+            summary.overall_pnl_r.to_f64().unwrap_or(0.0) / decisive_total as f64
+        } else {
+            0.0
+        };
+
+        // Profit Factor: sum of all winning R / sum of all losing R (trade-by-trade, not pair-level)
+        // We accumulate gross_wins_r and gross_losses_r per pair for this purpose
+        let gross_wins: f64 = summary.results_by_pair.iter().map(|r| r.gross_wins_r).sum();
         let gross_losses: f64 = summary
             .results_by_pair
             .iter()
-            .filter(|r| r.pnl_r < Decimal::ZERO)
-            .map(|r| r.pnl_r.to_f64().unwrap_or(0.0).abs())
+            .map(|r| r.gross_losses_r)
             .sum();
         summary.overall_profit_factor = if gross_losses > 0.0 {
             gross_wins / gross_losses
+        } else if gross_wins > 0.0 {
+            f64::INFINITY
         } else {
-            gross_wins
+            0.0
         };
     }
 
@@ -807,18 +842,31 @@ fn print_summary(summary: &BacktestSummary) {
     // Overall Performance
     info!("📊 OVERALL PERFORMANCE");
     info!("───────────────────────────────────────────────────────────────");
-    info!("   Total Trades: {}", summary.total_trades);
+    info!(
+        "   Opened Trades:    {} (all signals taken)",
+        summary.total_opened_trades
+    );
+    info!(
+        "   Decisive Trades:  {} (WIN + LOSS only, excl. BE/MAX_DUR)",
+        summary.total_trades
+    );
     info!(
         "   Wins: {} | Losses: {}",
         summary.total_wins, summary.total_losses
     );
-    info!("   Win Rate: {:.1}%", summary.overall_win_rate);
+    info!(
+        "   Win Rate: {:.1}%  (of decisive trades)",
+        summary.overall_win_rate
+    );
     info!("   Total PnL: {}R", summary.overall_pnl_r);
     info!(
-        "   Expectancy: {:.3}R per trade",
+        "   Expectancy: {:.3}R per decisive trade",
         summary.overall_expectancy
     );
-    info!("   Profit Factor: {:.2}", summary.overall_profit_factor);
+    info!(
+        "   Profit Factor: {:.2}  (gross wins R / gross losses R)",
+        summary.overall_profit_factor
+    );
     info!("");
 
     // Best/Worst performers
@@ -915,19 +963,26 @@ fn print_summary(summary: &BacktestSummary) {
     info!("📋 RESULTS BY PAIR");
     info!("───────────────────────────────────────────────────────────────");
     info!(
-        "   {:12} {:>6} {:>6} {:>7} {:>8} {:>8} {:>7}",
-        "PAIR", "TRADES", "WR%", "PnL(R)", "EXPECT", "PF", "SHARPE"
+        "   {:12} {:>6} {:>6} {:>6} {:>7} {:>8} {:>8} {:>7}",
+        "PAIR", "OPENED", "W+L", "WR%", "PnL(R)", "EXPECT", "PF", "SHARPE"
     );
     info!(
-        "   {:─<12} {:─>6} {:─>6} {:─>7} {:─>8} {:─>8} {:─>7}",
-        "", "", "", "", "", "", ""
+        "   {:─<12} {:─>6} {:─>6} {:─>6} {:─>7} {:─>8} {:─>8} {:─>7}",
+        "", "", "", "", "", "", "", ""
     );
 
     for r in &summary.results_by_pair {
         let pair_name = format!("{} {}", r.symbol.replace("USDT", ""), r.timeframe);
         info!(
-            "   {:12} {:>6} {:>5.1}% {:>7} {:>7.3}R {:>7.2} {:>7.2}",
-            pair_name, r.trades, r.win_rate, r.pnl_r, r.expectancy, r.profit_factor, r.sharpe
+            "   {:12} {:>6} {:>6} {:>5.1}% {:>7} {:>7.3}R {:>7.2} {:>7.2}",
+            pair_name,
+            r.opened_trades,
+            r.trades,
+            r.win_rate,
+            r.pnl_r,
+            r.expectancy,
+            r.profit_factor,
+            r.sharpe
         );
     }
 
@@ -1614,4 +1669,3 @@ pub async fn run_csv_backtest(
 
     Ok(())
 }
-

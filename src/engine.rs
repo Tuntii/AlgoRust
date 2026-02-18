@@ -6,6 +6,7 @@ use crate::types::{
     get_kill_switch_duration_for_tf, ActiveTrade, ContextId, KillSwitchState, PositionPool,
     SignalType, TradeSignal,
 };
+use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use tracing::warn;
@@ -182,9 +183,8 @@ impl SignalEngine {
     }
 
     pub fn evaluate(&mut self, ctx: &mut SymbolContext) -> Option<TradeSignal> {
-        // User preference: generate signals from indicator only.
-        // This bypasses policy/bootstrap/LSTM/cooldown/multi-position entry guards at signal stage.
-        let indicator_only_mode = true;
+        // All filter guards are active. Set to true only for raw indicator debugging.
+        let indicator_only_mode = false;
         self.block_stats.total_evaluations += 1;
 
         let last_candle = ctx.candles.back()?.clone();
@@ -225,6 +225,58 @@ impl SignalEngine {
                     }
                 }
                 self.block_stats.bootstrap_incomplete += 1;
+                return None;
+            }
+
+            // ============================================================
+            // PHASE 0.3: Market Quality Filters
+            // These prevent trading in ranging/compressed/sideways markets
+            // which are the primary cause of BE trades.
+            // ============================================================
+
+            // Filter 1: Flat EMA — EMA50 slope too flat = sideways market
+            // Threshold: |slope| < 0.00005 (0.005% change over 6 bars)
+            // 1m context: BTC@95k → blocks only if EMA moved < ~4.75 USDT in 6 minutes
+            let ema50_slope = ctx.get_ema50_slope();
+            let slope_threshold =
+                rust_decimal::Decimal::from_str("0.00005").unwrap_or(rust_decimal::Decimal::ZERO);
+            if ema50_slope.abs() < slope_threshold {
+                self.block_stats.flat_ema_blocks += 1;
+                return None;
+            }
+
+            // Filter 2: Low ATR — volatility too compressed = ranging market
+            // Skip if current ATR < 50% of median ATR (last 200 bars)
+            if let Some(current_atr) = ctx.atr_14.current_value {
+                let median_atr_ratio = ctx.get_median_atr_ratio();
+                if !median_atr_ratio.is_zero() && !current_atr.is_zero() {
+                    // current_atr / close gives ratio; compare to median ratio
+                    let current_ratio = if !ctx
+                        .candles
+                        .back()
+                        .map(|c| c.close)
+                        .unwrap_or_default()
+                        .is_zero()
+                    {
+                        current_atr / ctx.candles.back().unwrap().close
+                    } else {
+                        rust_decimal::Decimal::ZERO
+                    };
+                    let atr_ratio_threshold = median_atr_ratio
+                        * rust_decimal::Decimal::from_str("0.5")
+                            .unwrap_or(rust_decimal::Decimal::ONE);
+                    if current_ratio < atr_ratio_threshold {
+                        self.block_stats.low_atr_blocks += 1;
+                        return None;
+                    }
+                }
+            }
+
+            // Filter 3: Neutral Trend — EMA stack not aligned = no clear direction
+            // Requires EMA5 > EMA8 > EMA13 > EMA50 (bull) or reverse (bear)
+            use crate::types::TrendState;
+            if ctx.structure.trend == TrendState::Neutral {
+                self.block_stats.wick_trap_blocks += 1; // reuse wick_trap counter for neutral-trend blocks
                 return None;
             }
         }
