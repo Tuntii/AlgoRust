@@ -13,7 +13,7 @@ use crate::types::RegimeContext;
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct BlockStats {
-    pub wick_trap_blocks: u32,
+    pub neutral_trend_blocks: u32,  // EMA stack not aligned (5>8>13>50 or reverse)
     pub flat_ema_blocks: u32,
     pub low_atr_blocks: u32,
     pub bootstrap_incomplete: u32,
@@ -50,7 +50,7 @@ impl BlockStats {
     }
     
     pub fn total_blocks(&self) -> u32 {
-        self.wick_trap_blocks + 
+        self.neutral_trend_blocks + 
         self.flat_ema_blocks + 
         self.low_atr_blocks + 
         self.bootstrap_incomplete + 

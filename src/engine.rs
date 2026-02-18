@@ -276,7 +276,7 @@ impl SignalEngine {
             // Requires EMA5 > EMA8 > EMA13 > EMA50 (bull) or reverse (bear)
             use crate::types::TrendState;
             if ctx.structure.trend == TrendState::Neutral {
-                self.block_stats.wick_trap_blocks += 1; // reuse wick_trap counter for neutral-trend blocks
+                self.block_stats.neutral_trend_blocks += 1;
                 return None;
             }
         }

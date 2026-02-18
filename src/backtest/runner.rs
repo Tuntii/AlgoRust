@@ -891,7 +891,10 @@ fn print_summary(summary: &BacktestSummary) {
     info!("   Total Blocks: {}", bs.total_blocks());
     info!("");
     info!("   📍 Block Breakdown:");
-    info!("      Wick Trap:        {:>6} blocks", bs.wick_trap_blocks);
+    info!(
+        "      Neutral Trend:    {:>6} blocks (EMA stack not aligned)",
+        bs.neutral_trend_blocks
+    );
     info!("      Flat EMA:         {:>6} blocks", bs.flat_ema_blocks);
     info!("      Low ATR:          {:>6} blocks", bs.low_atr_blocks);
     info!(
@@ -1570,8 +1573,8 @@ pub async fn run_csv_backtest(
     info!("");
     info!("   📊 Block Breakdown:");
     info!(
-        "      Wick Trap:        {:>6} blocks",
-        block_stats.wick_trap_blocks
+        "      Neutral Trend:    {:>6} blocks (EMA stack not aligned)",
+        block_stats.neutral_trend_blocks
     );
     info!(
         "      Flat EMA:         {:>6} blocks",

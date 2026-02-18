@@ -79,7 +79,12 @@ impl BinanceClient {
         }
     }
 
-    pub async fn fetch_candles(&self, symbol: &str, interval: &str, limit: usize) -> Result<Vec<Candle>> {
+    pub async fn fetch_candles(
+        &self,
+        symbol: &str,
+        interval: &str,
+        limit: usize,
+    ) -> Result<Vec<Candle>> {
         let limit_str = limit.to_string();
         let params = [
             ("symbol", symbol),
@@ -87,16 +92,26 @@ impl BinanceClient {
             ("limit", limit_str.as_str()),
         ];
 
-        let resp = self.client.get(&self.kline_url).query(&params).send().await?;
+        let resp = self
+            .client
+            .get(&self.kline_url)
+            .query(&params)
+            .send()
+            .await?;
         if !resp.status().is_success() {
-             anyhow::bail!("Binance API error: {}", resp.status());
+            anyhow::bail!("Binance API error: {}", resp.status());
         }
         let json: Vec<Vec<serde_json::Value>> = resp.json().await?;
 
         self.parse_candles(json)
     }
 
-    pub async fn fetch_historical_candles(&self, symbol: &str, interval: &str, days: i64) -> Result<Vec<Candle>> {
+    pub async fn fetch_historical_candles(
+        &self,
+        symbol: &str,
+        interval: &str,
+        days: i64,
+    ) -> Result<Vec<Candle>> {
         let mut all_candles = Vec::new();
         let limit = 1000;
         let now = Utc::now();
@@ -104,10 +119,15 @@ impl BinanceClient {
         let mut current_start = start_time.timestamp_millis();
         let end_ts = now.timestamp_millis();
 
-        tracing::info!("Fetching historical data for {} {} ({} days)...", symbol, interval, days);
+        tracing::info!(
+            "Fetching historical data for {} {} ({} days)...",
+            symbol,
+            interval,
+            days
+        );
 
-        // Max requests safety break
-        let max_requests = 100;
+        // Max requests safety break (100 × 1000 candles = ~69 days on 1m)
+        let max_requests: u32 = 100;
         let mut request_count = 0;
 
         loop {
@@ -129,13 +149,18 @@ impl BinanceClient {
             // Add small delay to avoid rate limits
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-            let resp = self.client.get(&self.kline_url).query(&params).send().await?;
+            let resp = self
+                .client
+                .get(&self.kline_url)
+                .query(&params)
+                .send()
+                .await?;
             if !resp.status().is_success() {
-                 tracing::error!("Binance API error fetching history: {}", resp.status());
-                 // Try to continue with what we have
-                 break;
+                tracing::error!("Binance API error fetching history: {}", resp.status());
+                // Try to continue with what we have
+                break;
             }
-            
+
             let json: Vec<Vec<serde_json::Value>> = resp.json().await?;
             if json.is_empty() {
                 break;
@@ -145,17 +170,17 @@ impl BinanceClient {
             if candles.is_empty() {
                 break;
             }
-            
+
             let last_candle_time = candles.last().unwrap().open_time.timestamp_millis();
-            
+
             // If we didn't advance, break to avoid infinite loop
-             if last_candle_time <= current_start {
+            if last_candle_time <= current_start {
                 break;
             }
 
             // Update start time for next batch (last close time + 1ms roughly, or just use next open time)
             // Ideally we use close_time + 1
-            // But parse_candles returns open_time. 
+            // But parse_candles returns open_time.
             // The candle duration depends on interval.
             // Safest is to take the last candle's open time + interval duration?
             // Or just last candle open time + 1ms ? No, that would refetch the same candle roughly.
@@ -165,37 +190,46 @@ impl BinanceClient {
             // I need to update parse_candles to parse close_time or calculate it.
             // Actually, parse_candles in previous code (and my new one below) skips close_time.
             // Let's check `parse_candles`.
-            
+
             all_candles.extend(candles);
-            
+
             // Hack: Since I don't have close_time easily available in Candle struct (it is None),
             // I will use last open_time + interval.
             // Wait, Candle struct HAS close_time but it is Option<DateTime<Utc>>.
             // In the previous fetch_candles, it was set to None.
             // Let's Fix parse_candles to set close_time.
-            
+
             // For now, let's assume valid candles are returned.
             // Next start time = last_candle_open_time + 1ms (Binance includes the candle covering startTime).
             // If I request startTime=T, and there is a candle at T, it returns it.
             // So next request should be T_last + 1ms.
-            current_start = last_candle_time + 1; 
+            current_start = last_candle_time + 1;
 
             request_count += 1;
         }
 
-        tracing::info!("Fetched total {} candles for {} {}", all_candles.len(), symbol, interval);
+        tracing::info!(
+            "Fetched total {} candles for {} {}",
+            all_candles.len(),
+            symbol,
+            interval
+        );
         Ok(all_candles)
     }
 
     fn parse_candles(&self, json: Vec<Vec<serde_json::Value>>) -> Result<Vec<Candle>> {
         let mut candles = Vec::new();
         for row in json {
-            if row.len() < 7 { continue; } // Need close time at index 6
-            
-            let open_time_ms = row[0].as_i64().ok_or(anyhow::anyhow!("Invalid timestamp"))?;
+            if row.len() < 7 {
+                continue;
+            } // Need close time at index 6
+
+            let open_time_ms = row[0]
+                .as_i64()
+                .ok_or(anyhow::anyhow!("Invalid timestamp"))?;
             let open_time = DateTime::<Utc>::from_utc(
-                chrono::NaiveDateTime::from_timestamp_millis(open_time_ms).unwrap(), 
-                Utc
+                chrono::NaiveDateTime::from_timestamp_millis(open_time_ms).unwrap(),
+                Utc,
             );
 
             let open: Decimal = row[1].as_str().unwrap_or("0").parse()?;
@@ -203,12 +237,12 @@ impl BinanceClient {
             let low: Decimal = row[3].as_str().unwrap_or("0").parse()?;
             let close: Decimal = row[4].as_str().unwrap_or("0").parse()?;
             let volume: Decimal = row[5].as_str().unwrap_or("0").parse()?;
-            
+
             let close_time_ms = row[6].as_i64().unwrap_or(0);
-             let close_time = if close_time_ms > 0 {
+            let close_time = if close_time_ms > 0 {
                 Some(DateTime::<Utc>::from_utc(
-                    chrono::NaiveDateTime::from_timestamp_millis(close_time_ms).unwrap(), 
-                    Utc
+                    chrono::NaiveDateTime::from_timestamp_millis(close_time_ms).unwrap(),
+                    Utc,
                 ))
             } else {
                 None
@@ -221,7 +255,7 @@ impl BinanceClient {
                 low,
                 close,
                 volume,
-                close_time, 
+                close_time,
             });
         }
         Ok(candles)
@@ -265,7 +299,10 @@ fn build_http_client(api_key: Option<&str>) -> reqwest::Client {
                 headers.insert("X-MBX-APIKEY", header_value);
             }
             Err(err) => {
-                warn!("Invalid Binance API key format, continuing without header: {}", err);
+                warn!(
+                    "Invalid Binance API key format, continuing without header: {}",
+                    err
+                );
             }
         }
     }
@@ -273,7 +310,10 @@ fn build_http_client(api_key: Option<&str>) -> reqwest::Client {
     match reqwest::Client::builder().default_headers(headers).build() {
         Ok(client) => client,
         Err(err) => {
-            warn!("Failed to build HTTP client with headers, using default client: {}", err);
+            warn!(
+                "Failed to build HTTP client with headers, using default client: {}",
+                err
+            );
             reqwest::Client::new()
         }
     }
@@ -306,6 +346,6 @@ pub async fn connect_stream(
         url
     );
     let (ws_stream, _) = connect_async(url).await?;
-    
+
     Ok(ws_stream)
 }
