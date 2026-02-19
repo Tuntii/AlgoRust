@@ -1,18 +1,18 @@
 ﻿[app]
 # Startup mode: "live" or "backtest"
-mode = "backtest" 
-bootstrap_limit = 10000
+mode = "live"
+bootstrap_limit = 1000
 auto_reconnect = true
 
 [binance]
 # true: Binance USD-M futures (fapi/fstream), false: spot (api/stream)
 use_futures = true
 # Optional: API credentials (needed for private endpoints/order APIs)
-api_key = ""
-api_secret = ""
+api_key = "6ghhzslbYKrjzdf0pepwHhLCpUfaFDVuHTDlZFsSJP1JJxkkkjxVal2YgBAJYKDB"
+api_secret = "mwAjVfQ9fckxHPb0cwJNo1TSL9f0rT4fMPxEIAc5hdEKC4UrrsvZwGfx97B7WXXT"
 # Optional URL overrides
-# rest_base_url = "https://fapi.binance.com"
-# ws_base_url = "wss://fstream.binance.com"
+rest_base_url = "https://fapi.binance.com"
+ws_base_url = "wss://fstream.binance.com"
 
 [backtest]
 output_dir = "backtest_results"
@@ -31,7 +31,7 @@ timeframes = ["1m"]
 # Live trade execution control
 execute_trades = true
 # Paper trading (simulated trading without real money)
-use_paper_trader = true
+use_paper_trader = false
 paper_initial_balance = 300.0
 paper_state_file = "paper_trader_state.json"
 

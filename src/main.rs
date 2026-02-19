@@ -1,21 +1,23 @@
+mod alpaca;
 mod analytics;
 mod backtest;
+mod binance_trader;
 mod connect;
 mod engine;
 mod indicators;
 mod ml_filter;
 mod order_block;
+mod paper_trader;
 mod policy;
 mod state;
 mod types;
-mod alpaca;
-mod paper_trader;
 
 use crate::engine::{LstmMode, SignalEngine};
 use crate::ml_filter::LstmFilter;
 use crate::state::SymbolContext;
 use crate::types::WsStreamMessage;
 use config::Config;
+use dotenv::dotenv;
 use futures_util::StreamExt;
 use rust_decimal::prelude::FromPrimitive;
 use serde::Deserialize;
@@ -23,7 +25,6 @@ use std::collections::HashMap;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
-use dotenv::dotenv;
 
 #[derive(Debug, Deserialize)]
 struct AppSettings {
@@ -210,25 +211,25 @@ async fn main() -> anyhow::Result<()> {
     let mut contexts: HashMap<String, SymbolContext> = HashMap::new();
     let client = connect::BinanceClient::with_settings(&conf.binance);
 
-    // Initialize Alpaca client if execute_trades is enabled
-    let alpaca_client = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
-        match alpaca::AlpacaClient::new() {
-            Ok(client) => {
-                info!("🦙 Alpaca client initialized for live trading");
-                Some(client)
+    // Initialize Binance Futures trader if execute_trades=true and not paper
+    let binance_trader = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
+        let risk = rust_decimal::Decimal::new(1, 2); // 0.01 = 1%
+        match binance_trader::BinanceFuturesTrader::new(risk) {
+            Ok(trader) => {
+                info!("💰 Binance Futures trader initialized (1% risk per trade)");
+                Some(trader)
             }
             Err(e) => {
-                error!("⚠️ Failed to initialize Alpaca client: {}", e);
-                error!("   Trading execution will be disabled");
+                error!("⚠️ Binance trader init failed: {}", e);
+                error!("   Make sure BINANCE_API_KEY and BINANCE_API_SECRET are set in .env");
                 None
             }
         }
-    } else if conf.trading.use_paper_trader {
-        None // Paper trader will be used instead
     } else {
-        info!("ℹ️  Trade execution disabled (execute_trades = false)");
         None
     };
+    // Alpaca kept for backwards compat but not used when binance_trader is active
+    let alpaca_client: Option<alpaca::AlpacaClient> = None;
 
     // Initialize Paper Trader if enabled
     let mut paper_trader = if conf.trading.use_paper_trader && conf.trading.execute_trades {
@@ -236,21 +237,28 @@ async fn main() -> anyhow::Result<()> {
         let trader = if state_path.exists() {
             match paper_trader::PaperTrader::load_from_file(state_path) {
                 Ok(t) => {
-                    info!("📊 Paper trader state loaded from: {}", conf.trading.paper_state_file);
+                    info!(
+                        "📊 Paper trader state loaded from: {}",
+                        conf.trading.paper_state_file
+                    );
                     t
                 }
                 Err(e) => {
                     warn!("⚠️ Failed to load paper trader state: {}", e);
                     warn!("   Starting with fresh state");
                     paper_trader::PaperTrader::new(
-                        rust_decimal::Decimal::from_f64(conf.trading.paper_initial_balance).unwrap()
+                        rust_decimal::Decimal::from_f64(conf.trading.paper_initial_balance)
+                            .unwrap(),
                     )
                 }
             }
         } else {
-            info!("💼 Paper trader initialized with ${} balance", conf.trading.paper_initial_balance);
+            info!(
+                "💼 Paper trader initialized with ${} balance",
+                conf.trading.paper_initial_balance
+            );
             paper_trader::PaperTrader::new(
-                rust_decimal::Decimal::from_f64(conf.trading.paper_initial_balance).unwrap()
+                rust_decimal::Decimal::from_f64(conf.trading.paper_initial_balance).unwrap(),
             )
         };
         Some(trader)
@@ -305,7 +313,13 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         info!("WebSocket başlatılıyor...");
-        match connect::connect_stream(&conf.trading.symbols, &conf.trading.timeframes, &conf.binance).await {
+        match connect::connect_stream(
+            &conf.trading.symbols,
+            &conf.trading.timeframes,
+            &conf.binance,
+        )
+        .await
+        {
             Ok(mut ws_stream) => {
                 info!("✅ Bağlantı başarılı. Sinyaller bekleniyor...");
 
@@ -327,10 +341,15 @@ async fn main() -> anyhow::Result<()> {
 
                                                     // Update paper trader positions on every candle close
                                                     if let Some(ref mut trader) = paper_trader {
-                                                        let current_close = ctx.candles.back()
+                                                        let current_close = ctx
+                                                            .candles
+                                                            .back()
                                                             .map(|c| c.close)
                                                             .unwrap_or_default();
-                                                        if let Err(e) = trader.update_positions(&k.symbol, current_close) {
+                                                        if let Err(e) = trader.update_positions(
+                                                            &k.symbol,
+                                                            current_close,
+                                                        ) {
                                                             error!("Failed to update paper trader positions: {}", e);
                                                         }
                                                     }
@@ -345,106 +364,77 @@ async fn main() -> anyhow::Result<()> {
 
                                                         // Execute trade with Paper Trader
                                                         if let Some(ref mut trader) = paper_trader {
-                                                            info!("📊 Signal generated: {} {} @ ${}", 
-                                                                  signal.signal, signal.symbol, signal.price);
+                                                            info!(
+                                                                "📊 Signal generated: {} {} @ ${}",
+                                                                signal.signal,
+                                                                signal.symbol,
+                                                                signal.price
+                                                            );
 
                                                             // Calculate confidence multiplier
                                                             use crate::analytics::ConfidenceTier;
-                                                            let confidence_tier = ConfidenceTier::from_score(signal.confidence as i32);
-                                                            let confidence_multiplier = rust_decimal::Decimal::from_f64(
-                                                                confidence_tier.position_size_multiplier()
-                                                            ).unwrap();
+                                                            let confidence_tier =
+                                                                ConfidenceTier::from_score(
+                                                                    signal.confidence as i32,
+                                                                );
+                                                            let confidence_multiplier =
+                                                                rust_decimal::Decimal::from_f64(
+                                                                    confidence_tier
+                                                                        .position_size_multiplier(),
+                                                                )
+                                                                .unwrap();
 
                                                             // Open position
                                                             if let Err(e) = trader.open_position(
                                                                 &signal,
                                                                 ctx,
-                                                                rust_decimal::Decimal::from_f64(0.01).unwrap(), // 1% risk
+                                                                rust_decimal::Decimal::from_f64(
+                                                                    0.01,
+                                                                )
+                                                                .unwrap(), // 1% risk
                                                                 confidence_multiplier,
                                                             ) {
-                                                                error!("Failed to open position: {}", e);
+                                                                error!(
+                                                                    "Failed to open position: {}",
+                                                                    e
+                                                                );
                                                             }
 
                                                             // Print status every 10 trades
-                                                            if trader.total_trades % 10 == 0 && trader.total_trades > 0 {
+                                                            if trader.total_trades % 10 == 0
+                                                                && trader.total_trades > 0
+                                                            {
                                                                 trader.print_status();
                                                             }
 
                                                             // Save state
-                                                            let state_path = std::path::Path::new(&conf.trading.paper_state_file);
-                                                            if let Err(e) = trader.save_to_file(state_path) {
+                                                            let state_path = std::path::Path::new(
+                                                                &conf.trading.paper_state_file,
+                                                            );
+                                                            if let Err(e) =
+                                                                trader.save_to_file(state_path)
+                                                            {
                                                                 error!("Failed to save paper trader state: {}", e);
                                                             }
                                                         }
-                                                        // Execute trade with Alpaca
-                                                        else if let Some(alpaca) = &alpaca_client {
-                                                            info!("📊 Signal generated: {} {} @ ${}", 
-                                                                  signal.signal, signal.symbol, signal.price);
-                                                            
-                                                            // ⚠️ Alpaca crypto only supports LONG (spot buy) - skip SHORT signals
-                                                            if matches!(signal.signal, crate::types::SignalType::SHORT) {
-                                                                warn!("⚠️ Alpaca crypto doesn't support SHORT positions - signal ignored");
-                                                                warn!("   Use a margin/futures platform if you want to short crypto");
-                                                                continue;
-                                                            }
-                                                            
-                                                            let entry_price = signal.price;
-                                                            
-                                                            // Build a temporary order to get SL/TP for position sizing
-                                                            let (_temp_order, sl_price, _tp_price) = alpaca::build_market_entry_order(&signal, ctx, rust_decimal::Decimal::ZERO);
-                                                            
-                                                            // Calculate dynamic position size
-                                                            match alpaca.calculate_position_size(
-                                                                entry_price,
-                                                                sl_price,
-                                                                signal.confidence,
-                                                                None, // Use default 1% risk
-                                                            ).await {
-                                                                Ok(qty) => {
-                                                                    // Build final market entry order with calculated qty
-                                                                    let (entry_order, sl, tp) = alpaca::build_market_entry_order(&signal, ctx, qty);
-                                                                    
-                                                                    info!("🚀 Submitting market entry order:");
-                                                                    info!("   Symbol: {}, Side: {:?}, Qty: {}", entry_order.symbol, entry_order.side, entry_order.qty);
-                                                                    info!("   Entry: ${}, SL: ${}, TP: ${}", entry_price, sl, tp);
-                                                                    
-                                                                    // Step 1: Submit entry order with retry
-                                                                    match alpaca.submit_order_with_retry(entry_order.clone()).await {
-                                                                        Ok(response) => {
-                                                                            info!("✅ Entry order placed successfully!");
-                                                                            info!("   Order ID: {}", response.id);
-                                                                            info!("   Status: {}", response.status);
-                                                                            
-                                                                            // Step 2: Submit OCO orders (SL/TP) after entry
-                                                                            // Get opposite side for exit orders
-                                                                            let exit_side = alpaca::get_exit_side(&entry_order.side);
-                                                                            
-                                                                            info!("🎯 Submitting OCO orders (SL/TP)...");
-                                                                            match alpaca.submit_oco_orders(
-                                                                                &entry_order.symbol,
-                                                                                exit_side,
-                                                                                qty,
-                                                                                sl,
-                                                                                tp,
-                                                                            ).await {
-                                                                                Ok(oco_response) => {
-                                                                                    info!("✅ OCO orders placed successfully!");
-                                                                                    info!("   OCO Order ID: {}", oco_response.id);
-                                                                                }
-                                                                                Err(e) => {
-                                                                                    error!("⚠️ Entry filled but failed to submit OCO orders: {}", e);
-                                                                                    error!("   Manual intervention may be required!");
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                        Err(e) => {
-                                                                            error!("❌ Failed to submit entry order: {}", e);
-                                                                        }
-                                                                    }
-                                                                }
-                                                                Err(e) => {
-                                                                    error!("❌ Failed to calculate position size: {}", e);
-                                                                }
+                                                        // Execute trade with Binance Futures
+                                                        else if let Some(ref trader) =
+                                                            binance_trader
+                                                        {
+                                                            info!(
+                                                                "📊 Signal: {} {} @ ${}",
+                                                                signal.signal,
+                                                                signal.symbol,
+                                                                signal.price
+                                                            );
+                                                            if let Err(e) = trader
+                                                                .execute_signal(&signal, ctx)
+                                                                .await
+                                                            {
+                                                                error!(
+                                                                    "❌ Binance order failed: {}",
+                                                                    e
+                                                                );
                                                             }
                                                         }
                                                     }

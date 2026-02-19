@@ -455,14 +455,12 @@ pub fn get_exit_side(entry_side: &Side) -> Side {
 
 /// Calculate SL/TP based on Order Blocks (Smart Money TP/SL)
 /// Fallback: pivot seviyeleri ve ATR tabanlı hesaplama
-fn calculate_sl_tp(
+pub fn calculate_sl_tp_pub(
     signal: &TradeSignal,
     ctx: &SymbolContext,
     entry: Decimal,
 ) -> (Decimal, Decimal) {
     let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
-
-    // ORDER BLOCK TABANLI TP/SL
     ctx.ob_tracker.calculate_ob_sl_tp(
         &signal.signal,
         entry,
@@ -472,6 +470,14 @@ fn calculate_sl_tp(
         &ctx.pivot_high_history,
         &ctx.pivot_low_history,
     )
+}
+
+fn calculate_sl_tp(
+    signal: &TradeSignal,
+    ctx: &SymbolContext,
+    entry: Decimal,
+) -> (Decimal, Decimal) {
+    calculate_sl_tp_pub(signal, ctx, entry)
 }
 
 /// Convert Binance symbol format to Alpaca format

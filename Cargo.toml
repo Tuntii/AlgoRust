@@ -23,3 +23,6 @@ uuid = { version = "1.6", features = ["v4"] }
 dotenv = "0.15.0"
 ndarray = "0.15"
 ort = { version = "=2.0.0-rc.11", features = ["load-dynamic", "ndarray"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
