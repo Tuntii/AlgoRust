@@ -1,5 +1,5 @@
-use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
+use rust_decimal::Decimal;
 
 #[derive(Debug, Clone)]
 pub struct Ema {
@@ -48,10 +48,10 @@ pub fn is_pivot_high(highs: &[Decimal], idx: usize) -> bool {
     }
     let current = highs[idx];
     // Check 3 bars before
-    let left = highs[idx-3..idx].iter().all(|&h| h < current);
+    let left = highs[idx - 3..idx].iter().all(|&h| h < current);
     // Check 3 bars after
-    let right = highs[idx+1..=idx+3].iter().all(|&h| h < current);
-    
+    let right = highs[idx + 1..=idx + 3].iter().all(|&h| h < current);
+
     left && right
 }
 
@@ -61,10 +61,10 @@ pub fn is_pivot_low(lows: &[Decimal], idx: usize) -> bool {
     }
     let current = lows[idx];
     // Check 3 bars before
-    let left = lows[idx-3..idx].iter().all(|&l| l > current);
+    let left = lows[idx - 3..idx].iter().all(|&l| l > current);
     // Check 3 bars after
-    let right = lows[idx+1..=idx+3].iter().all(|&l| l > current);
-    
+    let right = lows[idx + 1..=idx + 3].iter().all(|&l| l > current);
+
     left && right
 }
 
@@ -93,7 +93,7 @@ impl Atr {
                 let hc = (high - prev).abs();
                 let lc = (low - prev).abs();
                 hl.max(hc).max(lc)
-            },
+            }
             None => high - low,
         };
 
@@ -105,13 +105,13 @@ impl Atr {
                 // Equivalent to: Prev + alpha * (TR - Prev)
                 let new_atr = prev_atr + self.alpha * (tr - prev_atr);
                 self.current_value = Some(new_atr);
-            },
+            }
             None => {
                 // Seed with TR
                 self.current_value = Some(tr);
             }
         }
-        
+
         self.current_value
     }
 }
@@ -261,7 +261,12 @@ impl Adx {
         }
     }
 
-    pub fn update(&mut self, high: Decimal, low: Decimal, close: Decimal) -> Option<(Decimal, Decimal, Decimal)> {
+    pub fn update(
+        &mut self,
+        high: Decimal,
+        low: Decimal,
+        close: Decimal,
+    ) -> Option<(Decimal, Decimal, Decimal)> {
         let (tr, plus_dm, minus_dm) = match (self.prev_high, self.prev_low, self.prev_close) {
             (Some(prev_high), Some(prev_low), Some(prev_close)) => {
                 let up_move = high - prev_high;
@@ -431,8 +436,16 @@ impl Rsi {
     pub fn update(&mut self, close: Decimal) -> Option<Decimal> {
         if let Some(prev) = self.prev_close {
             let change = close - prev;
-            let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-            let loss = if change < Decimal::ZERO { change.abs() } else { Decimal::ZERO };
+            let gain = if change > Decimal::ZERO {
+                change
+            } else {
+                Decimal::ZERO
+            };
+            let loss = if change < Decimal::ZERO {
+                change.abs()
+            } else {
+                Decimal::ZERO
+            };
 
             let (new_avg_gain, new_avg_loss) = match (self.avg_gain, self.avg_loss) {
                 (Some(ag), Some(al)) => {
@@ -441,7 +454,7 @@ impl Rsi {
                     let ag = (ag * (period - Decimal::ONE) + gain) / period;
                     let al = (al * (period - Decimal::ONE) + loss) / period;
                     (ag, al)
-                },
+                }
                 _ => (gain, loss), // Initial seeding (partially correct, smoothes out over time)
             };
 
@@ -482,11 +495,11 @@ pub fn check_divergence(
     if price_lows.len() >= 2 {
         let (curr_idx, curr_price) = price_lows.last().unwrap();
         let (prev_idx, prev_price) = price_lows.get(price_lows.len() - 2).unwrap();
-        
+
         // Find corresponding RSI values for these pivot candles
         let curr_rsi = find_rsi_at(rsi_history, *curr_idx);
         let prev_rsi = find_rsi_at(rsi_history, *prev_idx);
-        
+
         if let (Some(c_rsi), Some(p_rsi)) = (curr_rsi, prev_rsi) {
             // Price Lower Low AND RSI Higher Low AND RSI is Oversold territory (<40 usually, but divergence can happen anywhere)
             // But strict divergence implies RSI shows strength.
@@ -504,10 +517,10 @@ pub fn check_divergence(
     if price_highs.len() >= 2 {
         let (curr_idx, curr_price) = price_highs.last().unwrap();
         let (prev_idx, prev_price) = price_highs.get(price_highs.len() - 2).unwrap();
-        
+
         let curr_rsi = find_rsi_at(rsi_history, *curr_idx);
         let prev_rsi = find_rsi_at(rsi_history, *prev_idx);
-        
+
         if let (Some(c_rsi), Some(p_rsi)) = (curr_rsi, prev_rsi) {
             if curr_price > prev_price && c_rsi < p_rsi {
                 return DivergenceType::Bearish;
@@ -519,6 +532,8 @@ pub fn check_divergence(
 }
 
 fn find_rsi_at(history: &[(usize, Decimal)], target_idx: usize) -> Option<Decimal> {
-    history.iter().find(|(idx, _)| *idx == target_idx).map(|(_, rsi)| *rsi)
+    history
+        .iter()
+        .find(|(idx, _)| *idx == target_idx)
+        .map(|(_, rsi)| *rsi)
 }
-

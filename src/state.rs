@@ -1,13 +1,13 @@
-use crate::types::{Candle, MarketStructure, TrendState, ContextId};
 use crate::indicators::{
-    Adx, Atr, Ema, Kama, Macd, Rsi, StochRsi, check_divergence, is_pivot_high, is_pivot_low,
-    DivergenceType,
+    check_divergence, is_pivot_high, is_pivot_low, Adx, Atr, DivergenceType, Ema, Kama, Macd, Rsi,
+    StochRsi,
 };
 use crate::order_block::OrderBlockTracker;
 use crate::policy::BootstrapState;
-use std::collections::VecDeque;
-use rust_decimal::Decimal;
+use crate::types::{Candle, ContextId, MarketStructure, TrendState};
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 const SUPERKAMA_LENGTH: usize = 2584;
 const SUPERKAMA_FAST_PERIOD: usize = 34;
@@ -19,7 +19,7 @@ pub struct SymbolContext {
     pub timeframe: String,
     pub candles: VecDeque<Candle>,
     pub structure: MarketStructure,
-    
+
     // Indicators
     pub ema_5: Ema,
     pub ema_8: Ema,
@@ -77,13 +77,13 @@ pub struct SymbolContext {
     pub just_confirmed_pivot_high: bool,
     pub just_confirmed_pivot_low: bool,
     pub last_signal_candle: Option<usize>, // Son sinyal üretilen mum indeksi (cooldown için)
-    
+
     // BOS/Liquidity tracking
-    pub just_broke_high: bool,  // Bu mumda high kırıldı mı?
-    pub just_broke_low: bool,   // Bu mumda low kırıldı mı?
+    pub just_broke_high: bool,                 // Bu mumda high kırıldı mı?
+    pub just_broke_low: bool,                  // Bu mumda low kırıldı mı?
     pub pivot_high_history: VecDeque<Decimal>, // Son pivot high'lar (equal high tespiti için)
     pub pivot_low_history: VecDeque<Decimal>,  // Son pivot low'lar (equal low tespiti için)
-    
+
     // Pivot History with Index for Divergence
     pub pivot_highs_with_idx: Vec<(usize, Decimal)>,
     pub pivot_lows_with_idx: Vec<(usize, Decimal)>,
@@ -91,10 +91,10 @@ pub struct SymbolContext {
 
     // T0.2 — Bootstrap Integrity Gate
     pub bootstrap: BootstrapState,
-    
+
     // Backtest tracking - Total candles ever processed (not just in buffer)
     pub total_candles_processed: usize,
-    
+
     // MULTI-POSITION: Current context ID for signal generation
     pub current_context_id: Option<ContextId>,
     // Last BOS candle index (for context generation)
@@ -102,7 +102,7 @@ pub struct SymbolContext {
     // Last pivot candle indices
     pub last_pivot_high_idx: Option<usize>,
     pub last_pivot_low_idx: Option<usize>,
-    
+
     // ORDER BLOCK: Smart Money TP/SL sistemi
     pub ob_tracker: OrderBlockTracker,
 }
@@ -179,17 +179,17 @@ impl SymbolContext {
             last_bos_candle_idx: None,
             last_pivot_high_idx: None,
             last_pivot_low_idx: None,
-            
+
             // Order Block tracker
             ob_tracker: OrderBlockTracker::new(),
         }
     }
-    
+
     /// Generate a context ID for the current signal opportunity
     /// This is used for multi-position uniqueness checking
     pub fn generate_context_id(&self) -> ContextId {
         let candle_idx = self.total_candles_processed;
-        
+
         // Priority: BOS > Liquidity Sweep > Pivot
         if self.structure.bos_confirmed && self.just_broke_high {
             ContextId::from_bos(candle_idx, true)
@@ -218,30 +218,36 @@ impl SymbolContext {
     }
 
     pub fn get_median_atr_ratio(&self) -> Decimal {
-        if self.atr_ratio_history.is_empty() { return Decimal::ZERO; }
+        if self.atr_ratio_history.is_empty() {
+            return Decimal::ZERO;
+        }
         let mut sorted: Vec<Decimal> = self.atr_ratio_history.iter().cloned().collect();
         // sort_by ile Decimal sıralama
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mid = sorted.len() / 2;
         sorted[mid]
     }
-    
+
     // EMA50 Slope: 6-bar lookback for robust slope
     // (Current - EMA[t-6]) / EMA[t-6]
     pub fn get_ema50_slope(&self) -> Decimal {
         let len = self.ema_50_slope_history.len();
-        if len < 7 { return Decimal::ZERO; }
+        if len < 7 {
+            return Decimal::ZERO;
+        }
         let current = self.ema_50_slope_history.back().unwrap();
         let old = self.ema_50_slope_history.get(len - 7).unwrap();
-        
-        if old.is_zero() { return Decimal::ZERO; }
+
+        if old.is_zero() {
+            return Decimal::ZERO;
+        }
         (*current - *old) / *old
     }
-    
+
     pub fn add_candle(&mut self, candle: Candle) {
         // Increment total candles counter (for cooldown tracking)
         self.total_candles_processed += 1;
-        
+
         // Reset events
         self.just_confirmed_pivot_high = false;
         self.just_confirmed_pivot_low = false;
@@ -282,13 +288,17 @@ impl SymbolContext {
         // Pine indicators
         let cur_kama = self.kama_10.update(close);
         self.kama_10_series.push_back(cur_kama);
-        if self.kama_10_series.len() > 2000 { self.kama_10_series.pop_front(); }
+        if self.kama_10_series.len() > 2000 {
+            self.kama_10_series.pop_front();
+        }
         let _ = self.macd_8_21_5.update(close);
         let _ = self.adx_10_10.update(candle.high, candle.low, candle.close);
         let _ = self.atr_10.update(candle.high, candle.low, candle.close);
         let rsi_10_val = self.rsi_10.update(candle.close);
         self.rsi_10_series.push_back(rsi_10_val);
-        if self.rsi_10_series.len() > 2000 { self.rsi_10_series.pop_front(); }
+        if self.rsi_10_series.len() > 2000 {
+            self.rsi_10_series.pop_front();
+        }
         if let Some(sk_atr) = self
             .superkama_atr
             .update(candle.high, candle.low, candle.close)
@@ -306,22 +316,26 @@ impl SymbolContext {
         };
         let stoch_k_val = stoch_update.map(|(k, _)| k);
         self.stoch_k_series.push_back(stoch_k_val);
-        if self.stoch_k_series.len() > 2000 { self.stoch_k_series.pop_front(); }
+        if self.stoch_k_series.len() > 2000 {
+            self.stoch_k_series.pop_front();
+        }
 
         // Update ATR
         if let Some(atr_val) = self.atr_14.update(candle.high, candle.low, candle.close) {
-             if !candle.close.is_zero() {
-                 let ratio = atr_val / candle.close;
-                 self.atr_ratio_history.push_back(ratio);
-                 if self.atr_ratio_history.len() > 200 { self.atr_ratio_history.pop_front(); }
-             }
+            if !candle.close.is_zero() {
+                let ratio = atr_val / candle.close;
+                self.atr_ratio_history.push_back(ratio);
+                if self.atr_ratio_history.len() > 200 {
+                    self.atr_ratio_history.pop_front();
+                }
+            }
         }
-        
+
         // BOS Detection: Check if current candle broke previous swing
         let candle_range = candle.high - candle.low;
         let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
         let displacement_threshold = atr * Decimal::from_f64(1.2).unwrap(); // BOS candle > 1.2*ATR = displacement
-        
+
         if let Some(prev_high) = self.structure.last_pivot_high {
             if candle.close > prev_high {
                 self.just_broke_high = true;
@@ -331,7 +345,7 @@ impl SymbolContext {
                 self.last_bos_candle_idx = Some(self.total_candles_processed); // Track BOS index
             }
         }
-        
+
         if let Some(prev_low) = self.structure.last_pivot_low {
             if candle.close < prev_low {
                 self.just_broke_low = true;
@@ -341,25 +355,30 @@ impl SymbolContext {
                 self.last_bos_candle_idx = Some(self.total_candles_processed); // Track BOS index
             }
         }
-        
+
         // ORDER BLOCK: BOS tespitinden sonra OB tracker'ı güncelle
         self.ob_tracker.update(
             &candle,
             self.total_candles_processed,
             self.atr_14.current_value,
-            self.just_broke_high,  // Yukarı BOS
-            self.just_broke_low,   // Aşağı BOS
+            self.just_broke_high, // Yukarı BOS
+            self.just_broke_low,  // Aşağı BOS
         );
 
         // Track EMA50 history - EMA update() returns Decimal directly
         self.ema_50_slope_history.push_back(cur_ema50);
-        if self.ema_50_slope_history.len() > 20 { self.ema_50_slope_history.pop_front(); }
+        if self.ema_50_slope_history.len() > 20 {
+            self.ema_50_slope_history.pop_front();
+        }
 
         // Update RSI
         if let Some(rsi_val) = self.rsi_14.update(candle.close) {
-             self.rsi_history.push_back((self.total_candles_processed, rsi_val));
-             // Keep history manageable (e.g., last 300)
-             if self.rsi_history.len() > 300 { self.rsi_history.pop_front(); }
+            self.rsi_history
+                .push_back((self.total_candles_processed, rsi_val));
+            // Keep history manageable (e.g., last 300)
+            if self.rsi_history.len() > 300 {
+                self.rsi_history.pop_front();
+            }
         }
 
         // Store Candle - HTF needs more history
@@ -373,9 +392,12 @@ impl SymbolContext {
 
         // SuperKAMA state (trend + crossover + band signals)
         self.update_pine_state(close, cur_kama);
-        
+
         // T0.2 — Update Bootstrap State (TF-aware)
-        let pivot_count = self.pivot_high_history.len().min(self.pivot_low_history.len());
+        let pivot_count = self
+            .pivot_high_history
+            .len()
+            .min(self.pivot_low_history.len());
         self.bootstrap.update_with_tf(
             &self.timeframe,
             self.candles.len(),
@@ -385,7 +407,6 @@ impl SymbolContext {
         );
     }
 
-
     fn update_structure(&mut self) {
         if self.candles.len() < 7 {
             return;
@@ -394,16 +415,18 @@ impl SymbolContext {
         // Check Pivot at index len - 4
         let idx = self.candles.len().saturating_sub(4);
         // Index conversion to total_processed (approximate for history, precise for current candle)
-        // Correct index relative to history start is tricky with popping. 
+        // Correct index relative to history start is tricky with popping.
         // Better to use total_candles_processed offset.
         // Pivot detected at Candle[idx]. Wait, `idx` is index in `self.candles`.
         // The real candle index is `total_candles_processed - (self.candles.len() - idx) + 1`?
-        // Let's simplify: 
+        // Let's simplify:
         // `total_candles_processed` is the index of the JUST ADDED candle (last one).
         // `idx` is `len - 4`. So it is 3 candles ago properly.
         let pivot_real_idx = self.total_candles_processed - 3;
-        
-        if idx < 3 { return; } 
+
+        if idx < 3 {
+            return;
+        }
 
         let highs: Vec<_> = self.candles.iter().map(|c| c.high).collect();
         let lows: Vec<_> = self.candles.iter().map(|c| c.low).collect();
@@ -413,56 +436,74 @@ impl SymbolContext {
             self.structure.last_pivot_high = Some(pivot_val);
             self.just_confirmed_pivot_high = true;
             self.last_pivot_high_idx = Some(pivot_real_idx); // Track pivot index
-            
+
             // Pivot history'e ekle (equal high tespiti için)
             self.pivot_high_history.push_back(pivot_val);
-            if self.pivot_high_history.len() > 5 { self.pivot_high_history.pop_front(); }
-            
+            if self.pivot_high_history.len() > 5 {
+                self.pivot_high_history.pop_front();
+            }
+
             self.pivot_highs_with_idx.push((pivot_real_idx, pivot_val));
-            if self.pivot_highs_with_idx.len() > 10 { self.pivot_highs_with_idx.remove(0); }
+            if self.pivot_highs_with_idx.len() > 10 {
+                self.pivot_highs_with_idx.remove(0);
+            }
 
             // Equal High kontrolü: Son 5 pivot high içinde %0.15 toleransla eşit var mı?
-            self.structure.has_equal_highs = self.check_equal_levels(&self.pivot_high_history.clone());
+            self.structure.has_equal_highs =
+                self.check_equal_levels(&self.pivot_high_history.clone());
 
             // Check Bearish Divergence (HH price, LH RSI)
             let rsi_vec: Vec<_> = self.rsi_history.iter().cloned().collect();
-            let divergence = check_divergence(&self.pivot_highs_with_idx, &self.pivot_lows_with_idx, &rsi_vec);
+            let divergence = check_divergence(
+                &self.pivot_highs_with_idx,
+                &self.pivot_lows_with_idx,
+                &rsi_vec,
+            );
             if divergence == DivergenceType::Bearish {
                 self.current_divergence = DivergenceType::Bearish;
             }
         }
-        
+
         if is_pivot_low(&lows, idx) {
             let pivot_val = lows[idx];
             self.structure.last_pivot_low = Some(pivot_val);
             self.just_confirmed_pivot_low = true;
             self.last_pivot_low_idx = Some(pivot_real_idx); // Track pivot index
-            
+
             // Pivot history'e ekle
             self.pivot_low_history.push_back(pivot_val);
-            if self.pivot_low_history.len() > 5 { self.pivot_low_history.pop_front(); }
-            
+            if self.pivot_low_history.len() > 5 {
+                self.pivot_low_history.pop_front();
+            }
+
             self.pivot_lows_with_idx.push((pivot_real_idx, pivot_val));
-            if self.pivot_lows_with_idx.len() > 10 { self.pivot_lows_with_idx.remove(0); }
+            if self.pivot_lows_with_idx.len() > 10 {
+                self.pivot_lows_with_idx.remove(0);
+            }
 
             // Equal Low kontrolü
-            self.structure.has_equal_lows = self.check_equal_levels(&self.pivot_low_history.clone());
+            self.structure.has_equal_lows =
+                self.check_equal_levels(&self.pivot_low_history.clone());
 
             // Check Bullish Divergence (LL price, HL RSI)
             let rsi_vec: Vec<_> = self.rsi_history.iter().cloned().collect();
-            let divergence = check_divergence(&self.pivot_highs_with_idx, &self.pivot_lows_with_idx, &rsi_vec);
+            let divergence = check_divergence(
+                &self.pivot_highs_with_idx,
+                &self.pivot_lows_with_idx,
+                &rsi_vec,
+            );
             if divergence == DivergenceType::Bullish {
                 self.current_divergence = DivergenceType::Bullish;
             }
         }
-        
+
         // Update Trend
         let e5 = self.ema_5.current_value;
         let e8 = self.ema_8.current_value;
         let e13 = self.ema_13.current_value;
         let e50 = self.ema_50.current_value;
         let e200 = self.ema_200.current_value;
-        
+
         let last_close = self.candles.back().map(|c| c.close).unwrap_or_default();
 
         if let (Some(v5), Some(v8), Some(v13), Some(v50), Some(v200)) = (e5, e8, e13, e50, e200) {
@@ -498,7 +539,9 @@ impl SymbolContext {
             None
         };
         let prev_kama = if self.kama_10_series.len() >= 2 {
-            self.kama_10_series.get(self.kama_10_series.len() - 2).copied()
+            self.kama_10_series
+                .get(self.kama_10_series.len() - 2)
+                .copied()
         } else {
             None
         };
@@ -529,16 +572,18 @@ impl SymbolContext {
         self.pine_trend_changed_bullish = self.pine_trend == 1 && prev_trend != 1;
         self.pine_trend_changed_bearish = self.pine_trend == -1 && prev_trend != -1;
 
-        let buy_signal = if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
-            close > kama && *prev_c <= *prev_k && kama_rising
-        } else {
-            false
-        };
-        let sell_signal = if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
-            close < kama && *prev_c >= *prev_k && kama_falling
-        } else {
-            false
-        };
+        let buy_signal =
+            if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
+                close > kama && *prev_c <= *prev_k && kama_rising
+            } else {
+                false
+            };
+        let sell_signal =
+            if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
+                close < kama && *prev_c >= *prev_k && kama_falling
+            } else {
+                false
+            };
 
         let (strong_buy, strong_sell) = if let (Some(prev_c), Some(prev_k), Some(prev_a)) =
             (prev_close.as_ref(), prev_kama.as_ref(), prev_atr.as_ref())
@@ -598,16 +643,20 @@ impl SymbolContext {
 
     /// Equal high/low tespiti: Son pivot'lar arasında %0.15 toleransla eşit seviye var mı?
     fn check_equal_levels(&self, pivots: &VecDeque<Decimal>) -> bool {
-        if pivots.len() < 2 { return false; }
-        
+        if pivots.len() < 2 {
+            return false;
+        }
+
         let tolerance = Decimal::from_f64(0.0015).unwrap(); // %0.15
-        
+
         for i in 0..pivots.len() {
-            for j in (i+1)..pivots.len() {
+            for j in (i + 1)..pivots.len() {
                 let p1 = pivots[i];
                 let p2 = pivots[j];
-                if p1.is_zero() { continue; }
-                
+                if p1.is_zero() {
+                    continue;
+                }
+
                 let diff_pct = ((p1 - p2) / p1).abs();
                 if diff_pct < tolerance {
                     return true; // Equal level bulundu = Liquidity pool
@@ -617,4 +666,3 @@ impl SymbolContext {
         false
     }
 }
-

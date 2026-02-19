@@ -274,7 +274,8 @@ impl CooldownManager {
 
     pub fn record_trade_close(&mut self, key: &str, candle_idx: usize) {
         self.open_trades.remove(key);
-        self.post_close_cooldowns.insert(key.to_string(), candle_idx);
+        self.post_close_cooldowns
+            .insert(key.to_string(), candle_idx);
     }
 }
 

@@ -371,8 +371,8 @@ impl Default for PositionPoolConfig {
             max_trade_duration_candles: 10,     // T9.1: Force exit sooner for scalping
             be_threshold_candles: 4,            // T9.2: Apply BE earlier
             be_min_profit_r: Decimal::from_str_exact("0.3").unwrap(), // T9.2: Don't apply BE if > 0.3R profit
-            partial_tp_enabled: true,                                 // T9.3: Lock some win rate on 1R
-            partial_tp_ratio: 0.5,                                    // T9.3: Close 50% at 1R
+            partial_tp_enabled: true,     // T9.3: Lock some win rate on 1R
+            partial_tp_ratio: 0.5,        // T9.3: Close 50% at 1R
             kill_switch_consec_losses: 9, // T10.2: Pause after 9 consecutive losses
             kill_switch_min_duration: 20, // T11.1: DEFAULT - use get_kill_switch_duration_for_tf()
             kill_switch_reset_wins: 1,    // T11.2: Need 1 consecutive win to reset

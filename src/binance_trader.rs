@@ -15,6 +15,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use sha2::Sha256;
 use std::env;
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{error, info, warn};
 
@@ -22,14 +23,17 @@ type HmacSha256 = Hmac<Sha256>;
 
 const FAPI_BASE: &str = "https://fapi.binance.com";
 const TESTNET_BASE: &str = "https://testnet.binancefuture.com";
-
-// ─── Client ────────────────────────────────────────────────────────────────
+const DEFAULT_RECV_WINDOW_MS: u64 = 10_000;
+const MAX_RECV_WINDOW_MS: u64 = 60_000;
 
 pub struct BinanceFuturesTrader {
     client: Client,
     base_url: String,
     api_key: String,
     api_secret: String,
+    recv_window_ms: u64,
+    time_offset_ms: AtomicI64,
+    time_offset_synced: AtomicBool,
     /// Risk fraction per trade (e.g. 0.01 = 1%)
     pub risk_fraction: Decimal,
 }
@@ -46,29 +50,44 @@ impl BinanceFuturesTrader {
             .unwrap_or_default()
             .to_lowercase()
             == "true";
+        let recv_window_ms = env::var("BINANCE_RECV_WINDOW_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(|v| v.clamp(1_000, MAX_RECV_WINDOW_MS))
+            .unwrap_or(DEFAULT_RECV_WINDOW_MS);
+
         let base_url = if testnet {
-            warn!("⚠️  Binance TESTNET mode — no real money");
+            warn!("Binance TESTNET mode - no real money");
             TESTNET_BASE.to_string()
         } else {
-            info!("💰 Binance LIVE FUTURES mode");
+            info!("Binance LIVE FUTURES mode");
             FAPI_BASE.to_string()
         };
+        info!("Binance recvWindow={}ms", recv_window_ms);
+
         Ok(Self {
             client: Client::new(),
             base_url,
             api_key,
             api_secret,
+            recv_window_ms,
+            time_offset_ms: AtomicI64::new(0),
+            time_offset_synced: AtomicBool::new(false),
             risk_fraction,
         })
     }
 
-    // ─── Signing ─────────────────────────────────────────────────────────
-
-    fn timestamp_ms() -> u64 {
+    fn local_timestamp_ms() -> i64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64
+            .unwrap_or_default()
+            .as_millis() as i64
+    }
+
+    fn adjusted_timestamp_ms(&self) -> u64 {
+        let local = Self::local_timestamp_ms();
+        let offset = self.time_offset_ms.load(Ordering::Relaxed);
+        local.saturating_add(offset).max(0) as u64
     }
 
     fn sign(&self, query: &str) -> String {
@@ -79,8 +98,9 @@ impl BinanceFuturesTrader {
     }
 
     fn signed_url(&self, path: &str, mut params: Vec<(&str, String)>) -> String {
-        let ts = Self::timestamp_ms().to_string();
-        params.push(("timestamp", ts));
+        params.push(("recvWindow", self.recv_window_ms.to_string()));
+        params.push(("timestamp", self.adjusted_timestamp_ms().to_string()));
+
         let qs: String = params
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
@@ -96,30 +116,89 @@ impl BinanceFuturesTrader {
         h
     }
 
-    // ─── Account balance ─────────────────────────────────────────────────
+    fn is_timestamp_error(body: &str) -> bool {
+        body.contains("\"code\":-1021") || body.contains("recvWindow")
+    }
+
+    async fn sync_server_time(&self) -> Result<()> {
+        let url = format!("{}/fapi/v1/time", self.base_url);
+        let resp = self.client.get(&url).send().await?;
+        if !resp.status().is_success() {
+            let body = resp.text().await?;
+            anyhow::bail!("time sync failed: {}", body);
+        }
+
+        let time: ServerTimeResponse = resp.json().await?;
+        let local = Self::local_timestamp_ms();
+        let offset = (time.server_time as i64).saturating_sub(local);
+        self.time_offset_ms.store(offset, Ordering::Relaxed);
+        self.time_offset_synced.store(true, Ordering::Relaxed);
+        info!("Binance server time synced (offset={}ms)", offset);
+        Ok(())
+    }
+
+    async fn send_signed_request(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        params: Vec<(&str, String)>,
+    ) -> Result<reqwest::Response> {
+        if !self.time_offset_synced.load(Ordering::Relaxed) {
+            if let Err(err) = self.sync_server_time().await {
+                warn!("Binance time sync failed; using local time: {}", err);
+            }
+        }
+
+        let mut retried = false;
+        loop {
+            let url = self.signed_url(path, params.clone());
+            let resp = self
+                .client
+                .request(method.clone(), &url)
+                .headers(self.auth_headers())
+                .send()
+                .await?;
+
+            if resp.status().is_success() {
+                return Ok(resp);
+            }
+
+            let status = resp.status();
+            let body = resp
+                .text()
+                .await
+                .unwrap_or_else(|_| "<no body>".to_string());
+
+            if !retried && Self::is_timestamp_error(&body) {
+                warn!("Binance rejected timestamp; syncing time and retrying once");
+                self.sync_server_time().await?;
+                retried = true;
+                continue;
+            }
+
+            anyhow::bail!(
+                "signed request failed ({} {}): {}",
+                method.as_str(),
+                status.as_u16(),
+                body
+            );
+        }
+    }
 
     pub async fn usdt_balance(&self) -> Result<Decimal> {
-        let url = self.signed_url("/fapi/v2/balance", vec![]);
         let resp = self
-            .client
-            .get(&url)
-            .headers(self.auth_headers())
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            anyhow::bail!("Balance fetch failed: {}", resp.text().await?);
-        }
+            .send_signed_request(reqwest::Method::GET, "/fapi/v2/balance", vec![])
+            .await
+            .context("Balance fetch failed")?;
         let balances: Vec<BalanceEntry> = resp.json().await?;
         let usdt = balances
             .into_iter()
             .find(|b| b.asset == "USDT")
             .map(|b| b.available_balance)
             .unwrap_or(Decimal::ZERO);
-        info!("💰 Available USDT balance: ${}", usdt);
+        info!("Available USDT balance: ${}", usdt);
         Ok(usdt)
     }
-
-    // ─── Position sizing ─────────────────────────────────────────────────
 
     /// Contracts = (balance * risk_fraction) / |entry - sl|
     pub async fn position_qty(&self, entry: Decimal, sl: Decimal) -> Result<Decimal> {
@@ -127,12 +206,12 @@ impl BinanceFuturesTrader {
         let risk_usd = balance * self.risk_fraction;
         let sl_distance = (entry - sl).abs();
         if sl_distance.is_zero() {
-            warn!("⚠️  SL distance is zero, using minimum qty 0.001");
+            warn!("SL distance is zero, using minimum qty 0.001");
             return Ok(Decimal::new(1, 3)); // 0.001
         }
         let qty = (risk_usd / sl_distance).round_dp(3);
         info!(
-            "📐 Size calc: balance=${} risk={}% risk_usd=${} sl_dist={} → qty={}",
+            "Size calc: balance=${} risk={}% risk_usd=${} sl_dist={} -> qty={}",
             balance,
             self.risk_fraction * Decimal::ONE_HUNDRED,
             risk_usd,
@@ -142,26 +221,16 @@ impl BinanceFuturesTrader {
         Ok(qty.max(Decimal::new(1, 3))) // enforce minimum 0.001
     }
 
-    // ─── Order placement ─────────────────────────────────────────────────
-
     /// Set leverage for a symbol (call once per symbol before trading)
     pub async fn set_leverage(&self, symbol: &str, leverage: u32) -> Result<()> {
         let params = vec![
             ("symbol", symbol.to_string()),
             ("leverage", leverage.to_string()),
         ];
-        let url = self.signed_url("/fapi/v1/leverage", params);
-        let resp = self
-            .client
-            .post(&url)
-            .headers(self.auth_headers())
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            let body = resp.text().await?;
-            anyhow::bail!("set_leverage failed: {}", body);
-        }
-        info!("⚙️  Leverage set to {}x for {}", leverage, symbol);
+        self.send_signed_request(reqwest::Method::POST, "/fapi/v1/leverage", params)
+            .await
+            .with_context(|| format!("set_leverage failed for {}", symbol))?;
+        info!("Leverage set to {}x for {}", leverage, symbol);
         Ok(())
     }
 
@@ -185,7 +254,7 @@ impl BinanceFuturesTrader {
         let qty_str = format!("{:.3}", qty);
 
         info!(
-            "🚀 Binance Futures signal: {} {} qty={} entry={} SL={} TP={}",
+            "Binance Futures signal: {} {} qty={} entry={} SL={} TP={}",
             side, signal.symbol, qty_str, entry, sl_str, tp_str
         );
 
@@ -201,7 +270,7 @@ impl BinanceFuturesTrader {
                 close_position: false,
             })
             .await?;
-        info!("✅ Market entry placed — orderId={}", entry_id);
+        info!("Market entry placed - orderId={}", entry_id);
 
         // 2. Stop-loss
         let sl_id = self
@@ -215,7 +284,7 @@ impl BinanceFuturesTrader {
                 close_position: true,
             })
             .await?;
-        info!("🛡  Stop-loss placed @ {} — orderId={}", sl_str, sl_id);
+        info!("Stop-loss placed @ {} - orderId={}", sl_str, sl_id);
 
         // 3. Take-profit
         let tp_id = self
@@ -229,7 +298,7 @@ impl BinanceFuturesTrader {
                 close_position: true,
             })
             .await?;
-        info!("🎯 Take-profit placed @ {} — orderId={}", tp_str, tp_id);
+        info!("Take-profit placed @ {} - orderId={}", tp_str, tp_id);
 
         Ok(())
     }
@@ -250,30 +319,23 @@ impl BinanceFuturesTrader {
         }
         if p.close_position {
             params.push(("closePosition", "true".to_string()));
-            // closePosition=true means quantity is ignored by Binance — remove it
+            // closePosition=true means quantity is ignored by Binance - remove it
             params.retain(|(k, _)| *k != "quantity");
         }
 
-        let url = self.signed_url("/fapi/v1/order", params);
         let resp = self
-            .client
-            .post(&url)
-            .headers(self.auth_headers())
-            .send()
-            .await?;
-
-        if !resp.status().is_success() {
-            let body = resp.text().await?;
-            error!("❌ Binance order error: {}", body);
-            anyhow::bail!("Order placement failed: {}", body);
-        }
+            .send_signed_request(reqwest::Method::POST, "/fapi/v1/order", params)
+            .await
+            .with_context(|| "Order placement failed".to_string())
+            .map_err(|e| {
+                error!("Binance order error: {}", e);
+                e
+            })?;
 
         let order: OrderResponse = resp.json().await?;
         Ok(order.order_id)
     }
 }
-
-// ─── Internal helpers ───────────────────────────────────────────────────────
 
 struct OrderParams<'a> {
     symbol: &'a str,
@@ -296,6 +358,12 @@ struct BalanceEntry {
 struct OrderResponse {
     #[serde(rename = "orderId")]
     pub order_id: u64,
+}
+
+#[derive(Deserialize)]
+struct ServerTimeResponse {
+    #[serde(rename = "serverTime")]
+    pub server_time: u64,
 }
 
 fn de_decimal<'de, D>(d: D) -> std::result::Result<Decimal, D::Error>

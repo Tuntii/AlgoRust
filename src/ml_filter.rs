@@ -89,7 +89,6 @@ impl LstmFilter {
 
         Ok(Some(score))
     }
-
 }
 
 fn flatten_meta(value: &JsonValue) -> Result<Vec<f32>> {

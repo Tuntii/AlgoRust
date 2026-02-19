@@ -140,8 +140,8 @@ impl OrderBlockTracker {
             candle_history: VecDeque::new(),
             candle_idx_history: VecDeque::new(),
             min_displacement_atr: Decimal::from_f64(1.0).unwrap(), // BOS mumu en az 1x ATR olmalı
-            max_obs: 10,     // En fazla 10 OB takip et
-            max_ob_age: 200, // 200 mumdan eski OB'leri sil
+            max_obs: 10,                                           // En fazla 10 OB takip et
+            max_ob_age: 200,                                       // 200 mumdan eski OB'leri sil
         }
     }
 
@@ -152,7 +152,7 @@ impl OrderBlockTracker {
         candle_idx: usize,
         atr: Option<Decimal>,
         bos_up: bool,   // Bu mumda yukarı BOS oldu mu?
-        bos_down: bool,  // Bu mumda aşağı BOS oldu mu?
+        bos_down: bool, // Bu mumda aşağı BOS oldu mu?
     ) {
         // Mum tarihçesini güncelle
         self.candle_history.push_back(candle.clone());
@@ -204,11 +204,7 @@ impl OrderBlockTracker {
     }
 
     /// Geriye doğru son bearish mumu bul (Bullish OB için)
-    fn find_last_bearish_candle(
-        &self,
-        _current_idx: usize,
-        _atr: &Decimal,
-    ) -> Option<OrderBlock> {
+    fn find_last_bearish_candle(&self, _current_idx: usize, _atr: &Decimal) -> Option<OrderBlock> {
         let history_len = self.candle_history.len();
         if history_len < 2 {
             return None;
@@ -235,11 +231,7 @@ impl OrderBlockTracker {
     }
 
     /// Geriye doğru son bullish mumu bul (Bearish OB için)
-    fn find_last_bullish_candle(
-        &self,
-        _current_idx: usize,
-        _atr: &Decimal,
-    ) -> Option<OrderBlock> {
+    fn find_last_bullish_candle(&self, _current_idx: usize, _atr: &Decimal) -> Option<OrderBlock> {
         let history_len = self.candle_history.len();
         if history_len < 2 {
             return None;
@@ -402,10 +394,7 @@ impl OrderBlockTracker {
         let ob_tp = self
             .bearish_obs
             .iter()
-            .filter(|ob| {
-                ob.is_valid
-                    && ob.low > entry_price * (Decimal::ONE + min_profit_pct)
-            })
+            .filter(|ob| ob.is_valid && ob.low > entry_price * (Decimal::ONE + min_profit_pct))
             .min_by_key(|ob| ob.low) // Entry'e en yakın supply zone
             .map(|ob| ob.low); // Supply zone'un alt sınırı = TP
 
@@ -446,10 +435,7 @@ impl OrderBlockTracker {
         let ob_tp = self
             .bullish_obs
             .iter()
-            .filter(|ob| {
-                ob.is_valid
-                    && ob.high < entry_price * (Decimal::ONE - min_profit_pct)
-            })
+            .filter(|ob| ob.is_valid && ob.high < entry_price * (Decimal::ONE - min_profit_pct))
             .max_by_key(|ob| ob.high) // Entry'e en yakın demand zone
             .map(|ob| ob.high); // Demand zone'un üst sınırı = TP
 
