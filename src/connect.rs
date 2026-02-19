@@ -217,6 +217,100 @@ impl BinanceClient {
         Ok(all_candles)
     }
 
+    /// Fetch `total` candles by making multiple paginated Binance API requests.
+    /// Binance caps each request at 1000 candles; this loops backwards in time
+    /// (startTime-based pagination) to collect as many as requested.
+    pub async fn fetch_candles_paginated(
+        &self,
+        symbol: &str,
+        interval: &str,
+        total: usize,
+    ) -> Result<Vec<Candle>> {
+        const BATCH: usize = 1000;
+        let mut all_candles: Vec<Candle> = Vec::with_capacity(total);
+        let mut end_time_ms: Option<i64> = None; // None = fetch most recent batch first
+
+        info!(
+            "📦 Paginated bootstrap: {} {} — requesting {} candles ({} batches)",
+            symbol,
+            interval,
+            total,
+            (total + BATCH - 1) / BATCH
+        );
+
+        while all_candles.len() < total {
+            let remaining = total - all_candles.len();
+            let limit = remaining.min(BATCH);
+
+            let mut query: Vec<(&str, String)> = vec![
+                ("symbol", symbol.to_string()),
+                ("interval", interval.to_string()),
+                ("limit", limit.to_string()),
+            ];
+            if let Some(end_ts) = end_time_ms {
+                query.push(("endTime", end_ts.to_string()));
+            }
+
+            // Rate-limit friendly small delay between batches
+            tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+
+            let resp = self
+                .client
+                .get(&self.kline_url)
+                .query(&query)
+                .send()
+                .await?;
+
+            if !resp.status().is_success() {
+                anyhow::bail!(
+                    "Binance API error during paginated fetch: {}",
+                    resp.status()
+                );
+            }
+
+            let json: Vec<Vec<serde_json::Value>> = resp.json().await?;
+            if json.is_empty() {
+                break;
+            }
+
+            let mut batch = self.parse_candles(json)?;
+            if batch.is_empty() {
+                break;
+            }
+
+            // Next page: fetch candles that close BEFORE this batch's first open
+            let oldest_open_ms = batch[0].open_time.timestamp_millis();
+            end_time_ms = Some(oldest_open_ms - 1);
+
+            // Prepend this batch (we're fetching backwards)
+            batch.extend(all_candles.drain(..));
+            all_candles = batch;
+
+            info!(
+                "  ↳ {} {} — {} / {} candles fetched",
+                symbol,
+                interval,
+                all_candles.len(),
+                total
+            );
+        }
+
+        // Trim to exactly `total` (oldest candles first)
+        if all_candles.len() > total {
+            let drop = all_candles.len() - total;
+            all_candles.drain(0..drop);
+        }
+
+        info!(
+            "✅ Bootstrap complete: {} {} — {} candles loaded",
+            symbol,
+            interval,
+            all_candles.len()
+        );
+
+        Ok(all_candles)
+    }
+
     fn parse_candles(&self, json: Vec<Vec<serde_json::Value>>) -> Result<Vec<Candle>> {
         let mut candles = Vec::new();
         for row in json {

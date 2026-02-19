@@ -282,15 +282,25 @@ async fn main() -> anyhow::Result<()> {
 
         for interval in &conf.trading.timeframes {
             let key = format!("{}_{}", symbol, interval);
-            info!("Fetching history for: {}", key);
+            info!(
+                "Fetching history for: {} ({} candles)",
+                key, conf.app.bootstrap_limit
+            );
 
-            match client
-                .fetch_candles(symbol, interval, conf.app.bootstrap_limit)
-                .await
-            {
+            // Use paginated fetch when bootstrap_limit > 1000 (Binance per-request cap)
+            let fetch_result = if conf.app.bootstrap_limit > 1000 {
+                client
+                    .fetch_candles_paginated(symbol, interval, conf.app.bootstrap_limit)
+                    .await
+            } else {
+                client
+                    .fetch_candles(symbol, interval, conf.app.bootstrap_limit)
+                    .await
+            };
+
+            match fetch_result {
                 Ok(candles) => {
                     let mut ctx = SymbolContext::new(symbol.clone(), interval.clone());
-                    // Context interval bilgisini de tutmalı mı? Şimdilik key üzerinden yönetiyoruz.
                     for c in candles {
                         ctx.add_candle(c);
                     }
@@ -303,7 +313,6 @@ async fn main() -> anyhow::Result<()> {
                 }
                 Err(e) => {
                     error!("Bootstrap failed for {}: {}", key, e);
-                    // Fail hard or continue? PRD says graceful.
                 }
             }
         }
