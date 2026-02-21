@@ -103,6 +103,18 @@ struct TradingConfig {
     paper_initial_balance: f64,
     #[serde(default = "default_paper_state_file")]
     paper_state_file: String,
+    #[serde(default = "default_leverage")]
+    leverage: u32,
+    #[serde(default = "default_risk_amount")]
+    risk_amount_usdt: f64,
+}
+
+fn default_risk_amount() -> f64 {
+    5.0
+}
+
+fn default_leverage() -> u32 {
+    1
 }
 
 fn default_paper_balance() -> f64 {
@@ -129,6 +141,110 @@ struct MlConfig {
 async fn main() -> anyhow::Result<()> {
     // Load .env file if it exists
     dotenv().ok();
+
+    // Check for "test-order" CLI arg
+    // Usage: cargo run -- test-order <SYMBOL> <AMOUNT>
+    // Example: cargo run -- test-order BTCUSDT 5.0
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "test-order" {
+        // Init logging (simplified)
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::INFO)
+            .with_writer(std::io::stderr)
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)?;
+
+        let symbol = args.get(2).map(|s| s.as_str()).unwrap_or("BTCUSDT");
+        let amount_f64 = args
+            .get(3)
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or(1.0);
+        let amount = rust_decimal::Decimal::from_f64(amount_f64).unwrap_or_default();
+
+        info!(
+            "🧪 TEST MODE: Placing 1 market buy order on {} for ${}",
+            symbol, amount
+        );
+
+        // Init trader (requires env vars to be present)
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1) {
+            Ok(t) => t,
+            Err(e) => {
+                error!("Failed to init trader: {}", e);
+                return Err(e);
+            }
+        };
+
+        match trader.place_test_order(symbol, amount).await {
+            Ok(id) => info!("✅ Test Order SUCCESS! Order ID: {}", id),
+            Err(e) => error!("❌ Test Order FAILED: {:?}", e),
+        }
+        return Ok(());
+    } else if args.len() > 1 && args[1] == "test-signal" {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::INFO)
+            .with_writer(std::io::stderr)
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)?;
+
+        let symbol = args.get(2).map(|s| s.as_str()).unwrap_or("BTCUSDT");
+        let amount_f64 = args
+            .get(3)
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or(5.0);
+        let amount = rust_decimal::Decimal::from_f64(amount_f64).unwrap_or_default();
+
+        info!(
+            "🧪 TEST SIGNAL: Executing Normal Bot Signal on {} with ${} risk",
+            symbol, amount
+        );
+
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1) {
+            Ok(t) => t,
+            Err(e) => {
+                error!("Failed to init trader: {}", e);
+                return Err(e);
+            }
+        };
+
+        // Fetch price
+        let client = reqwest::Client::new();
+        let price_url = format!(
+            "https://fapi.binance.com/fapi/v1/ticker/price?symbol={}",
+            symbol
+        );
+        let price_json: serde_json::Value = client.get(&price_url).send().await?.json().await?;
+        let price_str = price_json["price"].as_str().unwrap_or("0");
+        let current_price = rust_decimal::Decimal::from_str_exact(price_str).unwrap_or_default();
+
+        let mut ctx = SymbolContext::new(symbol.to_string(), "1m".to_string());
+        ctx.atr_14.current_value = Some(rust_decimal::Decimal::from_f64(100.0).unwrap());
+
+        use crate::types::{SignalType, TradeSignal};
+        use chrono::Utc;
+        let signal = crate::types::TradeSignal {
+            signal_id: "test-signal-001".to_string(),
+            engine_version: "2.0".to_string(),
+            symbol: symbol.to_string(),
+            timeframe: "1m".to_string(),
+            signal: crate::types::SignalType::LONG,
+            price: current_price,
+            confidence: 90,
+            confidence_tier: "high".to_string(),
+            timestamp: Utc::now(),
+            reasons: vec!["Test Signal Command".to_string()],
+            context_id: None,
+            regime_context: None,
+        };
+
+        match trader.execute_signal(&signal, &ctx).await {
+            Ok(_) => info!(
+                "✅ TEST SIGNAL SUCCESS: Normal Bot Signal Order completely placed without errors!"
+            ),
+            Err(e) => error!("❌ TEST SIGNAL FAILED: {:?}", e),
+        }
+        return Ok(());
+    }
 
     // Loglamayı başlat (stderr)
     let subscriber = FmtSubscriber::builder()
@@ -213,10 +329,14 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize Binance Futures trader if execute_trades=true and not paper
     let binance_trader = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
-        let risk = rust_decimal::Decimal::new(1, 2); // 0.01 = 1%
-        match binance_trader::BinanceFuturesTrader::new(risk) {
+        let risk_amount = rust_decimal::Decimal::from_f64(conf.trading.risk_amount_usdt)
+            .unwrap_or(rust_decimal::Decimal::new(5, 0));
+        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage) {
             Ok(trader) => {
-                info!("💰 Binance Futures trader initialized (1% risk per trade)");
+                info!(
+                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage)",
+                    risk_amount, conf.trading.leverage
+                );
                 Some(trader)
             }
             Err(e) => {

@@ -1,7 +1,7 @@
 ﻿[app]
 # Startup mode: "live" or "backtest"
-mode = "live"
-bootstrap_limit = 3000
+mode = "backtest"
+bootstrap_limit = 30000
 auto_reconnect = true
 
 [binance]
@@ -26,7 +26,7 @@ send_alpaca_signals = false
 
 [trading]
 # 1m only mode
-symbols = ["BTCUSDT", "ETHUSDT"]
+symbols = ["SOLUSDT", "ETHUSDT"]
 timeframes = ["1m"]
 # Live trade execution control
 execute_trades = true
@@ -34,6 +34,10 @@ execute_trades = true
 use_paper_trader = false
 paper_initial_balance = 300.0
 paper_state_file = "paper_trader_state.json"
+# Fixed risk amount per trade in USDT (Loss if SL hits = ~$5)
+risk_amount_usdt = 5.0
+# Leverage applied to all positions (careful!)
+leverage = 2
 
 [indicators]
 ema_fast = [5, 8, 13]

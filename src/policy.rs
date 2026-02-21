@@ -31,6 +31,7 @@ impl TimeframePolicy {
         // 1m-only active set (current live system)
         active_pairs.insert(("BTCUSDT".to_string(), "1m".to_string()));
         active_pairs.insert(("ETHUSDT".to_string(), "1m".to_string()));
+        active_pairs.insert(("SOLUSDT".to_string(), "1m".to_string()));
 
         Self {
             active_pairs,

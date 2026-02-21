@@ -13,6 +13,7 @@ const SUPERKAMA_LENGTH: usize = 2584;
 const SUPERKAMA_FAST_PERIOD: usize = 34;
 const SUPERKAMA_SLOW_PERIOD: usize = 55;
 const SUPERKAMA_ATR_PERIOD: usize = 33;
+const MIN_CANDLE_BUFFER: usize = 30_000;
 
 pub struct SymbolContext {
     pub symbol: String,
@@ -383,7 +384,8 @@ impl SymbolContext {
 
         // Store Candle - HTF needs more history
         self.candles.push_back(candle);
-        let max_candles = BootstrapState::min_candles_for_tf(&self.timeframe).max(1500);
+        let max_candles =
+            BootstrapState::min_candles_for_tf(&self.timeframe).max(MIN_CANDLE_BUFFER);
         if self.candles.len() > max_candles {
             self.candles.pop_front();
         }
