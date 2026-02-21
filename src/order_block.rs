@@ -323,8 +323,8 @@ impl OrderBlockTracker {
         atr: Decimal,
         fallback_pivot_low: Option<Decimal>,
     ) -> Decimal {
-        let buffer = atr * Decimal::from_f64(0.5).unwrap(); // %50 of ATR as buffer (Daha esnek SL)
-        let min_sl_distance = atr * Decimal::from_f64(1.5).unwrap(); // Min 1.5 ATR distance
+        let buffer_pct = Decimal::from_f64(0.001).unwrap(); // %0.1 buffer
+        let min_sl_distance = Decimal::from_f64(0.002).unwrap(); // Min %0.2 mesafe
 
         // Entry'nin altındaki en yakın geçerli bullish OB'yi bul
         let ob_sl = self
@@ -332,16 +332,16 @@ impl OrderBlockTracker {
             .iter()
             .filter(|ob| ob.is_valid && ob.low < entry_price)
             .max_by_key(|ob| ob.low) // Entry'e en yakın olanı seç
-            .map(|ob| ob.low - buffer);
+            .map(|ob| ob.low - (entry_price * buffer_pct));
 
-        // OB bulunamazsa pivot low'a düş, o da yoksa ATR tabanlı SL (2.0x) - Daha esnek
+        // OB bulunamazsa pivot low'a düş, o da yoksa ATR tabanlı SL
         let sl = ob_sl
-            .or(fallback_pivot_low.map(|p| p - buffer))
-            .unwrap_or_else(|| entry_price - (atr * Decimal::from_f64(2.0).unwrap()));
+            .or(fallback_pivot_low)
+            .unwrap_or_else(|| entry_price - atr);
 
         // Minimum mesafe koruması
-        if (entry_price - sl) < min_sl_distance {
-            entry_price - min_sl_distance
+        if (entry_price - sl) / entry_price < min_sl_distance {
+            entry_price * (Decimal::ONE - Decimal::from_f64(0.003).unwrap())
         } else {
             sl
         }
@@ -355,8 +355,8 @@ impl OrderBlockTracker {
         atr: Decimal,
         fallback_pivot_high: Option<Decimal>,
     ) -> Decimal {
-        let buffer = atr * Decimal::from_f64(0.5).unwrap(); // %50 of ATR as buffer (Daha esnek SL)
-        let min_sl_distance = atr * Decimal::from_f64(1.5).unwrap();
+        let buffer_pct = Decimal::from_f64(0.001).unwrap();
+        let min_sl_distance = Decimal::from_f64(0.002).unwrap();
 
         // Entry'nin üstündeki en yakın geçerli bearish OB'yi bul
         let ob_sl = self
@@ -364,16 +364,15 @@ impl OrderBlockTracker {
             .iter()
             .filter(|ob| ob.is_valid && ob.high > entry_price)
             .min_by_key(|ob| ob.high) // Entry'e en yakın olanı seç
-            .map(|ob| ob.high + buffer);
+            .map(|ob| ob.high + (entry_price * buffer_pct));
 
-        // OB bulunamazsa pivot high'a düş, o da yoksa ATR tabanlı SL (2.0x) - Daha esnek
         let sl = ob_sl
-            .or(fallback_pivot_high.map(|p| p + buffer))
-            .unwrap_or_else(|| entry_price + (atr * Decimal::from_f64(2.0).unwrap()));
+            .or(fallback_pivot_high)
+            .unwrap_or_else(|| entry_price + atr);
 
         // Minimum mesafe koruması
-        if (sl - entry_price) < min_sl_distance {
-            entry_price + min_sl_distance
+        if (sl - entry_price) / entry_price < min_sl_distance {
+            entry_price * (Decimal::ONE + Decimal::from_f64(0.003).unwrap())
         } else {
             sl
         }
@@ -386,24 +385,23 @@ impl OrderBlockTracker {
         entry_price: Decimal,
         sl_price: Decimal,
         min_rr: Decimal,
-        atr: Decimal,
         fallback_pivot_highs: &VecDeque<Decimal>,
     ) -> Decimal {
-        let min_profit_dist = atr * Decimal::from_f64(1.0).unwrap(); // Min 1.0 ATR distance
+        let min_profit_pct = Decimal::from_f64(0.003).unwrap(); // Min %0.3 mesafe
         let risk = (entry_price - sl_price).abs();
 
         // En yakın geçerli bearish OB (supply zone) → direnç noktası
         let ob_tp = self
             .bearish_obs
             .iter()
-            .filter(|ob| ob.is_valid && ob.low > entry_price + min_profit_dist)
+            .filter(|ob| ob.is_valid && ob.low > entry_price * (Decimal::ONE + min_profit_pct))
             .min_by_key(|ob| ob.low) // Entry'e en yakın supply zone
             .map(|ob| ob.low); // Supply zone'un alt sınırı = TP
 
         // Pivot tabanlı fallback
         let pivot_tp = fallback_pivot_highs
             .iter()
-            .filter(|&&p| p > entry_price + min_profit_dist)
+            .filter(|&&p| p > entry_price * (Decimal::ONE + min_profit_pct))
             .min()
             .copied();
 
@@ -428,24 +426,23 @@ impl OrderBlockTracker {
         entry_price: Decimal,
         sl_price: Decimal,
         min_rr: Decimal,
-        atr: Decimal,
         fallback_pivot_lows: &VecDeque<Decimal>,
     ) -> Decimal {
-        let min_profit_dist = atr * Decimal::from_f64(1.0).unwrap();
+        let min_profit_pct = Decimal::from_f64(0.003).unwrap();
         let risk = (sl_price - entry_price).abs();
 
         // En yakın geçerli bullish OB (demand zone) → destek noktası
         let ob_tp = self
             .bullish_obs
             .iter()
-            .filter(|ob| ob.is_valid && ob.high < entry_price - min_profit_dist)
+            .filter(|ob| ob.is_valid && ob.high < entry_price * (Decimal::ONE - min_profit_pct))
             .max_by_key(|ob| ob.high) // Entry'e en yakın demand zone
             .map(|ob| ob.high); // Demand zone'un üst sınırı = TP
 
         // Pivot tabanlı fallback
         let pivot_tp = fallback_pivot_lows
             .iter()
-            .filter(|&&p| p < entry_price - min_profit_dist)
+            .filter(|&&p| p < entry_price * (Decimal::ONE - min_profit_pct))
             .max()
             .copied();
 
@@ -478,18 +475,17 @@ impl OrderBlockTracker {
         pivot_high_history: &VecDeque<Decimal>,
         pivot_low_history: &VecDeque<Decimal>,
     ) -> (Decimal, Decimal) {
-        // Geniş R'lar(Risk/Reward) için minimum rR oranını artırıyoruz
-        let min_rr = Decimal::from_f64(2.0).unwrap();
+        let min_rr = Decimal::from_f64(1.0).unwrap(); // Minimum 1:1 R:R
 
         match direction {
             SignalType::LONG => {
                 let sl = self.get_long_sl(entry_price, atr, fallback_pivot_low);
-                let tp = self.get_long_tp(entry_price, sl, min_rr, atr, pivot_high_history);
+                let tp = self.get_long_tp(entry_price, sl, min_rr, pivot_high_history);
                 (sl, tp)
             }
             SignalType::SHORT => {
                 let sl = self.get_short_sl(entry_price, atr, fallback_pivot_high);
-                let tp = self.get_short_tp(entry_price, sl, min_rr, atr, pivot_low_history);
+                let tp = self.get_short_tp(entry_price, sl, min_rr, pivot_low_history);
                 (sl, tp)
             }
         }

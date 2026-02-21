@@ -489,12 +489,7 @@ pub async fn run_backtest(
                                             trade.exit_candle_idx = Some(candle_idx);
                                             trade.duration_candles = Some(current_duration);
                                             just_closed = true;
-                                        }
-                                        /*
-                                         * KULLANICI ISTEGI UZERINE KALDIRILDI:
-                                         * TP artik ters sinyal geldiginde alinacagi icin (Supertrend/Hybrid mantigi)
-                                         * statik TP limit check'i pasiflestirildi.
-                                        else if candle.high >= trade.tp_price {
+                                        } else if candle.high >= trade.tp_price {
                                             trade.outcome = Some("WIN".to_string());
                                             trade.exit_price = Some(trade.tp_price);
                                             let risk =
@@ -509,7 +504,6 @@ pub async fn run_backtest(
                                             trade.duration_candles = Some(current_duration);
                                             just_closed = true;
                                         }
-                                        */
                                     }
                                     SignalType::SHORT => {
                                         if candle.high >= trade.sl_price {
@@ -527,9 +521,7 @@ pub async fn run_backtest(
                                             trade.exit_candle_idx = Some(candle_idx);
                                             trade.duration_candles = Some(current_duration);
                                             just_closed = true;
-                                        }
-                                        /*
-                                        else if candle.low <= trade.tp_price {
+                                        } else if candle.low <= trade.tp_price {
                                             trade.outcome = Some("WIN".to_string());
                                             trade.exit_price = Some(trade.tp_price);
                                             let risk =
@@ -544,7 +536,6 @@ pub async fn run_backtest(
                                             trade.duration_candles = Some(current_duration);
                                             just_closed = true;
                                         }
-                                        */
                                     }
                                 }
                             }

@@ -433,8 +433,7 @@ impl BinanceFuturesTrader {
             .await?;
         info!("Stop-loss placed @ {} - id={}", sl_str, sl_id);
 
-        // 3. Take-profit (İptal edildi - TP işlemi artık sadece ters sinyal geldiğinde yapılacak)
-        /*
+        // 3. Take-profit
         let tp_id = self
             .place_order(OrderParams {
                 symbol: &signal.symbol,
@@ -448,7 +447,6 @@ impl BinanceFuturesTrader {
             })
             .await?;
         info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
-        */
 
         Ok(())
     }
