@@ -1,6 +1,6 @@
 ﻿[app]
 # Startup mode: "live" or "backtest"
-mode = "live"
+mode = "backtest"
 bootstrap_limit = 70000
 auto_reconnect = true
 
