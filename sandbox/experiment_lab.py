@@ -635,18 +635,18 @@ def run_backtest(
                     t.sl = t.entry_price; t.be_applied = True
 
             closed = False
-            sl_dist = abs(t.entry_price - t.sl)
-            if sl_dist < 1e-10:
-                sl_dist = 1e-10
+            risk_dist = abs(t.entry_price - t.sl)
+            if risk_dist < 1e-10:
+                risk_dist = 1e-10
 
             # TP
             if t.direction == 1 and hi_ >= t.tp:
                 t.exit_price = t.tp; t.exit_idx = i
-                t.pnl_r = (t.tp - t.entry_price) / sl_dist * RISK_R
+                t.pnl_r = (t.tp - t.entry_price) / risk_dist * RISK_R
                 t.result = "WIN"; closed = True
             elif t.direction == -1 and lo_ <= t.tp:
                 t.exit_price = t.tp; t.exit_idx = i
-                t.pnl_r = (t.entry_price - t.tp) / sl_dist * RISK_R
+                t.pnl_r = (t.entry_price - t.tp) / risk_dist * RISK_R
                 t.result = "WIN"; closed = True
 
             # SL
@@ -665,19 +665,19 @@ def run_backtest(
             # Flip
             if not closed:
                 if t.direction == 1 and short_sig[i]:
-                    raw = (cl_ - t.entry_price) / sl_dist * RISK_R
+                    raw = (cl_ - t.entry_price) / risk_dist * RISK_R
                     t.exit_price = cl_; t.exit_idx = i; t.pnl_r = raw
                     t.result = "WIN" if raw > 0.05 else ("BE" if raw >= -0.05 else "LOSS")
                     closed = True
                 elif t.direction == -1 and long_sig[i]:
-                    raw = (t.entry_price - cl_) / sl_dist * RISK_R
+                    raw = (t.entry_price - cl_) / risk_dist * RISK_R
                     t.exit_price = cl_; t.exit_idx = i; t.pnl_r = raw
                     t.result = "WIN" if raw > 0.05 else ("BE" if raw >= -0.05 else "LOSS")
                     closed = True
 
             # Max hold
             if not closed and held >= max_hold:
-                raw = (cl_ - t.entry_price) * t.direction / sl_dist * RISK_R
+                raw = (cl_ - t.entry_price) * t.direction / risk_dist * RISK_R
                 t.exit_price = cl_; t.exit_idx = i; t.pnl_r = raw
                 t.result = "MAX"; closed = True
 
