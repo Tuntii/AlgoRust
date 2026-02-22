@@ -107,24 +107,10 @@ struct TradingConfig {
     leverage: u32,
     #[serde(default = "default_risk_amount")]
     risk_amount_usdt: f64,
-    /// Kaç pozisyon aynı anda açık olabilir? (margin bu sayıya bölünür)
-    #[serde(default = "default_max_positions")]
-    max_positions: u32,
-    /// "sl_tp" (varsayılan) veya "indicator_flip" (SL/TP order koyma, flip ile çık)
-    #[serde(default = "default_live_exit_mode")]
-    live_exit_mode: String,
 }
 
 fn default_risk_amount() -> f64 {
     5.0
-}
-
-fn default_max_positions() -> u32 {
-    1
-}
-
-fn default_live_exit_mode() -> String {
-    "sl_tp".to_string()
 }
 
 fn default_leverage() -> u32 {
@@ -180,7 +166,8 @@ async fn main() -> anyhow::Result<()> {
             symbol, amount
         );
 
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, 1, false) {
+        // Init trader (requires env vars to be present)
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -212,7 +199,7 @@ async fn main() -> anyhow::Result<()> {
             symbol, amount
         );
 
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, 1, false) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -344,12 +331,11 @@ async fn main() -> anyhow::Result<()> {
     let binance_trader = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
         let risk_amount = rust_decimal::Decimal::from_f64(conf.trading.risk_amount_usdt)
             .unwrap_or(rust_decimal::Decimal::new(5, 0));
-        let flip_mode = conf.trading.live_exit_mode == "indicator_flip";
-        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage, conf.trading.max_positions, flip_mode) {
+        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage) {
             Ok(trader) => {
                 info!(
-                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage, {} slot, exit={})",
-                    risk_amount, conf.trading.leverage, conf.trading.max_positions, conf.trading.live_exit_mode
+                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage)",
+                    risk_amount, conf.trading.leverage
                 );
                 Some(trader)
             }

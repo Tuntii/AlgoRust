@@ -1,6 +1,7 @@
 {
   "total_symbols": 2,
   "total_timeframes_tested": 2,
+<<<<<<< HEAD
   "total_opened_trades": 822,
   "total_trades": 207,
   "total_wins": 121,
@@ -15,6 +16,22 @@
     "neutral_trend_blocks": 97103,
     "flat_ema_blocks": 13004,
     "low_atr_blocks": 438,
+=======
+  "total_opened_trades": 806,
+  "total_trades": 123,
+  "total_wins": 0,
+  "total_losses": 123,
+  "overall_win_rate": 0.0,
+  "overall_pnl_r": "99.14302964945075594387080474",
+  "overall_expectancy": 0.8060408914589492,
+  "overall_profit_factor": -0.0,
+  "best_performer": "SOLUSDT 1m",
+  "worst_performer": "ETHUSDT 1m",
+  "block_stats": {
+    "neutral_trend_blocks": 97051,
+    "flat_ema_blocks": 12952,
+    "low_atr_blocks": 431,
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
     "bootstrap_incomplete": 5998,
     "cooldown_blocks": 0,
     "open_trade_blocks": 0,
@@ -22,15 +39,25 @@
     "policy_blocked": 0,
     "lstm_filtered": 0,
     "total_evaluations": 200000,
+<<<<<<< HEAD
     "total_signals_generated": 822,
     "max_trades_reached": 23,
+=======
+    "total_signals_generated": 806,
+    "max_trades_reached": 22,
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
     "duplicate_context": 0,
-    "hedge_blocked": 435,
+    "hedge_blocked": 431,
     "context_cooldown_blocks": 2,
-    "trend_saturation_blocks": 16,
+    "trend_saturation_blocks": 13,
     "weak_trade_replaced": 0,
+<<<<<<< HEAD
     "max_duration_exits": 207,
     "be_applied_count": 408,
+=======
+    "max_duration_exits": 306,
+    "be_applied_count": 377,
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
     "partial_tp_count": 0,
     "kill_switch_triggered": 2
   },
@@ -38,6 +65,7 @@
     {
       "symbol": "SOLUSDT",
       "timeframe": "1m",
+<<<<<<< HEAD
       "trades": 121,
       "opened_trades": 418,
       "wins": 70,
@@ -50,10 +78,25 @@
       "max_consec_loss": 5,
       "gross_wins_r": 71.51750462057922,
       "gross_losses_r": 51.0
+=======
+      "trades": 63,
+      "opened_trades": 406,
+      "wins": 0,
+      "losses": 63,
+      "win_rate": 0.0,
+      "pnl_r": "64.475820484927412099282868322",
+      "expectancy": -1.0,
+      "profit_factor": -0.0,
+      "sharpe": 0.0,
+      "max_consec_loss": 63,
+      "gross_wins_r": -0.0,
+      "gross_losses_r": 63.0
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
     },
     {
       "symbol": "ETHUSDT",
       "timeframe": "1m",
+<<<<<<< HEAD
       "trades": 86,
       "opened_trades": 404,
       "wins": 51,
@@ -66,6 +109,20 @@
       "max_consec_loss": 5,
       "gross_wins_r": 52.525010484022445,
       "gross_losses_r": 35.0
+=======
+      "trades": 60,
+      "opened_trades": 400,
+      "wins": 0,
+      "losses": 60,
+      "win_rate": 0.0,
+      "pnl_r": "34.667209164523343844587936422",
+      "expectancy": -1.0,
+      "profit_factor": -0.0,
+      "sharpe": 0.0,
+      "max_consec_loss": 60,
+      "gross_wins_r": -0.0,
+      "gross_losses_r": 60.0
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
     }
   ],
   "dollar_pnl": {
@@ -75,69 +132,123 @@
       {
         "risk_percent": 1.0,
         "risk_per_r": 10.0,
+<<<<<<< HEAD
         "total_dollar_pnl": 1154.7949240609187,
         "total_final_capital": 3154.7949240609187,
         "total_return_percent": 57.73974620304594,
+=======
+        "total_dollar_pnl": 991.4302964945075,
+        "total_final_capital": 2991.4302964945073,
+        "total_return_percent": 49.57151482472538,
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
         "pair_results": [
           {
             "pair": "SOLUSDT 1m",
             "starting_capital": 1000.0,
+<<<<<<< HEAD
             "dollar_pnl": 601.2064528277826,
             "final_capital": 1601.2064528277826,
             "return_percent": 60.12064528277826
+=======
+            "dollar_pnl": 644.7582048492741,
+            "final_capital": 1644.758204849274,
+            "return_percent": 64.47582048492741
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
           },
           {
             "pair": "ETHUSDT 1m",
             "starting_capital": 1000.0,
+<<<<<<< HEAD
             "dollar_pnl": 553.5884712331359,
             "final_capital": 1553.5884712331358,
             "return_percent": 55.358847123313595
+=======
+            "dollar_pnl": 346.6720916452334,
+            "final_capital": 1346.6720916452334,
+            "return_percent": 34.66720916452334
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
           }
         ]
       },
       {
         "risk_percent": 2.0,
         "risk_per_r": 20.0,
+<<<<<<< HEAD
         "total_dollar_pnl": 2309.5898481218373,
         "total_final_capital": 4309.589848121837,
         "total_return_percent": 115.47949240609188,
+=======
+        "total_dollar_pnl": 1982.860592989015,
+        "total_final_capital": 3982.860592989015,
+        "total_return_percent": 99.14302964945075,
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
         "pair_results": [
           {
             "pair": "SOLUSDT 1m",
             "starting_capital": 1000.0,
+<<<<<<< HEAD
             "dollar_pnl": 1202.4129056555653,
             "final_capital": 2202.4129056555653,
             "return_percent": 120.24129056555653
+=======
+            "dollar_pnl": 1289.5164096985482,
+            "final_capital": 2289.516409698548,
+            "return_percent": 128.95164096985482
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
           },
           {
             "pair": "ETHUSDT 1m",
             "starting_capital": 1000.0,
+<<<<<<< HEAD
             "dollar_pnl": 1107.1769424662718,
             "final_capital": 2107.1769424662716,
             "return_percent": 110.71769424662719
+=======
+            "dollar_pnl": 693.3441832904668,
+            "final_capital": 1693.3441832904668,
+            "return_percent": 69.33441832904668
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
           }
         ]
       },
       {
         "risk_percent": 3.0,
         "risk_per_r": 30.0,
+<<<<<<< HEAD
         "total_dollar_pnl": 3464.384772182756,
         "total_final_capital": 5464.384772182756,
         "total_return_percent": 173.2192386091378,
+=======
+        "total_dollar_pnl": 2974.2908894835227,
+        "total_final_capital": 4974.290889483523,
+        "total_return_percent": 148.71454447417614,
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
         "pair_results": [
           {
             "pair": "SOLUSDT 1m",
             "starting_capital": 1000.0,
+<<<<<<< HEAD
             "dollar_pnl": 1803.619358483348,
             "final_capital": 2803.619358483348,
             "return_percent": 180.3619358483348
+=======
+            "dollar_pnl": 1934.2746145478222,
+            "final_capital": 2934.2746145478222,
+            "return_percent": 193.42746145478222
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
           },
           {
             "pair": "ETHUSDT 1m",
             "starting_capital": 1000.0,
+<<<<<<< HEAD
             "dollar_pnl": 1660.7654136994079,
             "final_capital": 2660.765413699408,
             "return_percent": 166.0765413699408
+=======
+            "dollar_pnl": 1040.0162749357003,
+            "final_capital": 2040.0162749357003,
+            "return_percent": 104.00162749357003
+>>>>>>> parent of 09dded4 (Update backtest result JSONs and metrics)
           }
         ]
       }
