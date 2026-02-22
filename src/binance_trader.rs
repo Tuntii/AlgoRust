@@ -39,13 +39,18 @@ pub struct BinanceFuturesTrader {
     pub risk_amount: Decimal,
     /// Leverage applied to every position (e.g. 1 = 1×)
     pub leverage: u32,
+    /// Kaç pozisyon aynı anda açık kalabilir? Margin bu sayıya bölünür.
+    pub max_concurrent_positions: u32,
+    /// true = sadece market entry at, SL/TP order koyma.
+    /// Çıkış tamamen karşı yön sinyaliyle yapılır (indicator flip mod).
+    pub indicator_flip_mode: bool,
 }
 
 impl BinanceFuturesTrader {
     /// Load credentials from .env:
     ///   BINANCE_API_KEY, BINANCE_API_SECRET
     ///   BINANCE_TESTNET=true  (optional, uses testnet if set)
-    pub fn new(risk_amount: Decimal, leverage: u32) -> Result<Self> {
+    pub fn new(risk_amount: Decimal, leverage: u32, max_concurrent_positions: u32, indicator_flip_mode: bool) -> Result<Self> {
         let api_key = env::var("BINANCE_API_KEY").context("BINANCE_API_KEY must be set in .env")?;
         let api_secret =
             env::var("BINANCE_API_SECRET").context("BINANCE_API_SECRET must be set in .env")?;
@@ -78,6 +83,8 @@ impl BinanceFuturesTrader {
             time_offset_synced: AtomicBool::new(false),
             risk_amount,
             leverage,
+            max_concurrent_positions: max_concurrent_positions.max(1),
+            indicator_flip_mode,
         })
     }
 
@@ -230,9 +237,14 @@ impl BinanceFuturesTrader {
         let risk_qty = self.risk_amount / sl_distance;
 
         // 3. Margin cap: at Nx leverage, max notional = balance * N
+        // max_concurrent_positions > 1 ise bakiyeyi slotlara bölerek
+        // her pozisyon için adil pay ayırırız. Varsayılan (1) tam bakiyeyi kullanır;
+        // ikinci sembol aynı anda atarsa available_balance zaten düşük çıkar ve
+        // notional < min_notional kontrolü ile graceful skip yapılır.
         // Leave a 2% cushion for fees & funding
         let leverage_dec = Decimal::from(self.leverage);
-        let max_notional = balance * leverage_dec * Decimal::new(98, 2); // × 0.98
+        let slots = Decimal::from(self.max_concurrent_positions.max(1));
+        let max_notional = balance * leverage_dec * Decimal::new(98, 2) / slots;
         let max_qty_by_margin = if entry.is_zero() {
             risk_qty
         } else {
@@ -246,10 +258,11 @@ impl BinanceFuturesTrader {
         let qty = qty.round_dp(qty_precision);
 
         info!(
-            "Size calc: balance=${} leverage={}x risk_amount=${} sl_dist={} \
+            "Size calc: balance=${} leverage={}x slots={} risk_amount=${} sl_dist={} \
              risk_qty={} margin_cap_qty={} -> final_qty={} (prec={})",
             balance,
             self.leverage,
+            self.max_concurrent_positions,
             self.risk_amount,
             sl_distance,
             risk_qty,
@@ -399,8 +412,9 @@ impl BinanceFuturesTrader {
         let qty_str = format!("{:.1$}", qty, qty_prec as usize);
 
         info!(
-            "Binance Futures signal: {} {} qty={} entry={} SL={} TP={}",
-            side, signal.symbol, qty_str, entry, sl_str, tp_str
+            "Binance Futures signal: {} {} qty={} entry={} SL={} TP={}{}",
+            side, signal.symbol, qty_str, entry, sl_str, tp_str,
+            if self.indicator_flip_mode { " [indicator_flip: SL/TP orders SKIPPED]" } else { "" }
         );
 
         // 1. Market entry
@@ -418,35 +432,37 @@ impl BinanceFuturesTrader {
             .await?;
         info!("Market entry placed - orderId={}", entry_id);
 
-        // 2. Stop-loss
-        let sl_id = self
-            .place_order(OrderParams {
-                symbol: &signal.symbol,
-                side: sl_side,
-                order_type: "STOP_MARKET",
-                qty: &qty_str,
-                price: None,
-                stop_price: Some(&sl_str),
-                close_position: true,
-                reduce_only: false,
-            })
-            .await?;
-        info!("Stop-loss placed @ {} - id={}", sl_str, sl_id);
+        // 2. Stop-loss (indicator_flip modunda atlanır)
+        if !self.indicator_flip_mode {
+            let sl_id = self
+                .place_order(OrderParams {
+                    symbol: &signal.symbol,
+                    side: sl_side,
+                    order_type: "STOP_MARKET",
+                    qty: &qty_str,
+                    price: None,
+                    stop_price: Some(&sl_str),
+                    close_position: true,
+                    reduce_only: false,
+                })
+                .await?;
+            info!("Stop-loss placed @ {} - id={}", sl_str, sl_id);
 
-        // 3. Take-profit
-        let tp_id = self
-            .place_order(OrderParams {
-                symbol: &signal.symbol,
-                side: tp_side,
-                order_type: "TAKE_PROFIT_MARKET",
-                qty: &qty_str,
-                price: None,
-                stop_price: Some(&tp_str),
-                close_position: true,
-                reduce_only: false,
-            })
-            .await?;
-        info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+            // 3. Take-profit
+            let tp_id = self
+                .place_order(OrderParams {
+                    symbol: &signal.symbol,
+                    side: tp_side,
+                    order_type: "TAKE_PROFIT_MARKET",
+                    qty: &qty_str,
+                    price: None,
+                    stop_price: Some(&tp_str),
+                    close_position: true,
+                    reduce_only: false,
+                })
+                .await?;
+            info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+        }
 
         Ok(())
     }

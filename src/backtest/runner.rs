@@ -19,6 +19,9 @@ enum ExitMode {
     Supertrend,
     SlTp,
     Hybrid,
+    /// İndikatör tersine sinyal verince mevcut pozisyonu kapat, karşı yönde aç.
+    /// SL hâlâ bir güvenlik ağı olarak aktiftir.
+    IndicatorFlip,
 }
 
 impl ExitMode {
@@ -26,6 +29,7 @@ impl ExitMode {
         match value.to_lowercase().as_str() {
             "supertrend" => ExitMode::Supertrend,
             "hybrid" => ExitMode::Hybrid,
+            "indicator_flip" => ExitMode::IndicatorFlip,
             _ => ExitMode::SlTp,
         }
     }
@@ -270,6 +274,99 @@ pub async fn run_backtest(
                             // LONG: SL = Last Pivot Low, TP = 1.5R
                             // SHORT: SL = Last Pivot High, TP = 1.5R
 
+                            // ================================================================
+                            // INDICATOR FLIP: Mevcut TERSİNE pozisyonları sinyal anında kapat
+                            // ================================================================
+                            if exit_mode == ExitMode::IndicatorFlip {
+                                // Ters yönde açık tüm trade'lerin bilgilerini topla
+                                let flip_targets: Vec<(usize, SignalType, Decimal, Decimal, Option<ContextId>, String)> =
+                                    trades
+                                        .iter()
+                                        .enumerate()
+                                        .filter(|(_, t)| {
+                                            t.outcome.is_none()
+                                                && t.signal.signal != signal.signal
+                                                // Aynı mumda açılan tradeleri dahil etme
+                                                && t.signal.timestamp
+                                                    != candle.close_time.unwrap_or(candle.open_time)
+                                        })
+                                        .map(|(i, t)| {
+                                            (
+                                                i,
+                                                t.signal.signal.clone(),
+                                                t.entry_price,
+                                                t.original_sl_price,
+                                                t.context_id.clone(),
+                                                t.signal.signal_id.clone(),
+                                            )
+                                        })
+                                        .collect();
+
+                                for (i, dir, ep, orig_sl, ctx_id_opt, sig_id) in flip_targets {
+                                    let current_duration =
+                                        (candle_idx - trades[i].entry_candle_idx) as u32;
+                                    let exit_price = candle.close;
+                                    let risk = (ep - orig_sl).abs();
+                                    let pnl_r = if risk.is_zero() {
+                                        Decimal::ZERO
+                                    } else {
+                                        match dir {
+                                            SignalType::LONG => (exit_price - ep) / risk,
+                                            SignalType::SHORT => (ep - exit_price) / risk,
+                                        }
+                                    };
+                                    let outcome_str = if pnl_r > Decimal::ZERO {
+                                        "WIN"
+                                    } else if pnl_r < Decimal::ZERO {
+                                        "LOSS"
+                                    } else {
+                                        "BE"
+                                    };
+
+                                    // Trade alanlarını güncelle
+                                    trades[i].outcome = Some(outcome_str.to_string());
+                                    trades[i].exit_price = Some(exit_price);
+                                    trades[i].pnl_r = Some(pnl_r);
+                                    trades[i].exit_candle_idx = Some(candle_idx);
+                                    trades[i].duration_candles = Some(current_duration);
+
+                                    info!(
+                                        "🔄 FLIP [{:?}→{:?}] {} @ {} | PnL: {:.2}R",
+                                        dir, signal.signal, symbol, exit_price, pnl_r
+                                    );
+
+                                    // Engine bookkeeping
+                                    engine.record_trade_close(symbol, interval, candle_idx);
+                                    if ctx.bootstrap.is_complete() {
+                                        engine.record_trade_result(
+                                            symbol,
+                                            interval,
+                                            outcome_str == "WIN",
+                                            candle_idx,
+                                            Some(ctx.get_ema50_slope()),
+                                            ctx.atr_14.current_value,
+                                        );
+                                    }
+                                    if let Some(ref cid) = ctx_id_opt {
+                                        engine.record_context_close(cid, interval, candle_idx);
+                                    }
+                                    // Position pool güncelle
+                                    for pool_trade in
+                                        engine.get_position_pool_mut().active_trades_mut()
+                                    {
+                                        if pool_trade.signal.signal_id == sig_id {
+                                            pool_trade.close(
+                                                exit_price,
+                                                pnl_r,
+                                                outcome_str,
+                                                candle_idx,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            // ================================================================
+
                             let entry = candle.close;
                             let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry);
 
@@ -377,7 +474,10 @@ pub async fn run_backtest(
 
                         // 3. Açık pozisyonları yönet (Simülasyon)
                         let pool_config = engine.get_position_pool().config.clone();
-                        let allow_supertrend_exit = exit_mode != ExitMode::SlTp;
+                        // IndicatorFlip: Supertrend çıkışı YOK (flip zaten sinyal üretiminde yapıldı).
+                        // SL hâlâ güvenlik ağı olarak aktif.
+                        let allow_supertrend_exit = exit_mode == ExitMode::Supertrend
+                            || exit_mode == ExitMode::Hybrid;
                         let allow_sl_tp_exit = exit_mode != ExitMode::Supertrend;
 
                         for trade in trades.iter_mut() {

@@ -1,7 +1,7 @@
 ﻿[app]
 # Startup mode: "live" or "backtest"
-mode = "backtest"
-bootstrap_limit = 30000
+mode = "live"
+bootstrap_limit = 70000
 auto_reconnect = true
 
 [binance]
@@ -17,7 +17,7 @@ ws_base_url = "wss://fstream.binance.com"
 [backtest]
 output_dir = "backtest_results"
 days = 365
-exit_mode = "sl_tp"
+exit_mode = "indicator_flip"
 send_alpaca_signals = false
 # Local CSV backtest (optional - comment out to use Binance API)
 # csv_file = "backtest_results/bitcoin_prices_all_time.csv"
@@ -37,7 +37,11 @@ paper_state_file = "paper_trader_state.json"
 # Fixed risk amount per trade in USDT (Loss if SL hits = ~$5)
 risk_amount_usdt = 5.0
 # Leverage applied to all positions (careful!)
-leverage = 2
+leverage = 3
+# Kaç pozisyon aynı anda açık olabilir?
+max_positions = 2
+# Canlı çıkış modu: "sl_tp" (TP/SL order koy) | "indicator_flip" (sadece market entry, çıkış = karşı sinyal)
+live_exit_mode = "indicator_flip"
 
 [indicators]
 ema_fast = [5, 8, 13]
