@@ -62,6 +62,8 @@ struct BacktestConfig {
     csv_timeframe: String,
     #[serde(default = "default_exit_mode")]
     exit_mode: String,
+    #[serde(default = "default_sltp_mode")]
+    sltp_mode: String,
     #[serde(default = "default_send_alpaca_signals")]
     send_alpaca_signals: bool,
     #[serde(default)]
@@ -87,6 +89,10 @@ fn default_exit_mode() -> String {
     "supertrend".to_string()
 }
 
+fn default_sltp_mode() -> String {
+    "pivot".to_string()
+}
+
 fn default_send_alpaca_signals() -> bool {
     false
 }
@@ -107,6 +113,12 @@ struct TradingConfig {
     leverage: u32,
     #[serde(default = "default_risk_amount")]
     risk_amount_usdt: f64,
+    #[serde(default = "default_live_exit_mode")]
+    live_exit_mode: String,
+}
+
+fn default_live_exit_mode() -> String {
+    "sl_tp".to_string()
 }
 
 fn default_risk_amount() -> f64 {
@@ -167,7 +179,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
         // Init trader (requires env vars to be present)
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string()) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -199,7 +211,7 @@ async fn main() -> anyhow::Result<()> {
             symbol, amount
         );
 
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string()) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -288,6 +300,7 @@ async fn main() -> anyhow::Result<()> {
                     &bt_conf.csv_symbol,
                     &bt_conf.csv_timeframe,
                     &bt_conf.exit_mode,
+                    &bt_conf.sltp_mode,
                     bt_conf.send_alpaca_signals,
                     &bt_conf.output_dir,
                     lstm_filter.clone(),
@@ -303,6 +316,7 @@ async fn main() -> anyhow::Result<()> {
                 &conf.trading.timeframes,
                 bt_conf.days,
                 &bt_conf.exit_mode,
+                &bt_conf.sltp_mode,
                 bt_conf.send_alpaca_signals,
                 &bt_conf.output_dir,
                 &conf.binance,
@@ -331,7 +345,7 @@ async fn main() -> anyhow::Result<()> {
     let binance_trader = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
         let risk_amount = rust_decimal::Decimal::from_f64(conf.trading.risk_amount_usdt)
             .unwrap_or(rust_decimal::Decimal::new(5, 0));
-        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage) {
+        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage, conf.trading.live_exit_mode.clone()) {
             Ok(trader) => {
                 info!(
                     "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage)",

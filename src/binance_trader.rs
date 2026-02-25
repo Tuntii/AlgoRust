@@ -39,13 +39,15 @@ pub struct BinanceFuturesTrader {
     pub risk_amount: Decimal,
     /// Leverage applied to every position (e.g. 1 = 1×)
     pub leverage: u32,
+    /// "sl_tp" = place SL+TP orders, "indicator_flip" = only SL, exit via opposite signal
+    pub live_exit_mode: String,
 }
 
 impl BinanceFuturesTrader {
     /// Load credentials from .env:
     ///   BINANCE_API_KEY, BINANCE_API_SECRET
     ///   BINANCE_TESTNET=true  (optional, uses testnet if set)
-    pub fn new(risk_amount: Decimal, leverage: u32) -> Result<Self> {
+    pub fn new(risk_amount: Decimal, leverage: u32, live_exit_mode: String) -> Result<Self> {
         let api_key = env::var("BINANCE_API_KEY").context("BINANCE_API_KEY must be set in .env")?;
         let api_secret =
             env::var("BINANCE_API_SECRET").context("BINANCE_API_SECRET must be set in .env")?;
@@ -78,6 +80,7 @@ impl BinanceFuturesTrader {
             time_offset_synced: AtomicBool::new(false),
             risk_amount,
             leverage,
+            live_exit_mode,
         })
     }
 
@@ -395,13 +398,22 @@ impl BinanceFuturesTrader {
 
         // Format with correct precision
         let sl_str = format!("{:.1$}", sl, price_prec as usize);
-        let tp_str = format!("{:.1$}", tp, price_prec as usize);
         let qty_str = format!("{:.1$}", qty, qty_prec as usize);
 
-        info!(
-            "Binance Futures signal: {} {} qty={} entry={} SL={} TP={}",
-            side, signal.symbol, qty_str, entry, sl_str, tp_str
-        );
+        let use_tp = self.live_exit_mode != "indicator_flip";
+
+        if use_tp {
+            let tp_str = format!("{:.1$}", tp, price_prec as usize);
+            info!(
+                "Binance Futures signal: {} {} qty={} entry={} SL={} TP={}",
+                side, signal.symbol, qty_str, entry, sl_str, tp_str
+            );
+        } else {
+            info!(
+                "Binance Futures signal: {} {} qty={} entry={} SL={} (indicator_flip: no TP)",
+                side, signal.symbol, qty_str, entry, sl_str
+            );
+        }
 
         // 1. Market entry
         let entry_id = self
@@ -433,20 +445,23 @@ impl BinanceFuturesTrader {
             .await?;
         info!("Stop-loss placed @ {} - id={}", sl_str, sl_id);
 
-        // 3. Take-profit
-        let tp_id = self
-            .place_order(OrderParams {
-                symbol: &signal.symbol,
-                side: tp_side,
-                order_type: "TAKE_PROFIT_MARKET",
-                qty: &qty_str,
-                price: None,
-                stop_price: Some(&tp_str),
-                close_position: true,
-                reduce_only: false,
-            })
-            .await?;
-        info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+        // 3. Take-profit (only in sl_tp mode; indicator_flip exits via opposite signal)
+        if use_tp {
+            let tp_str = format!("{:.1$}", tp, price_prec as usize);
+            let tp_id = self
+                .place_order(OrderParams {
+                    symbol: &signal.symbol,
+                    side: tp_side,
+                    order_type: "TAKE_PROFIT_MARKET",
+                    qty: &qty_str,
+                    price: None,
+                    stop_price: Some(&tp_str),
+                    close_position: true,
+                    reduce_only: false,
+                })
+                .await?;
+            info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+        }
 
         Ok(())
     }

@@ -594,6 +594,7 @@ class LabTrade:
     entry_idx:   int
     sl:          float
     tp:          float
+    orig_risk:   float = 0.0   # orijinal SL mesafesi (BE sonrası değişmez)
     result:      str   = ""
     exit_price:  float = 0.0
     exit_idx:    int   = 0
@@ -635,9 +636,7 @@ def run_backtest(
                     t.sl = t.entry_price; t.be_applied = True
 
             closed = False
-            risk_dist = abs(t.entry_price - t.sl)
-            if risk_dist < 1e-10:
-                risk_dist = 1e-10
+            risk_dist = max(t.orig_risk, 1e-10)  # orijinal SL mesafesi — BE'den etkilenmez
 
             # TP
             if t.direction == 1 and hi_ >= t.tp:
@@ -690,13 +689,16 @@ def run_backtest(
             prev_i  = pending["i"]
             direc   = pending["d"]
             entry   = c[i]   # sonraki bar açılışını temsilen kapanış kullanıyoruz
-            d_val = max(float(sl_dist[min(prev_i, len(sl_dist) - 1)]), 1e-6)
+            _sd = float(sl_dist[min(prev_i, len(sl_dist) - 1)])
+            if not (_sd > 0):   # handles nan, inf, zero
+                _sd = entry * 0.0005
+            d_val = max(_sd, entry * 0.0002, 1e-6)   # min 2 bps
             sl_   = entry - direc * d_val
             tp_   = entry + direc * d_val * rr
             if abs(entry - sl_) < 1e-8:
                 pending = None
                 continue
-            in_trade = LabTrade(direc, entry, i, sl_, tp_)
+            in_trade = LabTrade(direc, entry, i, sl_, tp_, orig_risk=d_val)
             pending  = None
 
         # ── Yeni sinyal ────────────────────────────────────────────────────
@@ -708,12 +710,15 @@ def run_backtest(
                 if confirm_candle:
                     pending = {"i": i, "d": d}
                 else:
-                    d_val = max(float(sl_dist[min(i, len(sl_dist) - 1)]), 1e-6)
+                    _sd = float(sl_dist[min(i, len(sl_dist) - 1)])
+                    if not (_sd > 0):   # handles nan, inf, zero
+                        _sd = c[i] * 0.0005
+                    d_val = max(_sd, c[i] * 0.0002, 1e-6)   # min 2 bps
                     sl_   = c[i] - d * d_val
                     tp_   = c[i] + d * d_val * rr
                     if abs(c[i] - sl_) < 1e-8:
                         continue
-                    in_trade = LabTrade(d, c[i], i, sl_, tp_)
+                    in_trade = LabTrade(d, c[i], i, sl_, tp_, orig_risk=d_val)
 
     return trades
 
@@ -782,7 +787,9 @@ def calc_metrics(trades: list[LabTrade], days: int,
     r.profit_factor   = gw / gl if gl > 0 else float("inf")
 
     pnls = np.array([t.pnl_r for t in decisive])
-    r.sharpe = (np.mean(pnls)/np.std(pnls)*math.sqrt(252*24*60)) if np.std(pnls)>0 else 0
+    yearly_trades = len(decisive) / max(days, 1) * 252
+    ann_f = math.sqrt(max(yearly_trades, 1))
+    r.sharpe = (np.mean(pnls) / np.std(pnls) * ann_f) if np.std(pnls) > 0 else 0
 
     equity = np.cumsum([t.pnl_r for t in trades])
     peak   = np.maximum.accumulate(equity)

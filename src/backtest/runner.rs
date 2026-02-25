@@ -19,6 +19,8 @@ enum ExitMode {
     Supertrend,
     SlTp,
     Hybrid,
+    /// Pivot tabanlı SL/TP + karşı sinyal çıkış + ters yön otomatik re-entry
+    PivotFlip,
 }
 
 impl ExitMode {
@@ -26,7 +28,43 @@ impl ExitMode {
         match value.to_lowercase().as_str() {
             "supertrend" => ExitMode::Supertrend,
             "hybrid" => ExitMode::Hybrid,
+            "pivot_flip" => ExitMode::PivotFlip,
             _ => ExitMode::SlTp,
+        }
+    }
+}
+
+/// SL/TP hesaplama mekanizması
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SltpMode {
+    /// Pivot high/low tabanlı SL/TP (varsayılan)
+    Pivot,
+    /// Order Block tabanlı SL/TP
+    OrderBlock,
+    /// Her iki modu test et ve karşılaştır
+    Compare,
+}
+
+impl SltpMode {
+    fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "ob" | "order_block" | "orderblock" => SltpMode::OrderBlock,
+            "compare" => SltpMode::Compare,
+            _ => SltpMode::Pivot,
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            SltpMode::Pivot => "pivot",
+            SltpMode::OrderBlock => "orderblock",
+            SltpMode::Compare => "compare",
+        }
+    }
+    fn display_label(self) -> &'static str {
+        match self {
+            SltpMode::Pivot => "Pivot SL/TP",
+            SltpMode::OrderBlock => "Order Block SL/TP",
+            SltpMode::Compare => "Compare",
         }
     }
 }
@@ -185,6 +223,7 @@ pub async fn run_backtest(
     timeframes: &[String],
     days: i64,
     exit_mode: &str,
+    sltp_mode: &str,
     send_alpaca_signals: bool,
     output_dir: &str,
     binance_settings: &crate::connect::BinanceSettings,
@@ -199,14 +238,20 @@ pub async fn run_backtest(
     fs::create_dir_all(output_dir)?;
 
     let client = BinanceClient::with_settings(binance_settings);
-    let mut engine = SignalEngine::new_backtest_mode(); // Backtest mode: bypasses policy
-    if let Some(filter) = lstm_filter {
-        engine.set_lstm_filter(filter);
-    }
-    engine.set_lstm_mode(lstm_mode);
-    apply_pool_config_overrides(&mut engine, pool_overrides);
     let policy = TimeframePolicy::new();
     let exit_mode = ExitMode::from_str(exit_mode);
+    let sltp_mode_parsed = SltpMode::from_str(sltp_mode);
+    let modes_to_run: Vec<SltpMode> = if sltp_mode_parsed == SltpMode::Compare {
+        vec![SltpMode::Pivot, SltpMode::OrderBlock]
+    } else {
+        vec![sltp_mode_parsed]
+    };
+
+    // Candle cache: compare modunda aynı veriyi iki kez çekmemek için
+    let mut candle_cache: std::collections::HashMap<String, Vec<crate::types::Candle>> =
+        std::collections::HashMap::new();
+    // Karşılaştırma sonuçları
+    let mut compare_results: Vec<(SltpMode, BacktestSummary)> = Vec::new();
 
     // Alpaca Client (Optional) - .env yüklü ise aktif olur
     let alpaca_client = if send_alpaca_signals && std::env::var("ALPACA_API_KEY").is_ok() {
@@ -223,6 +268,19 @@ pub async fn run_backtest(
     } else {
         None
     };
+
+    for &current_sltp in &modes_to_run {
+    if modes_to_run.len() > 1 {
+        info!("");
+        info!("══ SL/TP Mode: {} ══════════════════════════════════════════════", current_sltp.display_label());
+    }
+
+    let mut engine = SignalEngine::new_backtest_mode(); // Backtest mode: bypasses policy
+    if let Some(ref filter) = lstm_filter {
+        engine.set_lstm_filter(filter.clone());
+    }
+    engine.set_lstm_mode(lstm_mode);
+    apply_pool_config_overrides(&mut engine, pool_overrides);
 
     // Summary tracking
     let mut summary = BacktestSummary::default();
@@ -253,10 +311,21 @@ pub async fn run_backtest(
             // Gerçek bir backtest için pagination gerekir (döngü ile start_time geriye giderek).
             // Şimdilik bootstrap mantığıyla son 1000 mumu test ediyoruz.
             // Modified: Use fetch_historical_candles for full range
-            match client
-                .fetch_historical_candles(symbol, interval, days)
-                .await
-            {
+            // Candle cache: compare modunda aynı veriyi tekrar çekmemek için
+            let cache_key = format!("{}_{}", symbol, interval);
+            let candles_result: anyhow::Result<Vec<crate::types::Candle>> =
+                if let Some(cached) = candle_cache.get(&cache_key) {
+                    Ok(cached.clone())
+                } else {
+                    match client.fetch_historical_candles(symbol, interval, days).await {
+                        Ok(c) => {
+                            candle_cache.insert(cache_key, c.clone());
+                            Ok(c)
+                        }
+                        Err(e) => Err(e),
+                    }
+                };
+            match candles_result {
                 Ok(candles) => {
                     info!("Data loaded: {} candles", candles.len());
 
@@ -271,7 +340,7 @@ pub async fn run_backtest(
                             // SHORT: SL = Last Pivot High, TP = 1.5R
 
                             let entry = candle.close;
-                            let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry);
+                            let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry, current_sltp);
 
                             // Get context ID from context (set during evaluate)
                             let context_id = ctx.current_context_id.clone();
@@ -379,6 +448,12 @@ pub async fn run_backtest(
                         let pool_config = engine.get_position_pool().config.clone();
                         let allow_supertrend_exit = exit_mode != ExitMode::SlTp;
                         let allow_sl_tp_exit = exit_mode != ExitMode::Supertrend;
+                        // PivotFlip: karşı sinyal kapanışında ters yön re-entry aktif mi?
+                        let allow_pivot_flip_reentry = exit_mode == ExitMode::PivotFlip;
+
+                        // (direction, entry_price, confidence, context_score, ema50_slope)
+                        let mut pending_re_entries: Vec<(SignalType, Decimal, u8, i32, Decimal)> =
+                            Vec::new();
 
                         for trade in trades.iter_mut() {
                             if trade.outcome.is_some() {
@@ -448,6 +523,21 @@ pub async fn run_backtest(
                                     trade.exit_candle_idx = Some(candle_idx);
                                     trade.duration_candles = Some(current_duration);
                                     just_closed = true;
+
+                                    // PivotFlip: karşı yönde yeni pozisyon kuyruğa al
+                                    if allow_pivot_flip_reentry {
+                                        let new_dir = match trade.signal.signal {
+                                            SignalType::LONG => SignalType::SHORT,
+                                            SignalType::SHORT => SignalType::LONG,
+                                        };
+                                        pending_re_entries.push((
+                                            new_dir,
+                                            candle.close,
+                                            trade.signal.confidence,
+                                            trade.context_score,
+                                            ctx.get_ema50_slope(),
+                                        ));
+                                    }
                                 }
                             }
 
@@ -578,6 +668,59 @@ pub async fn run_backtest(
                             }
                         }
 
+                        // PivotFlip: Karşı sinyal kapanışlarından gelen re-entry'leri işle
+                        for (new_dir, entry_price, confidence, ctx_score, ema50_slope) in
+                            pending_re_entries
+                        {
+                            let new_signal = TradeSignal::new(
+                                symbol.to_string(),
+                                interval.to_string(),
+                                new_dir,
+                                entry_price,
+                                confidence as i32,
+                                vec!["PivotFlip:KarsiSinyalTersYon".to_string()],
+                                None,
+                            );
+                            let (re_sl, re_tp) =
+                                calculate_sl_tp(&new_signal, &ctx, entry_price, current_sltp);
+                            let new_ctx_id = ContextId::new(
+                                "pivot_flip",
+                                &candle_idx.to_string(),
+                                candle_idx,
+                            );
+                            let re_active_trade = ActiveTrade::new(
+                                new_signal.clone(),
+                                entry_price,
+                                re_sl,
+                                re_tp,
+                                new_ctx_id.clone(),
+                                candle_idx,
+                            )
+                            .with_context_score(ctx_score)
+                            .with_ema50_slope(ema50_slope);
+                            engine.add_trade_to_pool(re_active_trade);
+                            engine.record_trade_open(symbol, interval, candle_idx);
+                            trades.push(SimulatedTrade {
+                                signal: new_signal,
+                                entry_price,
+                                sl_price: re_sl,
+                                original_sl_price: re_sl,
+                                tp_price: re_tp,
+                                exit_price: None,
+                                pnl_r: None,
+                                outcome: None,
+                                entry_candle_idx: candle_idx,
+                                exit_candle_idx: None,
+                                duration_candles: None,
+                                context_id: Some(new_ctx_id),
+                                adjusted_confidence: confidence,
+                                was_concurrent: false,
+                                context_score: ctx_score,
+                                ema50_slope_at_entry: Some(ema50_slope),
+                                is_be_applied: false,
+                            });
+                        }
+
                         candle_idx += 1;
                     }
                 }
@@ -664,7 +807,12 @@ pub async fn run_backtest(
                     signals: trades,
                 };
 
-                let filename = format!("{}/{}_{}_backtest.json", output_dir, symbol, interval);
+                let mode_suffix = if modes_to_run.len() > 1 {
+                    format!("_{}", current_sltp.label())
+                } else {
+                    String::new()
+                };
+                let filename = format!("{}/{}_{}{}_backtest.json", output_dir, symbol, interval, mode_suffix);
                 let mut file = File::create(&filename)?;
                 let json = serde_json::to_string_pretty(&result)?;
                 file.write_all(json.as_bytes())?;
@@ -820,15 +968,29 @@ pub async fn run_backtest(
     });
 
     // Print final summary
-    print_summary(&summary);
+    if sltp_mode_parsed != SltpMode::Compare {
+        print_summary(&summary);
+    }
 
-    // Save summary to file
-    let summary_filename = format!("{}/BACKTEST_SUMMARY.json", output_dir);
+    // Save summary to file (compare modunda mode suffix ile)
+    let summary_suffix = if modes_to_run.len() > 1 {
+        format!("_{}", current_sltp.label())
+    } else {
+        String::new()
+    };
+    let summary_filename = format!("{}/BACKTEST_SUMMARY{}.json", output_dir, summary_suffix);
     let mut summary_file = File::create(&summary_filename)?;
     let summary_json = serde_json::to_string_pretty(&summary)?;
     summary_file.write_all(summary_json.as_bytes())?;
 
     info!("💾 Summary saved to: {}", summary_filename);
+    compare_results.push((current_sltp, summary));
+    } // end for current_sltp in modes_to_run
+
+    if sltp_mode_parsed == SltpMode::Compare {
+        print_sltp_comparison(&compare_results);
+    }
+
     Ok(())
 }
 
@@ -1023,25 +1185,151 @@ fn print_summary(summary: &BacktestSummary) {
     info!("");
 }
 
+fn print_sltp_comparison(results: &[(SltpMode, BacktestSummary)]) {
+    info!("");
+    info!("================================================================");
+    info!("         SL/TP MEKANIZMA KARSILASTIRMA RAPORU");
+    info!("================================================================");
+    info!("");
+    info!("{:<24} {:>8} {:>8} {:>10} {:>12} {:>8}",
+        "Mod", "Islem", "WR%", "PnL(R)", "Expectancy", "PF");
+    info!("{}", "-".repeat(74));
+
+    for (mode, summary) in results {
+        info!("{:<24} {:>8} {:>7.1}% {:>10} {:>12.3} {:>8.2}",
+            mode.display_label(),
+            summary.total_trades,
+            summary.overall_win_rate,
+            summary.overall_pnl_r,
+            summary.overall_expectancy,
+            summary.overall_profit_factor,
+        );
+    }
+
+    info!("{}", "-".repeat(74));
+
+    if results.len() == 2 {
+        let pivot = results.iter().find(|(m, _)| *m == SltpMode::Pivot);
+        let ob = results.iter().find(|(m, _)| *m == SltpMode::OrderBlock);
+
+        if let (Some((_, ps)), Some((_, os))) = (pivot, ob) {
+            let wr_diff = ps.overall_win_rate - os.overall_win_rate;
+            let pnl_diff = ps.overall_pnl_r - os.overall_pnl_r;
+            let exp_diff = ps.overall_expectancy - os.overall_expectancy;
+
+            info!("");
+            info!("Fark (Pivot - OrderBlock):");
+            info!("  Win Rate: {:+.1}%  |  PnL: {:+}R  |  Expectancy: {:+.3}R",
+                wr_diff, pnl_diff, exp_diff);
+
+            let better = if ps.overall_win_rate > os.overall_win_rate {
+                ">>> Pivot SL/TP kazandi (Win Rate)"
+            } else if os.overall_win_rate > ps.overall_win_rate {
+                ">>> Order Block SL/TP kazandi (Win Rate)"
+            } else {
+                ">>> Esit Win Rate"
+            };
+            info!("  {}", better);
+
+            let better_pnl = if ps.overall_pnl_r > os.overall_pnl_r {
+                ">>> Pivot SL/TP kazandi (PnL)"
+            } else if os.overall_pnl_r > ps.overall_pnl_r {
+                ">>> Order Block SL/TP kazandi (PnL)"
+            } else {
+                ">>> Esit PnL"
+            };
+            info!("  {}", better_pnl);
+        }
+    }
+
+    info!("");
+    info!("================================================================");
+    info!("                    KARSILASTIRMA SONU");
+    info!("================================================================");
+    info!("");
+}
+
 fn calculate_sl_tp(
     signal: &TradeSignal,
     ctx: &SymbolContext,
     entry: Decimal,
+    sltp_mode: SltpMode,
 ) -> (Decimal, Decimal) {
-    let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
+    // Order Block tabanlı SL/TP
+    if sltp_mode == SltpMode::OrderBlock {
+        let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
+        return ctx.ob_tracker.calculate_ob_sl_tp(
+            &signal.signal,
+            entry,
+            atr,
+            ctx.structure.last_pivot_low,
+            ctx.structure.last_pivot_high,
+            &ctx.pivot_high_history,
+            &ctx.pivot_low_history,
+        );
+    }
 
-    // ORDER BLOCK TABANLI TP/SL
-    // OB tracker varsa ve geçerli OB'ler mevcutsa, OB tabanlı hesapla
-    // Fallback olarak pivot seviyeleri kullanılır
-    ctx.ob_tracker.calculate_ob_sl_tp(
-        &signal.signal,
-        entry,
-        atr,
-        ctx.structure.last_pivot_low,
-        ctx.structure.last_pivot_high,
-        &ctx.pivot_high_history,
-        &ctx.pivot_low_history,
-    )
+    // Pivot tabanlı SL/TP (varsayılan)
+    let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
+    // %0.1 SL buffer (pivot seviyesinin biraz ötesine koy)
+    let buffer_pct = Decimal::from_f64(0.001).unwrap();
+    // Minimum TP uzaklığı (%0.3)
+    let min_profit_pct = Decimal::from_f64(0.003).unwrap();
+    // Fallback için minimum RR
+    let min_rr = Decimal::from_f64(1.0).unwrap();
+    // Minimum risk (entry'nin %0.2'si, sıfır bölme koruması)
+    let min_risk = entry * Decimal::from_f64(0.002).unwrap();
+
+    match signal.signal {
+        SignalType::LONG => {
+            // SL = entry altındaki en son pivot low − buffer
+            let sl = ctx
+                .structure
+                .last_pivot_low
+                .map(|p| p - entry * buffer_pct)
+                .filter(|&s| s < entry)
+                .unwrap_or_else(|| entry - atr);
+
+            let risk = (entry - sl).max(min_risk);
+
+            // TP = entry üzerindeki en yakın pivot high
+            let tp = ctx
+                .pivot_high_history
+                .iter()
+                .filter(|&&p| p > entry * (Decimal::ONE + min_profit_pct))
+                .min()
+                .copied()
+                .unwrap_or_else(|| entry + risk * min_rr);
+
+            // Minimum RR garantisi
+            let min_tp = entry + risk * min_rr;
+            (sl, tp.max(min_tp))
+        }
+        SignalType::SHORT => {
+            // SL = entry üzerindeki en son pivot high + buffer
+            let sl = ctx
+                .structure
+                .last_pivot_high
+                .map(|p| p + entry * buffer_pct)
+                .filter(|&s| s > entry)
+                .unwrap_or_else(|| entry + atr);
+
+            let risk = (sl - entry).max(min_risk);
+
+            // TP = entry altındaki en yakın pivot low
+            let tp = ctx
+                .pivot_low_history
+                .iter()
+                .filter(|&&p| p < entry * (Decimal::ONE - min_profit_pct))
+                .max()
+                .copied()
+                .unwrap_or_else(|| entry - risk * min_rr);
+
+            // Minimum RR garantisi
+            let min_tp = entry - risk * min_rr;
+            (sl, tp.min(min_tp))
+        }
+    }
 }
 
 // =============================================================================
@@ -1105,6 +1393,7 @@ pub async fn run_csv_backtest(
     symbol: &str,
     timeframe: &str,
     exit_mode: &str,
+    sltp_mode: &str,
     send_alpaca_signals: bool,
     output_dir: &str,
     lstm_filter: Option<LstmFilter>,
@@ -1140,6 +1429,15 @@ pub async fn run_csv_backtest(
     engine.set_lstm_mode(lstm_mode);
     apply_pool_config_overrides(&mut engine, pool_overrides);
     let exit_mode = ExitMode::from_str(exit_mode);
+    let sltp_mode_csv = SltpMode::from_str(sltp_mode);
+    // CSV backtest compare modunda ilk modu (Pivot) kullanir; cift calistirma icin run_backtest kullanin
+    let sltp_mode_parsed = if sltp_mode_csv == SltpMode::Compare {
+        info!("[WARN] CSV backtest compare modu: Pivot modu ile calistirildi");
+        SltpMode::Pivot
+    } else {
+        sltp_mode_csv
+    };
+    info!("   SL/TP Modu: {}", sltp_mode_parsed.display_label());
     let _ = send_alpaca_signals;
     let mut ctx = SymbolContext::new(symbol.to_string(), timeframe.to_string());
     let mut trades: Vec<SimulatedTrade> = Vec::new();
@@ -1178,7 +1476,7 @@ pub async fn run_csv_backtest(
         // 2. Check for signal
         if let Some(signal) = engine.evaluate(&mut ctx) {
             let entry = candle.close;
-            let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry);
+            let (sl, tp) = calculate_sl_tp(&signal, &ctx, entry, sltp_mode_parsed);
 
             // Get context ID from context (set during evaluate)
             let context_id = ctx.current_context_id.clone();
