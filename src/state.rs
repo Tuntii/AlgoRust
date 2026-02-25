@@ -62,6 +62,8 @@ pub struct SymbolContext {
     pub pine_kama_short_filter: bool,
     pub pine_kama_quality_score: i32,
     pub pine_kama_slope_norm: Option<Decimal>,
+    /// KAMA Efficiency Ratio — 0.0 = choppy, 1.0 = strong trend
+    pub pine_kama_er: Decimal,
 
     pub pine_bullish_div: bool,
     pub pine_bearish_div: bool,
@@ -161,6 +163,7 @@ impl SymbolContext {
             pine_kama_short_filter: false,
             pine_kama_quality_score: 0,
             pine_kama_slope_norm: None,
+            pine_kama_er: Decimal::ZERO,
             pine_bullish_div: false,
             pine_bearish_div: false,
             pine_rsi_bullish_div: false,
@@ -395,6 +398,9 @@ impl SymbolContext {
         // SuperKAMA state (trend + crossover + band signals)
         self.update_pine_state(close, cur_kama);
 
+        // Expose KAMA Efficiency Ratio for quality gate
+        self.pine_kama_er = self.kama_10.er;
+
         // T0.2 — Update Bootstrap State (TF-aware)
         let pivot_count = self
             .pivot_high_history
@@ -555,8 +561,12 @@ impl SymbolContext {
             None
         };
 
-        let kama_rising = prev_kama.as_ref().map(|prev| kama > *prev).unwrap_or(false);
-        let kama_falling = prev_kama.as_ref().map(|prev| kama < *prev).unwrap_or(false);
+        let kama_rising = prev_kama.as_ref().map(|prev| {
+            kama > *prev
+        }).unwrap_or(false);
+        let kama_falling = prev_kama.as_ref().map(|prev| {
+            kama < *prev
+        }).unwrap_or(false);
         let price_above_kama = close > kama;
         let price_below_kama = close < kama;
 

@@ -290,6 +290,7 @@ impl SignalEngine {
         let lstm_only = self.lstm_mode == LstmMode::LstmOnly;
         let long_signal = ctx.pine_buy_signal || ctx.pine_strong_buy;
         let short_signal = ctx.pine_sell_signal || ctx.pine_strong_sell;
+        let is_strong_signal = ctx.pine_strong_buy || ctx.pine_strong_sell;
 
         let direction = if lstm_only {
             if ctx.pine_trend == 1 && ctx.pine_kama_long_filter {
@@ -313,6 +314,21 @@ impl SignalEngine {
                 SignalType::SHORT
             }
         };
+
+        // ============================================================
+        // WHIPSAW QUALITY GATE — Multi-Factor Signal Quality Filter
+        // Distinguishes noisy KAMA crossovers (ranging) from real
+        // breakouts/breakdowns. NOT time-based — big moves pass instantly.
+        // ============================================================
+        if !indicator_only_mode && !lstm_only {
+            let quality = self.compute_signal_quality(ctx, is_strong_signal);
+            let min_quality = 2i32;
+
+            if quality < min_quality {
+                self.block_stats.whipsaw_filtered += 1;
+                return None;
+            }
+        }
 
         let mut lstm_score: Option<f32> = None;
         if !indicator_only_mode {
@@ -499,5 +515,133 @@ impl SignalEngine {
         .to_string();
 
         Some(signal)
+    }
+
+    /// Compute multi-factor signal quality score.
+    /// Returns 0..10+. Higher = stronger signal. Minimum 3 required to pass.
+    ///
+    /// Strong signals (ATR band crosses) and volume spikes bypass the gate
+    /// so we NEVER miss a big market move on 1m scalping.
+    fn compute_signal_quality(&self, ctx: &SymbolContext, is_strong_signal: bool) -> i32 {
+        // ── Override: strong signals always pass ──────────────────────
+        if is_strong_signal {
+            return 10; // ATR band cross = high volatility move, always trade
+        }
+
+        let mut quality = 0i32;
+
+        // ── Factor 1: Short-term Efficiency Ratio (10 bar) ───────────
+        // KAMA(2584) ER is almost always ~0 on 1m. Use a 10-bar ER instead
+        // to measure recent price efficiency around the signal candle.
+        // ER ~ 0 = choppy noise, ER > 0.3 = clear trend
+        let er_short = if ctx.candles.len() >= 11 {
+            let n = 10usize;
+            let last_idx = ctx.candles.len() - 1;
+            let first_idx = last_idx - n;
+            let direction = (ctx.candles[last_idx].close - ctx.candles[first_idx].close).abs();
+            let volatility: Decimal = (first_idx..last_idx)
+                .map(|i| (ctx.candles[i + 1].close - ctx.candles[i].close).abs())
+                .sum();
+            if volatility.is_zero() { Decimal::ZERO } else { direction / volatility }
+        } else {
+            Decimal::ZERO
+        };
+        let er_010 = Decimal::from_str("0.10").unwrap_or(Decimal::ZERO);
+        let er_025 = Decimal::from_str("0.25").unwrap_or(Decimal::ZERO);
+        if er_short > er_025 {
+            quality += 3;
+        } else if er_short > er_010 {
+            quality += 1;
+        }
+
+        // ── Factor 2: ADX (directional strength) ─────────────────────
+        let adx = ctx.adx_10_10.adx.unwrap_or(Decimal::ZERO);
+        let adx_20 = Decimal::from(20);
+        let adx_30 = Decimal::from(30);
+        if adx > adx_30 {
+            quality += 2;
+        } else if adx > adx_20 {
+            quality += 1;
+        }
+
+        // ── Factor 3: Volume confirmation ────────────────────────────
+        // Compare last candle volume to 20-bar average
+        if ctx.candles.len() >= 20 {
+            if let Some(last_candle) = ctx.candles.back() {
+                let vol_sum: Decimal = ctx
+                    .candles
+                    .iter()
+                    .rev()
+                    .take(20)
+                    .map(|c| c.volume)
+                    .sum();
+                let vol_avg = vol_sum / Decimal::from(20);
+                if !vol_avg.is_zero() {
+                    let vol_ratio = last_candle.volume / vol_avg;
+                    let vol_3x = Decimal::from(3);
+                    let vol_13 = Decimal::from_str("1.3").unwrap_or(Decimal::ONE);
+
+                    // Override: extreme volume spike = big move, bypass gate entirely
+                    if vol_ratio >= vol_3x {
+                        return 10;
+                    }
+                    if vol_ratio > vol_13 {
+                        quality += 1;
+                    }
+                }
+            }
+        }
+
+        // ── Factor 4: Candle body strength ───────────────────────────
+        // |close - open| / (high - low). Big body = conviction, small = indecision
+        if let Some(last) = ctx.candles.back() {
+            let range = last.high - last.low;
+            let min_range = Decimal::from_str("0.01").unwrap_or(Decimal::ONE);
+            if range > min_range {
+                let body = (last.close - last.open).abs();
+                let body_ratio = body / range;
+                let threshold = Decimal::from_str("0.6").unwrap_or(Decimal::ONE);
+                if body_ratio > threshold {
+                    quality += 1;
+                }
+            }
+        }
+
+        // ── Factor 5: KAMA slope normalised ──────────────────────────
+        // If KAMA is actually moving relative to ATR
+        if let Some(slope) = ctx.pine_kama_slope_norm {
+            let slope_min = Decimal::from_str("0.002").unwrap_or(Decimal::ZERO);
+            if slope.abs() > slope_min {
+                quality += 1;
+            }
+        }
+
+        // ── Factor 6: ATR expansion (volatility growing) ────────────
+        // current superkama_atr vs average of last 5
+        if ctx.superkama_atr_series.len() >= 6 {
+            let current_atr = ctx
+                .superkama_atr_series
+                .back()
+                .copied()
+                .unwrap_or(Decimal::ZERO);
+            let prev_sum: Decimal = ctx
+                .superkama_atr_series
+                .iter()
+                .rev()
+                .skip(1)
+                .take(5)
+                .copied()
+                .sum();
+            let prev_avg = prev_sum / Decimal::from(5);
+            if !prev_avg.is_zero() {
+                let expansion = current_atr / prev_avg;
+                let exp_threshold = Decimal::from_str("1.3").unwrap_or(Decimal::ONE);
+                if expansion > exp_threshold {
+                    quality += 1;
+                }
+            }
+        }
+
+        quality
     }
 }

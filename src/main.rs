@@ -250,7 +250,7 @@ async fn main() -> anyhow::Result<()> {
         };
 
         match trader.execute_signal(&signal, &ctx).await {
-            Ok(_) => info!(
+            Ok(_result) => info!(
                 "✅ TEST SIGNAL SUCCESS: Normal Bot Signal Order completely placed without errors!"
             ),
             Err(e) => error!("❌ TEST SIGNAL FAILED: {:?}", e),
@@ -570,14 +570,28 @@ async fn main() -> anyhow::Result<()> {
                                                                 signal.symbol,
                                                                 signal.price
                                                             );
-                                                            if let Err(e) = trader
+                                                            match trader
                                                                 .execute_signal(&signal, ctx)
                                                                 .await
                                                             {
-                                                                error!(
-                                                                    "❌ Binance order failed: {}",
-                                                                    e
-                                                                );
+                                                                Ok(result) => {
+                                                                    use crate::binance_trader::SignalExecResult;
+                                                                    if result == SignalExecResult::Flipped {
+                                                                        // Previous position was closed — inform engine
+                                                                        // so cooldown state stays consistent
+                                                                        engine.record_trade_close(
+                                                                            &signal.symbol,
+                                                                            &signal.timeframe,
+                                                                            ctx.total_candles_processed,
+                                                                        );
+                                                                    }
+                                                                }
+                                                                Err(e) => {
+                                                                    error!(
+                                                                        "❌ Binance order failed: {}",
+                                                                        e
+                                                                    );
+                                                                }
                                                             }
                                                         }
                                                     }

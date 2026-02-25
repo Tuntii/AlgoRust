@@ -1,6 +1,6 @@
 ﻿[app]
 # Startup mode: "live" or "backtest"
-mode = "live"
+mode = "backtest"
 bootstrap_limit = 70000
 auto_reconnect = true
 
@@ -17,7 +17,7 @@ ws_base_url = "wss://fstream.binance.com"
 [backtest]
 output_dir = "backtest_results"
 days = 365
-exit_mode = "indicator_flip"
+exit_mode = "sl_tp"
 # SL/TP mekanizması: "pivot" | "orderblock" | "compare" (her ikisini test edip karşılaştırır)
 sltp_mode = "compare"
 send_alpaca_signals = false

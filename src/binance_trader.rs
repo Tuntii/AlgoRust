@@ -8,6 +8,17 @@
 use crate::state::SymbolContext;
 use crate::types::{SignalType, TradeSignal};
 use anyhow::{Context, Result};
+
+/// Result of execute_signal — tells caller whether a flip happened
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignalExecResult {
+    /// New position opened (no prior position)
+    Executed,
+    /// Prior opposite position closed + new one opened
+    Flipped,
+    /// Same direction already open — skipped
+    Skipped,
+}
 use hmac::{Hmac, Mac};
 use reqwest::Client;
 use rust_decimal::prelude::*;
@@ -315,7 +326,7 @@ impl BinanceFuturesTrader {
     }
 
     /// Entry (MARKET) + SL (STOP_MARKET) + TP (TAKE_PROFIT_MARKET)
-    pub async fn execute_signal(&self, signal: &TradeSignal, ctx: &SymbolContext) -> Result<()> {
+    pub async fn execute_signal(&self, signal: &TradeSignal, ctx: &SymbolContext) -> Result<SignalExecResult> {
         // Fetch precisions dynamically
         let (price_prec, qty_prec, min_notional) = self
             .get_precisions(&signal.symbol)
@@ -351,7 +362,7 @@ impl BinanceFuturesTrader {
                     if current_dir == 1 { "LONG" } else { "SHORT" },
                     net_pos_qty.abs()
                 );
-                return Ok(());
+                return Ok(SignalExecResult::Skipped);
             }
 
             info!(
@@ -371,7 +382,7 @@ impl BinanceFuturesTrader {
                     "Position on {} not flat after close attempt. Skipping new entry for safety.",
                     signal.symbol
                 );
-                return Ok(());
+                return Ok(SignalExecResult::Skipped);
             }
         } else {
             // If no position exists, clear stale exit orders that can block future flips.
@@ -388,8 +399,11 @@ impl BinanceFuturesTrader {
 
         if qty.is_zero() {
             warn!("Position quantity is zero (or below minNotional). Trade skipped.");
-            return Ok(());
+            return Ok(SignalExecResult::Skipped);
         }
+
+        // Track whether this was a flip (opposite close + new open)
+        let was_flip = !net_pos_qty.is_zero();
 
         let (side, sl_side, tp_side) = match signal.signal {
             SignalType::LONG => ("BUY", "SELL", "SELL"),
@@ -463,7 +477,11 @@ impl BinanceFuturesTrader {
             info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
         }
 
-        Ok(())
+        Ok(if was_flip {
+            SignalExecResult::Flipped
+        } else {
+            SignalExecResult::Executed
+        })
     }
 
     pub async fn place_test_order(&self, symbol: &str, risk_usdt: Decimal) -> Result<u64> {

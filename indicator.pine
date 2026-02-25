@@ -51,7 +51,7 @@ lower_band = kama - (atr * atr_multiplier)
 // TREND DETECTION
 // =============================================================================
 
-// Trend based on KAMA direction and price position
+// KAMA direction (simple comparison — quality gate handles noise filtering)
 kama_rising = kama > kama[1]
 kama_falling = kama < kama[1]
 price_above_kama = close > kama
@@ -72,7 +72,7 @@ kama_color = bullish_trend ? bullish_color : (bearish_trend ? bearish_color : ne
 // Buy signal: price crosses above KAMA while KAMA is rising
 buy_signal = ta.crossover(close, kama) and kama_rising
 
-// Sell signal: price crosses below KAMA while KAMA is falling  
+// Sell signal: price crosses below KAMA while KAMA is falling
 sell_signal = ta.crossunder(close, kama) and kama_falling
 
 // Strong buy: price bounces from lower band
@@ -115,7 +115,7 @@ bgcolor(bullish_trend ? color.new(color.green, 97) : (bearish_trend ? color.new(
 // =============================================================================
 
 if barstate.islast
-    var table info_table = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    var table info_table = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
     
     // Header
     table.cell(info_table, 0, 0, "SuperKAMA", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.normal)
@@ -127,21 +127,34 @@ if barstate.islast
     
     // Efficiency Ratio
     table.cell(info_table, 0, 2, "ER", text_color=color.white, text_size=size.small)
-    er_color = er > 0.5 ? color.green : (er > 0.3 ? color.yellow : color.red)
+    er_color = er > 0.5 ? color.green : (er > 0.3 ? color.yellow : (er > 0.15 ? color.orange : color.red))
     table.cell(info_table, 1, 2, str.tostring(er, "#.###"), text_color=er_color, text_size=size.small)
+    
+    // Short-term ER (10 bar) — visual quality indicator
+    er_10 = ta.change(close, 10) != 0 ? math.abs(ta.change(close, 10)) / math.sum(math.abs(ta.change(close)), 10) : 0.0
+    er10_text = str.tostring(er_10, "#.###")
+    er10_color = er_10 > 0.25 ? color.green : (er_10 > 0.10 ? color.yellow : color.red)
+    table.cell(info_table, 0, 3, "ER(10)", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 3, er10_text, text_color=er10_color, text_size=size.small)
     
     // Trend
     trend_text = bullish_trend ? "Bullish" : (bearish_trend ? "Bearish" : "Neutral")
-    table.cell(info_table, 0, 3, "Trend", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 3, trend_text, text_color=kama_color, text_size=size.small)
+    table.cell(info_table, 0, 4, "Trend", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 4, trend_text, text_color=kama_color, text_size=size.small)
+    
+    // KAMA Direction
+    dir_text = kama_rising ? "Rising" : (kama_falling ? "Falling" : "Flat")
+    dir_color = kama_rising ? color.green : (kama_falling ? color.red : color.gray)
+    table.cell(info_table, 0, 5, "Direction", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 5, dir_text, text_color=dir_color, text_size=size.small)
     
     // Upper Band
-    table.cell(info_table, 0, 4, "Upper", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 4, str.tostring(upper_band, "#.##"), text_color=bullish_color, text_size=size.small)
+    table.cell(info_table, 0, 6, "Upper", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 6, str.tostring(upper_band, "#.##"), text_color=bullish_color, text_size=size.small)
     
     // Lower Band
-    table.cell(info_table, 0, 5, "Lower", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 5, str.tostring(lower_band, "#.##"), text_color=bearish_color, text_size=size.small)
+    table.cell(info_table, 0, 7, "Lower", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 7, str.tostring(lower_band, "#.##"), text_color=bearish_color, text_size=size.small)
 
 // =============================================================================
 // ALERTS
