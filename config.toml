@@ -17,9 +17,9 @@ ws_base_url = "wss://fstream.binance.com"
 [backtest]
 output_dir = "backtest_results"
 days = 365
-exit_mode = "sl_tp"
+exit_mode = "indicator_flip"
 # SL/TP mekanizması: "pivot" | "orderblock" | "compare" (her ikisini test edip karşılaştırır)
-sltp_mode = "compare"
+sltp_mode = "orderblock"
 send_alpaca_signals = false
 # Local CSV backtest (optional - comment out to use Binance API)
 # csv_file = "backtest_results/bitcoin_prices_all_time.csv"

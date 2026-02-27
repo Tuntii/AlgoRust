@@ -6,13 +6,13 @@ indicator("SuperKAMA - Kaufman Adaptive Moving Average", overlay=true, max_label
 // =============================================================================
 
 // SuperKAMA Settings
-kama_length = input.int(2584, "KAMA Length", minval=1, group="SuperKAMA Settings")
-kama_fast = input.int(34, "Fast EMA Period", minval=1, group="SuperKAMA Settings")
-kama_slow = input.int(55, "Slow EMA Period", minval=1, group="SuperKAMA Settings")
-atr_multiplier = input.float(1.0, "ATR Multiplier", minval=0.1, maxval=10, step=0.1, group="SuperKAMA Settings")
-atr_period = input.int(33, "ATR Period", minval=1, group="SuperKAMA Settings")
-show_bands = input.bool(true, "Show Bands", group="SuperKAMA Settings")
-show_signals = input.bool(true, "Show Buy/Sell Signals", group="SuperKAMA Settings")
+kama_length      = input.int(2584, "KAMA Length",       minval=1, group="SuperKAMA Settings")
+kama_fast        = input.int(55,   "Fast EMA Period",   minval=1, group="SuperKAMA Settings")
+kama_slow        = input.int(89,   "Slow EMA Period",   minval=1, group="SuperKAMA Settings")
+atr_multiplier   = input.float(2.5, "ATR Çarpanı",       minval=0.1, maxval=10, step=0.1, group="SuperKAMA Settings")
+atr_period       = input.int(33,   "ATR Period",        minval=1, group="SuperKAMA Settings")
+show_bands       = input.bool(true, "Show Bands",        group="SuperKAMA Settings")
+show_signals     = input.bool(true, "Show Buy/Sell Signals", group="SuperKAMA Settings")
 
 // Color Settings
 bullish_color = input.color(color.new(color.green, 0), "Bullish Color", group="Colors")
@@ -66,20 +66,46 @@ neutral_trend = not bullish_trend and not bearish_trend
 kama_color = bullish_trend ? bullish_color : (bearish_trend ? bearish_color : neutral_color)
 
 // =============================================================================
-// TRADING SIGNALS
+// SIGNAL FILTERS
 // =============================================================================
 
-// Buy signal: price crosses above KAMA while KAMA is rising
-buy_signal = ta.crossover(close, kama) and kama_rising
+signal_cooldown = input.int(10,   "Signal Cooldown (bars)",  minval=1, maxval=50, step=1,   group="SuperKAMA Settings")
+er_filter       = input.float(0.26, "Min ER(10) for Signals",  minval=0.0, maxval=1.0, step=0.01, group="SuperKAMA Settings")
+atr_exp_ratio   = input.float(1.10, "Min ATR Expansion Ratio", minval=1.0, maxval=3.0, step=0.05, group="SuperKAMA Settings")
 
-// Sell signal: price crosses below KAMA while KAMA is falling
-sell_signal = ta.crossunder(close, kama) and kama_falling
+// Short-term ER for signal quality
+er_10 = ta.change(close, 10) != 0 ? math.abs(ta.change(close, 10)) / math.sum(math.abs(ta.change(close)), 10) : 0.0
 
-// Strong buy: price bounces from lower band
-strong_buy = ta.crossover(close, lower_band) and kama_rising
+// ATR expansion filter: current ATR >= atr_exp_ratio * 14-bar SMA of ATR
+// Ensures volatility is expanding (momentum) at signal time, not contracting (chop)
+atr_avg14        = ta.sma(atr, 14)
+atr_expanding    = atr >= atr_avg14 * atr_exp_ratio
 
-// Strong sell: price rejects from upper band
-strong_sell = ta.crossunder(close, upper_band) and kama_falling
+// Cooldown tracking
+var int last_buy_bar = -999
+var int last_sell_bar = -999
+
+buy_cooldown_ok  = (bar_index - last_buy_bar)  > signal_cooldown
+sell_cooldown_ok = (bar_index - last_sell_bar) > signal_cooldown
+er_ok = er_10 >= er_filter
+
+// Raw signals (aynı kalıyor)
+raw_buy         = ta.crossover(close, kama)         and kama_rising
+raw_sell        = ta.crossunder(close, kama)        and kama_falling
+raw_strong_buy  = ta.crossover(close, lower_band)   and kama_rising
+raw_strong_sell = ta.crossunder(close, upper_band)  and kama_falling
+
+// Filtered signals — ER + cooldown + ATR expansion
+buy_signal    = raw_buy         and buy_cooldown_ok  and er_ok and atr_expanding
+sell_signal   = raw_sell        and sell_cooldown_ok and er_ok and atr_expanding
+strong_buy    = raw_strong_buy  and buy_cooldown_ok  and er_ok and atr_expanding
+strong_sell   = raw_strong_sell and sell_cooldown_ok and er_ok and atr_expanding
+
+// Cooldown güncelle
+if buy_signal or strong_buy
+    last_buy_bar := bar_index
+if sell_signal or strong_sell
+    last_sell_bar := bar_index
 
 // =============================================================================
 // VISUALIZATION
@@ -115,7 +141,7 @@ bgcolor(bullish_trend ? color.new(color.green, 97) : (bearish_trend ? color.new(
 // =============================================================================
 
 if barstate.islast
-    var table info_table = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    var table info_table = table.new(position.top_right, 2, 9, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
     
     // Header
     table.cell(info_table, 0, 0, "SuperKAMA", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.normal)
@@ -133,28 +159,37 @@ if barstate.islast
     // Short-term ER (10 bar) — visual quality indicator
     er_10 = ta.change(close, 10) != 0 ? math.abs(ta.change(close, 10)) / math.sum(math.abs(ta.change(close)), 10) : 0.0
     er10_text = str.tostring(er_10, "#.###")
-    er10_color = er_10 > 0.25 ? color.green : (er_10 > 0.10 ? color.yellow : color.red)
+    er10_color = er_10 >= 0.26 ? color.green : (er_10 > 0.10 ? color.yellow : color.red)
     table.cell(info_table, 0, 3, "ER(10)", text_color=color.white, text_size=size.small)
     table.cell(info_table, 1, 3, er10_text, text_color=er10_color, text_size=size.small)
-    
+
+    // ATR vs ATR-Average (expansion gauge)
+    atr_now  = ta.atr(atr_period)
+    atr_avg_ = ta.sma(atr_now, 14)
+    atr_ratio_val  = atr_avg_ != 0 ? atr_now / atr_avg_ : 0.0
+    atr_ratio_text = str.tostring(atr_ratio_val, "#.###") + "x"
+    atr_exp_color  = atr_ratio_val >= atr_exp_ratio ? color.green : (atr_ratio_val >= 1.0 ? color.yellow : color.red)
+    table.cell(info_table, 0, 4, "ATR/Avg", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 4, atr_ratio_text, text_color=atr_exp_color, text_size=size.small)
+
     // Trend
     trend_text = bullish_trend ? "Bullish" : (bearish_trend ? "Bearish" : "Neutral")
-    table.cell(info_table, 0, 4, "Trend", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 4, trend_text, text_color=kama_color, text_size=size.small)
-    
+    table.cell(info_table, 0, 5, "Trend", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 5, trend_text, text_color=kama_color, text_size=size.small)
+
     // KAMA Direction
     dir_text = kama_rising ? "Rising" : (kama_falling ? "Falling" : "Flat")
     dir_color = kama_rising ? color.green : (kama_falling ? color.red : color.gray)
-    table.cell(info_table, 0, 5, "Direction", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 5, dir_text, text_color=dir_color, text_size=size.small)
+    table.cell(info_table, 0, 6, "Direction", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 6, dir_text, text_color=dir_color, text_size=size.small)
     
     // Upper Band
-    table.cell(info_table, 0, 6, "Upper", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 6, str.tostring(upper_band, "#.##"), text_color=bullish_color, text_size=size.small)
+    table.cell(info_table, 0, 7, "Upper", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 7, str.tostring(upper_band, "#.##"), text_color=bullish_color, text_size=size.small)
     
     // Lower Band
-    table.cell(info_table, 0, 7, "Lower", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 7, str.tostring(lower_band, "#.##"), text_color=bearish_color, text_size=size.small)
+    table.cell(info_table, 0, 8, "Lower", text_color=color.white, text_size=size.small)
+    table.cell(info_table, 1, 8, str.tostring(lower_band, "#.##"), text_color=bearish_color, text_size=size.small)
 
 // =============================================================================
 // ALERTS

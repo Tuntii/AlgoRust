@@ -52,13 +52,17 @@ pub struct BinanceFuturesTrader {
     pub leverage: u32,
     /// "sl_tp" = place SL+TP orders, "indicator_flip" = only SL, exit via opposite signal
     pub live_exit_mode: String,
+    /// Aynı anda açılabilen maksimum pozisyon sayısı.
+    /// Margin cap hesabında bakiye bu sayıya bölünür; böylece
+    /// farklı semboller için yeterli teminat rezerve edilir.
+    pub max_positions: u32,
 }
 
 impl BinanceFuturesTrader {
     /// Load credentials from .env:
     ///   BINANCE_API_KEY, BINANCE_API_SECRET
     ///   BINANCE_TESTNET=true  (optional, uses testnet if set)
-    pub fn new(risk_amount: Decimal, leverage: u32, live_exit_mode: String) -> Result<Self> {
+    pub fn new(risk_amount: Decimal, leverage: u32, live_exit_mode: String, max_positions: u32) -> Result<Self> {
         let api_key = env::var("BINANCE_API_KEY").context("BINANCE_API_KEY must be set in .env")?;
         let api_secret =
             env::var("BINANCE_API_SECRET").context("BINANCE_API_SECRET must be set in .env")?;
@@ -92,6 +96,7 @@ impl BinanceFuturesTrader {
             risk_amount,
             leverage,
             live_exit_mode,
+            max_positions: max_positions.max(1),
         })
     }
 
@@ -243,10 +248,14 @@ impl BinanceFuturesTrader {
         // 2. Calculate quantity based on fixed dollar risk
         let risk_qty = self.risk_amount / sl_distance;
 
-        // 3. Margin cap: at Nx leverage, max notional = balance * N
+        // 3. Margin cap: at Nx leverage, max notional = (balance / max_positions) * N
+        // Balance'ı max_positions'a bölerek her sembol için eşit teminat rezerve edilir.
+        // Örn: balance=$90, max_positions=2, leverage=2 → per-slot notional=$90
         // Leave a 2% cushion for fees & funding
         let leverage_dec = Decimal::from(self.leverage);
-        let max_notional = balance * leverage_dec * Decimal::new(98, 2); // × 0.98
+        let slots = Decimal::from(self.max_positions.max(1));
+        let per_slot_balance = balance / slots;
+        let max_notional = per_slot_balance * leverage_dec * Decimal::new(98, 2); // × 0.98
         let max_qty_by_margin = if entry.is_zero() {
             risk_qty
         } else {
@@ -260,9 +269,11 @@ impl BinanceFuturesTrader {
         let qty = qty.round_dp(qty_precision);
 
         info!(
-            "Size calc: balance=${} leverage={}x risk_amount=${} sl_dist={} \
+            "Size calc: balance=${} slots={} per_slot=${} leverage={}x risk_amount=${} sl_dist={} \
              risk_qty={} margin_cap_qty={} -> final_qty={} (prec={})",
             balance,
+            self.max_positions,
+            per_slot_balance,
             self.leverage,
             self.risk_amount,
             sl_distance,

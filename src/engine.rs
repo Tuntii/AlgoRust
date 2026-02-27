@@ -235,11 +235,12 @@ impl SignalEngine {
             // ============================================================
 
             // Filter 1: Flat EMA — EMA50 slope too flat = sideways market
-            // Threshold: |slope| < 0.00005 (0.005% change over 6 bars)
-            // 1m context: BTC@95k → blocks only if EMA moved < ~4.75 USDT in 6 minutes
+            // Threshold: |slope| < 0.0001 (0.01% change over 6 bars)
+            // 1m context: BTC@95k → blocks only if EMA moved < ~9.5 USDT in 6 minutes
+            // Doubled from 0.00005 to aggressively filter ranging / sideways markets.
             let ema50_slope = ctx.get_ema50_slope();
             let slope_threshold =
-                rust_decimal::Decimal::from_str("0.00005").unwrap_or(rust_decimal::Decimal::ZERO);
+                rust_decimal::Decimal::from_str("0.0001").unwrap_or(rust_decimal::Decimal::ZERO);
             if ema50_slope.abs() < slope_threshold {
                 self.block_stats.flat_ema_blocks += 1;
                 return None;
@@ -279,6 +280,19 @@ impl SignalEngine {
                 self.block_stats.neutral_trend_blocks += 1;
                 return None;
             }
+
+            // Filter 4: Low ADX — directional strength too weak = ranging market
+            // Hard block when ADX < 18 on any timeframe.
+            // ADX < 20 is widely considered a non-trending (sideways) condition.
+            {
+                let adx_min = rust_decimal::Decimal::from(18u32);
+                if let Some(adx_val) = ctx.adx_10_10.adx {
+                    if adx_val < adx_min {
+                        self.block_stats.neutral_trend_blocks += 1;
+                        return None;
+                    }
+                }
+            }
         }
 
         // Generate context ID for this potential signal
@@ -288,8 +302,12 @@ impl SignalEngine {
         let current_slope = ctx.get_ema50_slope();
 
         let lstm_only = self.lstm_mode == LstmMode::LstmOnly;
-        let long_signal = ctx.pine_buy_signal || ctx.pine_strong_buy;
-        let short_signal = ctx.pine_sell_signal || ctx.pine_strong_sell;
+        // Require SuperKAMA trend alignment: only take longs when KAMA is rising
+        // and price is above KAMA (pine_trend == 1), and shorts when falling / below
+        // (pine_trend == -1). This eliminates counter-trend KAMA crossovers that
+        // are the primary cause of sideways chop trades on 1m.
+        let long_signal = (ctx.pine_buy_signal || ctx.pine_strong_buy) && ctx.pine_trend == 1;
+        let short_signal = (ctx.pine_sell_signal || ctx.pine_strong_sell) && ctx.pine_trend == -1;
         let is_strong_signal = ctx.pine_strong_buy || ctx.pine_strong_sell;
 
         let direction = if lstm_only {
@@ -322,7 +340,10 @@ impl SignalEngine {
         // ============================================================
         if !indicator_only_mode && !lstm_only {
             let quality = self.compute_signal_quality(ctx, is_strong_signal);
-            let min_quality = 2i32;
+            // Raised from 2 → 3 to require at least one strong confirming factor
+            // (ER > 0.25 gives +3, ADX > 30 gives +2, vol spike bypasses entirely).
+            // Borderline sideways signals that scraped past with 2 points are now blocked.
+            let min_quality = 3i32;
 
             if quality < min_quality {
                 self.block_stats.whipsaw_filtered += 1;
@@ -533,7 +554,7 @@ impl SignalEngine {
         // ── Factor 1: Short-term Efficiency Ratio (10 bar) ───────────
         // KAMA(2584) ER is almost always ~0 on 1m. Use a 10-bar ER instead
         // to measure recent price efficiency around the signal candle.
-        // ER ~ 0 = choppy noise, ER > 0.3 = clear trend
+        // Thresholds synced with Pine: Min ER(10) for Signals = 0.26
         let er_short = if ctx.candles.len() >= 11 {
             let n = 10usize;
             let last_idx = ctx.candles.len() - 1;
@@ -546,11 +567,13 @@ impl SignalEngine {
         } else {
             Decimal::ZERO
         };
-        let er_010 = Decimal::from_str("0.10").unwrap_or(Decimal::ZERO);
-        let er_025 = Decimal::from_str("0.25").unwrap_or(Decimal::ZERO);
-        if er_short > er_025 {
+        // er_026: matches Pine er_filter = 0.26 (strong trend) → +3 pts
+        // er_012: half of threshold (weak but directional)      → +1 pt
+        let er_012 = Decimal::from_str("0.12").unwrap_or(Decimal::ZERO);
+        let er_026 = Decimal::from_str("0.26").unwrap_or(Decimal::ZERO);
+        if er_short >= er_026 {
             quality += 3;
-        } else if er_short > er_010 {
+        } else if er_short > er_012 {
             quality += 1;
         }
 
@@ -616,9 +639,12 @@ impl SignalEngine {
             }
         }
 
-        // ── Factor 6: ATR expansion (volatility growing) ────────────
-        // current superkama_atr vs average of last 5
-        if ctx.superkama_atr_series.len() >= 6 {
+        // ── Factor 6: ATR expansion (volatility growing at signal time) ──────
+        // Synced with Pine: atr_expanding = atr >= ta.sma(atr,14) * atr_exp_ratio (1.10)
+        // Lookback extended to 14 bars; weight raised to +2 so ATR expansion
+        // + ADX>20 alone is enough to pass the min_quality=3 gate.
+        // Tier 2 (ATR >= 1.30x avg) bypasses the gate entirely like a volume spike.
+        if ctx.superkama_atr_series.len() >= 15 {
             let current_atr = ctx
                 .superkama_atr_series
                 .back()
@@ -629,15 +655,18 @@ impl SignalEngine {
                 .iter()
                 .rev()
                 .skip(1)
-                .take(5)
+                .take(14)
                 .copied()
                 .sum();
-            let prev_avg = prev_sum / Decimal::from(5);
+            let prev_avg = prev_sum / Decimal::from(14);
             if !prev_avg.is_zero() {
                 let expansion = current_atr / prev_avg;
-                let exp_threshold = Decimal::from_str("1.3").unwrap_or(Decimal::ONE);
-                if expansion > exp_threshold {
-                    quality += 1;
+                let exp_soft   = Decimal::from_str("1.10").unwrap_or(Decimal::ONE);
+                let exp_strong = Decimal::from_str("1.30").unwrap_or(Decimal::ONE);
+                if expansion >= exp_strong {
+                    return 10; // strong ATR expansion = bypass gate entirely
+                } else if expansion >= exp_soft {
+                    quality += 2;
                 }
             }
         }

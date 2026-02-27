@@ -1,19 +1,19 @@
 {
   "total_symbols": 2,
   "total_timeframes_tested": 2,
-  "total_opened_trades": 0,
-  "total_trades": 0,
-  "total_wins": 0,
-  "total_losses": 0,
-  "overall_win_rate": 0.0,
-  "overall_pnl_r": "0",
-  "overall_expectancy": 0.0,
-  "overall_profit_factor": 0.0,
-  "best_performer": null,
-  "worst_performer": null,
+  "total_opened_trades": 820,
+  "total_trades": 143,
+  "total_wins": 84,
+  "total_losses": 59,
+  "overall_win_rate": 58.74125874125874,
+  "overall_pnl_r": "107.37030443469492285865304350",
+  "overall_expectancy": 0.7508412897531114,
+  "overall_profit_factor": 1.4835621902298868,
+  "best_performer": "ETHUSDT 1m",
+  "worst_performer": "SOLUSDT 1m",
   "block_stats": {
-    "neutral_trend_blocks": 96599,
-    "flat_ema_blocks": 13547,
+    "neutral_trend_blocks": 96601,
+    "flat_ema_blocks": 13548,
     "low_atr_blocks": 453,
     "bootstrap_incomplete": 5998,
     "cooldown_blocks": 0,
@@ -22,47 +22,125 @@
     "policy_blocked": 0,
     "lstm_filtered": 0,
     "total_evaluations": 200000,
-    "total_signals_generated": 0,
-    "max_trades_reached": 0,
+    "total_signals_generated": 820,
+    "max_trades_reached": 23,
     "duplicate_context": 0,
-    "hedge_blocked": 0,
+    "hedge_blocked": 410,
     "context_cooldown_blocks": 0,
-    "trend_saturation_blocks": 0,
+    "trend_saturation_blocks": 12,
     "weak_trade_replaced": 0,
-    "max_duration_exits": 0,
-    "be_applied_count": 0,
+    "max_duration_exits": 238,
+    "be_applied_count": 439,
     "partial_tp_count": 0,
-    "kill_switch_triggered": 0,
-    "whipsaw_filtered": 0
+    "kill_switch_triggered": 2,
+    "whipsaw_filtered": 74
   },
-  "results_by_pair": [],
+  "results_by_pair": [
+    {
+      "symbol": "SOLUSDT",
+      "timeframe": "1m",
+      "trades": 72,
+      "opened_trades": 402,
+      "wins": 43,
+      "losses": 29,
+      "win_rate": 59.72222222222222,
+      "pnl_r": "53.604370326856015135526282457",
+      "expectancy": 0.21165346042751998,
+      "profit_factor": 1.5254844534752219,
+      "sharpe": 0.21079441242266025,
+      "max_consec_loss": 6,
+      "gross_wins_r": 44.23904915078143,
+      "gross_losses_r": 29.0
+    },
+    {
+      "symbol": "ETHUSDT",
+      "timeframe": "1m",
+      "trades": 71,
+      "opened_trades": 418,
+      "wins": 41,
+      "losses": 30,
+      "win_rate": 57.74647887323944,
+      "pnl_r": "53.765934107838907723126761038",
+      "expectancy": 0.18719887426453374,
+      "profit_factor": 1.4430373357593964,
+      "sharpe": 0.1801201817699638,
+      "max_consec_loss": 6,
+      "gross_wins_r": 43.291120072781894,
+      "gross_losses_r": 30.0
+    }
+  ],
   "dollar_pnl": {
     "starting_capital_per_pair": 1000.0,
-    "total_starting_capital": 0.0,
+    "total_starting_capital": 2000.0,
     "risk_scenarios": [
       {
         "risk_percent": 1.0,
         "risk_per_r": 10.0,
-        "total_dollar_pnl": 0.0,
-        "total_final_capital": 0.0,
-        "total_return_percent": null,
-        "pair_results": []
+        "total_dollar_pnl": 1073.7030443469494,
+        "total_final_capital": 3073.7030443469494,
+        "total_return_percent": 53.685152217347465,
+        "pair_results": [
+          {
+            "pair": "SOLUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 536.0437032685602,
+            "final_capital": 1536.0437032685602,
+            "return_percent": 53.60437032685602
+          },
+          {
+            "pair": "ETHUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 537.659341078389,
+            "final_capital": 1537.659341078389,
+            "return_percent": 53.76593410783891
+          }
+        ]
       },
       {
         "risk_percent": 2.0,
         "risk_per_r": 20.0,
-        "total_dollar_pnl": 0.0,
-        "total_final_capital": 0.0,
-        "total_return_percent": null,
-        "pair_results": []
+        "total_dollar_pnl": 2147.4060886938987,
+        "total_final_capital": 4147.406088693899,
+        "total_return_percent": 107.37030443469493,
+        "pair_results": [
+          {
+            "pair": "SOLUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 1072.0874065371204,
+            "final_capital": 2072.0874065371204,
+            "return_percent": 107.20874065371204
+          },
+          {
+            "pair": "ETHUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 1075.318682156778,
+            "final_capital": 2075.318682156778,
+            "return_percent": 107.53186821567782
+          }
+        ]
       },
       {
         "risk_percent": 3.0,
         "risk_per_r": 30.0,
-        "total_dollar_pnl": 0.0,
-        "total_final_capital": 0.0,
-        "total_return_percent": null,
-        "pair_results": []
+        "total_dollar_pnl": 3221.109133040847,
+        "total_final_capital": 5221.109133040847,
+        "total_return_percent": 161.05545665204235,
+        "pair_results": [
+          {
+            "pair": "SOLUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 1608.1311098056804,
+            "final_capital": 2608.1311098056804,
+            "return_percent": 160.81311098056804
+          },
+          {
+            "pair": "ETHUSDT 1m",
+            "starting_capital": 1000.0,
+            "dollar_pnl": 1612.978023235167,
+            "final_capital": 2612.978023235167,
+            "return_percent": 161.2978023235167
+          }
+        ]
       }
     ]
   }
