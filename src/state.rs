@@ -4,14 +4,14 @@ use crate::indicators::{
 };
 use crate::order_block::OrderBlockTracker;
 use crate::policy::BootstrapState;
-use crate::types::{Candle, ContextId, MarketStructure, TrendState};
+use crate::types::{Candle, ContextId, MarketStructure, TradeSignal, TrendState};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 const SUPERKAMA_LENGTH: usize = 2584;
-const SUPERKAMA_FAST_PERIOD: usize = 34;
-const SUPERKAMA_SLOW_PERIOD: usize = 55;
+const SUPERKAMA_FAST_PERIOD: usize = 55;  // Pine: kama_fast = 55
+const SUPERKAMA_SLOW_PERIOD: usize = 89;  // Pine: kama_slow = 89
 const SUPERKAMA_ATR_PERIOD: usize = 33;
 const MIN_CANDLE_BUFFER: usize = 30_000;
 
@@ -62,6 +62,8 @@ pub struct SymbolContext {
     pub pine_kama_short_filter: bool,
     pub pine_kama_quality_score: i32,
     pub pine_kama_slope_norm: Option<Decimal>,
+    /// KAMA Efficiency Ratio — 0.0 = choppy, 1.0 = strong trend
+    pub pine_kama_er: Decimal,
 
     pub pine_bullish_div: bool,
     pub pine_bearish_div: bool,
@@ -78,6 +80,8 @@ pub struct SymbolContext {
     pub just_confirmed_pivot_high: bool,
     pub just_confirmed_pivot_low: bool,
     pub last_signal_candle: Option<usize>, // Son sinyal üretilen mum indeksi (cooldown için)
+    /// Pending signal: mum kapanışında tespit edildi, bir sonraki mum açılışında execute edilecek
+    pub pending_signal: Option<TradeSignal>,
 
     // BOS/Liquidity tracking
     pub just_broke_high: bool,                 // Bu mumda high kırıldı mı?
@@ -161,6 +165,7 @@ impl SymbolContext {
             pine_kama_short_filter: false,
             pine_kama_quality_score: 0,
             pine_kama_slope_norm: None,
+            pine_kama_er: Decimal::ZERO,
             pine_bullish_div: false,
             pine_bearish_div: false,
             pine_rsi_bullish_div: false,
@@ -171,6 +176,7 @@ impl SymbolContext {
             just_confirmed_pivot_low: false,
             current_divergence: DivergenceType::None,
             last_signal_candle: None,
+            pending_signal: None,
             just_broke_high: false,
             just_broke_low: false,
             bootstrap: BootstrapState::with_timeframe(&timeframe), // TF-aware bootstrap
@@ -395,6 +401,9 @@ impl SymbolContext {
         // SuperKAMA state (trend + crossover + band signals)
         self.update_pine_state(close, cur_kama);
 
+        // Expose KAMA Efficiency Ratio for quality gate
+        self.pine_kama_er = self.kama_10.er;
+
         // T0.2 — Update Bootstrap State (TF-aware)
         let pivot_count = self
             .pivot_high_history
@@ -526,7 +535,8 @@ impl SymbolContext {
             Some(val) => val,
             None => return,
         };
-        let atr_multiplier = Decimal::ONE;
+        // Pine: atr_multiplier = 2.5  (synced with indicator.pine)
+        let atr_multiplier = Decimal::new(25, 1); // 2.5 = 25 × 10^-1
         let upper_band = kama + atr * atr_multiplier;
         let lower_band = kama - atr * atr_multiplier;
 
@@ -555,8 +565,12 @@ impl SymbolContext {
             None
         };
 
-        let kama_rising = prev_kama.as_ref().map(|prev| kama > *prev).unwrap_or(false);
-        let kama_falling = prev_kama.as_ref().map(|prev| kama < *prev).unwrap_or(false);
+        let kama_rising = prev_kama.as_ref().map(|prev| {
+            kama > *prev
+        }).unwrap_or(false);
+        let kama_falling = prev_kama.as_ref().map(|prev| {
+            kama < *prev
+        }).unwrap_or(false);
         let price_above_kama = close > kama;
         let price_below_kama = close < kama;
 
@@ -576,13 +590,13 @@ impl SymbolContext {
 
         let buy_signal =
             if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
-                close > kama && *prev_c <= *prev_k && kama_rising
+                close > kama && *prev_c <= *prev_k
             } else {
                 false
             };
         let sell_signal =
             if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
-                close < kama && *prev_c >= *prev_k && kama_falling
+                close < kama && *prev_c >= *prev_k
             } else {
                 false
             };
@@ -593,8 +607,8 @@ impl SymbolContext {
             let prev_upper = *prev_k + *prev_a * atr_multiplier;
             let prev_lower = *prev_k - *prev_a * atr_multiplier;
             (
-                close > lower_band && *prev_c <= prev_lower && kama_rising,
-                close < upper_band && *prev_c >= prev_upper && kama_falling,
+                close > lower_band && *prev_c <= prev_lower,
+                close < upper_band && *prev_c >= prev_upper,
             )
         } else {
             (false, false)

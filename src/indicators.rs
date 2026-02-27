@@ -131,6 +131,10 @@ pub struct Kama {
     fast: usize,
     slow: usize,
     pub current_value: Option<Decimal>,
+    /// Efficiency Ratio: 0.0 = choppy/ranging, 1.0 = perfect trend
+    pub er: Decimal,
+    /// Smoothing Constant: low = KAMA barely moves (ranging), high = KAMA tracks price (trending)
+    pub sc: Decimal,
     prev_close: Option<Decimal>,
     abs_changes: std::collections::VecDeque<Decimal>,
     closes: std::collections::VecDeque<Decimal>,
@@ -144,6 +148,8 @@ impl Kama {
             fast,
             slow,
             current_value: None,
+            er: Decimal::ZERO,
+            sc: Decimal::ZERO,
             prev_close: None,
             abs_changes: std::collections::VecDeque::new(),
             closes: std::collections::VecDeque::new(),
@@ -179,6 +185,10 @@ impl Kama {
         let fast_sc = Decimal::from(2) / (Decimal::from(self.fast) + Decimal::ONE);
         let slow_sc = Decimal::from(2) / (Decimal::from(self.slow) + Decimal::ONE);
         let sc = (er * (fast_sc - slow_sc) + slow_sc).powi(2);
+
+        // Expose ER and SC for quality gate filtering
+        self.er = er;
+        self.sc = sc;
 
         let kama = match self.current_value {
             Some(prev) => prev + sc * (close - prev),

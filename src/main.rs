@@ -115,6 +115,14 @@ struct TradingConfig {
     risk_amount_usdt: f64,
     #[serde(default = "default_live_exit_mode")]
     live_exit_mode: String,
+    /// Aynı anda açık olabilecek maksimum pozisyon sayısı.
+    /// Margin cap hesaplanırken bakiye bu sayıya bölünür.
+    #[serde(default = "default_max_positions")]
+    max_positions: u32,
+}
+
+fn default_max_positions() -> u32 {
+    1
 }
 
 fn default_live_exit_mode() -> String {
@@ -179,7 +187,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
         // Init trader (requires env vars to be present)
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string()) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -211,7 +219,7 @@ async fn main() -> anyhow::Result<()> {
             symbol, amount
         );
 
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string()) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -250,7 +258,7 @@ async fn main() -> anyhow::Result<()> {
         };
 
         match trader.execute_signal(&signal, &ctx).await {
-            Ok(_) => info!(
+            Ok(_result) => info!(
                 "✅ TEST SIGNAL SUCCESS: Normal Bot Signal Order completely placed without errors!"
             ),
             Err(e) => error!("❌ TEST SIGNAL FAILED: {:?}", e),
@@ -345,11 +353,11 @@ async fn main() -> anyhow::Result<()> {
     let binance_trader = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
         let risk_amount = rust_decimal::Decimal::from_f64(conf.trading.risk_amount_usdt)
             .unwrap_or(rust_decimal::Decimal::new(5, 0));
-        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage, conf.trading.live_exit_mode.clone()) {
+        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage, conf.trading.live_exit_mode.clone(), conf.trading.max_positions) {
             Ok(trader) => {
                 info!(
-                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage)",
-                    risk_amount, conf.trading.leverage
+                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage, max {} positions)",
+                    risk_amount, conf.trading.leverage, conf.trading.max_positions
                 );
                 Some(trader)
             }
@@ -480,9 +488,86 @@ async fn main() -> anyhow::Result<()> {
                                         if let Some(ctx) = contexts.get_mut(&key) {
                                             match k.to_candle() {
                                                 Ok(candle) => {
+                                                    // ─────────────────────────────────────────────
+                                                    // ADIM 1: Önceki mumun sinyalini bu mumun
+                                                    // açılış fiyatıyla execute et (next-bar open)
+                                                    // ─────────────────────────────────────────────
+                                                    if let Some(mut pending) = ctx.pending_signal.take() {
+                                                        pending.price = candle.open;
+                                                        info!(
+                                                            "⏳ Pending sinyal execute ediliyor ({} {} @ ${}  — next-bar open)",
+                                                            pending.signal, pending.symbol, pending.price
+                                                        );
+                                                        // stdout -> pipe
+                                                        println!(
+                                                            "{}",
+                                                            serde_json::to_string(&pending).unwrap()
+                                                        );
+
+                                                        // Execute trade with Paper Trader
+                                                        if let Some(ref mut trader) = paper_trader {
+                                                            use crate::analytics::ConfidenceTier;
+                                                            let confidence_tier =
+                                                                ConfidenceTier::from_score(
+                                                                    pending.confidence as i32,
+                                                                );
+                                                            let confidence_multiplier =
+                                                                rust_decimal::Decimal::from_f64(
+                                                                    confidence_tier
+                                                                        .position_size_multiplier(),
+                                                                )
+                                                                .unwrap();
+                                                            if let Err(e) = trader.open_position(
+                                                                &pending,
+                                                                ctx,
+                                                                rust_decimal::Decimal::from_f64(0.01)
+                                                                    .unwrap(),
+                                                                confidence_multiplier,
+                                                            ) {
+                                                                error!("Failed to open position: {}", e);
+                                                            }
+                                                            if trader.total_trades % 10 == 0
+                                                                && trader.total_trades > 0
+                                                            {
+                                                                trader.print_status();
+                                                            }
+                                                            let state_path = std::path::Path::new(
+                                                                &conf.trading.paper_state_file,
+                                                            );
+                                                            if let Err(e) =
+                                                                trader.save_to_file(state_path)
+                                                            {
+                                                                error!("Failed to save paper trader state: {}", e);
+                                                            }
+                                                        }
+                                                        // Execute trade with Binance Futures
+                                                        else if let Some(ref trader) = binance_trader {
+                                                            match trader
+                                                                .execute_signal(&pending, ctx)
+                                                                .await
+                                                            {
+                                                                Ok(result) => {
+                                                                    use crate::binance_trader::SignalExecResult;
+                                                                    if result == SignalExecResult::Flipped {
+                                                                        engine.record_trade_close(
+                                                                            &pending.symbol,
+                                                                            &pending.timeframe,
+                                                                            ctx.total_candles_processed,
+                                                                        );
+                                                                    }
+                                                                }
+                                                                Err(e) => {
+                                                                    error!("❌ Binance order failed: {}", e);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // ─────────────────────────────────────────────
+                                                    // ADIM 2: Mumu ekle ve pozisyonları güncelle
+                                                    // ─────────────────────────────────────────────
                                                     ctx.add_candle(candle);
 
-                                                    // Update paper trader positions on every candle close
                                                     if let Some(ref mut trader) = paper_trader {
                                                         let current_close = ctx
                                                             .candles
@@ -497,89 +582,16 @@ async fn main() -> anyhow::Result<()> {
                                                         }
                                                     }
 
-                                                    // Sinyal Değerlendir
+                                                    // ─────────────────────────────────────────────
+                                                    // ADIM 3: Sinyal değerlendir → pending'e al
+                                                    // (bir sonraki mum açılışında execute edilecek)
+                                                    // ─────────────────────────────────────────────
                                                     if let Some(signal) = engine.evaluate(ctx) {
-                                                        // stdout -> pipe
-                                                        println!(
-                                                            "{}",
-                                                            serde_json::to_string(&signal).unwrap()
+                                                        info!(
+                                                            "📌 Sinyal tespit edildi, sonraki mum açılışı bekleniyor: {} {} @ ${}",
+                                                            signal.signal, signal.symbol, signal.price
                                                         );
-
-                                                        // Execute trade with Paper Trader
-                                                        if let Some(ref mut trader) = paper_trader {
-                                                            info!(
-                                                                "📊 Signal generated: {} {} @ ${}",
-                                                                signal.signal,
-                                                                signal.symbol,
-                                                                signal.price
-                                                            );
-
-                                                            // Calculate confidence multiplier
-                                                            use crate::analytics::ConfidenceTier;
-                                                            let confidence_tier =
-                                                                ConfidenceTier::from_score(
-                                                                    signal.confidence as i32,
-                                                                );
-                                                            let confidence_multiplier =
-                                                                rust_decimal::Decimal::from_f64(
-                                                                    confidence_tier
-                                                                        .position_size_multiplier(),
-                                                                )
-                                                                .unwrap();
-
-                                                            // Open position
-                                                            if let Err(e) = trader.open_position(
-                                                                &signal,
-                                                                ctx,
-                                                                rust_decimal::Decimal::from_f64(
-                                                                    0.01,
-                                                                )
-                                                                .unwrap(), // 1% risk
-                                                                confidence_multiplier,
-                                                            ) {
-                                                                error!(
-                                                                    "Failed to open position: {}",
-                                                                    e
-                                                                );
-                                                            }
-
-                                                            // Print status every 10 trades
-                                                            if trader.total_trades % 10 == 0
-                                                                && trader.total_trades > 0
-                                                            {
-                                                                trader.print_status();
-                                                            }
-
-                                                            // Save state
-                                                            let state_path = std::path::Path::new(
-                                                                &conf.trading.paper_state_file,
-                                                            );
-                                                            if let Err(e) =
-                                                                trader.save_to_file(state_path)
-                                                            {
-                                                                error!("Failed to save paper trader state: {}", e);
-                                                            }
-                                                        }
-                                                        // Execute trade with Binance Futures
-                                                        else if let Some(ref trader) =
-                                                            binance_trader
-                                                        {
-                                                            info!(
-                                                                "📊 Signal: {} {} @ ${}",
-                                                                signal.signal,
-                                                                signal.symbol,
-                                                                signal.price
-                                                            );
-                                                            if let Err(e) = trader
-                                                                .execute_signal(&signal, ctx)
-                                                                .await
-                                                            {
-                                                                error!(
-                                                                    "❌ Binance order failed: {}",
-                                                                    e
-                                                                );
-                                                            }
-                                                        }
+                                                        ctx.pending_signal = Some(signal);
                                                     }
                                                 }
                                                 Err(e) => error!("Candle parse error: {}", e),

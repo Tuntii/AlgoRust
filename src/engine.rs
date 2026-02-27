@@ -235,11 +235,12 @@ impl SignalEngine {
             // ============================================================
 
             // Filter 1: Flat EMA — EMA50 slope too flat = sideways market
-            // Threshold: |slope| < 0.00005 (0.005% change over 6 bars)
-            // 1m context: BTC@95k → blocks only if EMA moved < ~4.75 USDT in 6 minutes
+            // Threshold: |slope| < 0.0001 (0.01% change over 6 bars)
+            // 1m context: BTC@95k → blocks only if EMA moved < ~9.5 USDT in 6 minutes
+            // Doubled from 0.00005 to aggressively filter ranging / sideways markets.
             let ema50_slope = ctx.get_ema50_slope();
             let slope_threshold =
-                rust_decimal::Decimal::from_str("0.00005").unwrap_or(rust_decimal::Decimal::ZERO);
+                rust_decimal::Decimal::from_str("0.0001").unwrap_or(rust_decimal::Decimal::ZERO);
             if ema50_slope.abs() < slope_threshold {
                 self.block_stats.flat_ema_blocks += 1;
                 return None;
@@ -279,6 +280,19 @@ impl SignalEngine {
                 self.block_stats.neutral_trend_blocks += 1;
                 return None;
             }
+
+            // Filter 4: Low ADX — directional strength too weak = ranging market
+            // Hard block when ADX < 18 on any timeframe.
+            // ADX < 20 is widely considered a non-trending (sideways) condition.
+            {
+                let adx_min = rust_decimal::Decimal::from(18u32);
+                if let Some(adx_val) = ctx.adx_10_10.adx {
+                    if adx_val < adx_min {
+                        self.block_stats.neutral_trend_blocks += 1;
+                        return None;
+                    }
+                }
+            }
         }
 
         // Generate context ID for this potential signal
@@ -288,8 +302,13 @@ impl SignalEngine {
         let current_slope = ctx.get_ema50_slope();
 
         let lstm_only = self.lstm_mode == LstmMode::LstmOnly;
-        let long_signal = ctx.pine_buy_signal || ctx.pine_strong_buy;
-        let short_signal = ctx.pine_sell_signal || ctx.pine_strong_sell;
+        // Require SuperKAMA trend alignment: only take longs when KAMA is rising
+        // and price is above KAMA (pine_trend == 1), and shorts when falling / below
+        // (pine_trend == -1). This eliminates counter-trend KAMA crossovers that
+        // are the primary cause of sideways chop trades on 1m.
+        let long_signal = (ctx.pine_buy_signal || ctx.pine_strong_buy) && ctx.pine_trend == 1;
+        let short_signal = (ctx.pine_sell_signal || ctx.pine_strong_sell) && ctx.pine_trend == -1;
+        let is_strong_signal = ctx.pine_strong_buy || ctx.pine_strong_sell;
 
         let direction = if lstm_only {
             if ctx.pine_trend == 1 && ctx.pine_kama_long_filter {
@@ -313,6 +332,24 @@ impl SignalEngine {
                 SignalType::SHORT
             }
         };
+
+        // ============================================================
+        // WHIPSAW QUALITY GATE — Multi-Factor Signal Quality Filter
+        // Distinguishes noisy KAMA crossovers (ranging) from real
+        // breakouts/breakdowns. NOT time-based — big moves pass instantly.
+        // ============================================================
+        if !indicator_only_mode && !lstm_only {
+            let quality = self.compute_signal_quality(ctx, is_strong_signal);
+            // Raised from 2 → 3 to require at least one strong confirming factor
+            // (ER > 0.25 gives +3, ADX > 30 gives +2, vol spike bypasses entirely).
+            // Borderline sideways signals that scraped past with 2 points are now blocked.
+            let min_quality = 3i32;
+
+            if quality < min_quality {
+                self.block_stats.whipsaw_filtered += 1;
+                return None;
+            }
+        }
 
         let mut lstm_score: Option<f32> = None;
         if !indicator_only_mode {
@@ -499,5 +536,141 @@ impl SignalEngine {
         .to_string();
 
         Some(signal)
+    }
+
+    /// Compute multi-factor signal quality score.
+    /// Returns 0..10+. Higher = stronger signal. Minimum 3 required to pass.
+    ///
+    /// Strong signals (ATR band crosses) and volume spikes bypass the gate
+    /// so we NEVER miss a big market move on 1m scalping.
+    fn compute_signal_quality(&self, ctx: &SymbolContext, is_strong_signal: bool) -> i32 {
+        // ── Override: strong signals always pass ──────────────────────
+        if is_strong_signal {
+            return 10; // ATR band cross = high volatility move, always trade
+        }
+
+        let mut quality = 0i32;
+
+        // ── Factor 1: Short-term Efficiency Ratio (10 bar) ───────────
+        // KAMA(2584) ER is almost always ~0 on 1m. Use a 10-bar ER instead
+        // to measure recent price efficiency around the signal candle.
+        // Thresholds synced with Pine: Min ER(10) for Signals = 0.26
+        let er_short = if ctx.candles.len() >= 11 {
+            let n = 10usize;
+            let last_idx = ctx.candles.len() - 1;
+            let first_idx = last_idx - n;
+            let direction = (ctx.candles[last_idx].close - ctx.candles[first_idx].close).abs();
+            let volatility: Decimal = (first_idx..last_idx)
+                .map(|i| (ctx.candles[i + 1].close - ctx.candles[i].close).abs())
+                .sum();
+            if volatility.is_zero() { Decimal::ZERO } else { direction / volatility }
+        } else {
+            Decimal::ZERO
+        };
+        // er_026: matches Pine er_filter = 0.26 (strong trend) → +3 pts
+        // er_012: half of threshold (weak but directional)      → +1 pt
+        let er_012 = Decimal::from_str("0.12").unwrap_or(Decimal::ZERO);
+        let er_026 = Decimal::from_str("0.26").unwrap_or(Decimal::ZERO);
+        if er_short >= er_026 {
+            quality += 3;
+        } else if er_short > er_012 {
+            quality += 1;
+        }
+
+        // ── Factor 2: ADX (directional strength) ─────────────────────
+        let adx = ctx.adx_10_10.adx.unwrap_or(Decimal::ZERO);
+        let adx_20 = Decimal::from(20);
+        let adx_30 = Decimal::from(30);
+        if adx > adx_30 {
+            quality += 2;
+        } else if adx > adx_20 {
+            quality += 1;
+        }
+
+        // ── Factor 3: Volume confirmation ────────────────────────────
+        // Compare last candle volume to 20-bar average
+        if ctx.candles.len() >= 20 {
+            if let Some(last_candle) = ctx.candles.back() {
+                let vol_sum: Decimal = ctx
+                    .candles
+                    .iter()
+                    .rev()
+                    .take(20)
+                    .map(|c| c.volume)
+                    .sum();
+                let vol_avg = vol_sum / Decimal::from(20);
+                if !vol_avg.is_zero() {
+                    let vol_ratio = last_candle.volume / vol_avg;
+                    let vol_3x = Decimal::from(3);
+                    let vol_13 = Decimal::from_str("1.3").unwrap_or(Decimal::ONE);
+
+                    // Override: extreme volume spike = big move, bypass gate entirely
+                    if vol_ratio >= vol_3x {
+                        return 10;
+                    }
+                    if vol_ratio > vol_13 {
+                        quality += 1;
+                    }
+                }
+            }
+        }
+
+        // ── Factor 4: Candle body strength ───────────────────────────
+        // |close - open| / (high - low). Big body = conviction, small = indecision
+        if let Some(last) = ctx.candles.back() {
+            let range = last.high - last.low;
+            let min_range = Decimal::from_str("0.01").unwrap_or(Decimal::ONE);
+            if range > min_range {
+                let body = (last.close - last.open).abs();
+                let body_ratio = body / range;
+                let threshold = Decimal::from_str("0.6").unwrap_or(Decimal::ONE);
+                if body_ratio > threshold {
+                    quality += 1;
+                }
+            }
+        }
+
+        // ── Factor 5: KAMA slope normalised ──────────────────────────
+        // If KAMA is actually moving relative to ATR
+        if let Some(slope) = ctx.pine_kama_slope_norm {
+            let slope_min = Decimal::from_str("0.002").unwrap_or(Decimal::ZERO);
+            if slope.abs() > slope_min {
+                quality += 1;
+            }
+        }
+
+        // ── Factor 6: ATR expansion (volatility growing at signal time) ──────
+        // Synced with Pine: atr_expanding = atr >= ta.sma(atr,14) * atr_exp_ratio (1.10)
+        // Lookback extended to 14 bars; weight raised to +2 so ATR expansion
+        // + ADX>20 alone is enough to pass the min_quality=3 gate.
+        // Tier 2 (ATR >= 1.30x avg) bypasses the gate entirely like a volume spike.
+        if ctx.superkama_atr_series.len() >= 15 {
+            let current_atr = ctx
+                .superkama_atr_series
+                .back()
+                .copied()
+                .unwrap_or(Decimal::ZERO);
+            let prev_sum: Decimal = ctx
+                .superkama_atr_series
+                .iter()
+                .rev()
+                .skip(1)
+                .take(14)
+                .copied()
+                .sum();
+            let prev_avg = prev_sum / Decimal::from(14);
+            if !prev_avg.is_zero() {
+                let expansion = current_atr / prev_avg;
+                let exp_soft   = Decimal::from_str("1.10").unwrap_or(Decimal::ONE);
+                let exp_strong = Decimal::from_str("1.30").unwrap_or(Decimal::ONE);
+                if expansion >= exp_strong {
+                    return 10; // strong ATR expansion = bypass gate entirely
+                } else if expansion >= exp_soft {
+                    quality += 2;
+                }
+            }
+        }
+
+        quality
     }
 }

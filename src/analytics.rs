@@ -42,6 +42,9 @@ pub struct BlockStats {
 
     // Phase 10 Stats
     pub kill_switch_triggered: u32, // T10.2: Times kill switch was triggered
+
+    // Whipsaw Quality Gate Stats
+    pub whipsaw_filtered: u32, // Signals blocked by multi-factor quality gate
 }
 
 impl BlockStats {
@@ -65,7 +68,9 @@ impl BlockStats {
         self.hedge_blocked +
         self.context_cooldown_blocks +
         // Phase 8 blocks
-        self.trend_saturation_blocks
+        self.trend_saturation_blocks +
+        // Whipsaw quality gate
+        self.whipsaw_filtered
     }
 
     pub fn signal_rate(&self) -> f64 {
