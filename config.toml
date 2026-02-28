@@ -8,8 +8,7 @@ auto_reconnect = true
 # true: Binance USD-M futures (fapi/fstream), false: spot (api/stream)
 use_futures = true
 # Optional: API credentials (needed for private endpoints/order APIs)
-api_key = "6ghhzslbYKrjzdf0pepwHhLCpUfaFDVuHTDlZFsSJP1JJxkkkjxVal2YgBAJYKDB"
-api_secret = "mwAjVfQ9fckxHPb0cwJNo1TSL9f0rT4fMPxEIAc5hdEKC4UrrsvZwGfx97B7WXXT"
+
 # Optional URL overrides
 rest_base_url = "https://fapi.binance.com"
 ws_base_url = "wss://fstream.binance.com"
