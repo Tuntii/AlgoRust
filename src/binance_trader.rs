@@ -555,7 +555,7 @@ impl BinanceFuturesTrader {
                     qty: &qty_str,
                     price: None,
                     stop_price: None,
-                    close_position: true,
+                    close_position: false,
                     reduce_only: false,
                     callback_rate: Some(&callback_str),
                     activation_price: Some(&activation_str),
