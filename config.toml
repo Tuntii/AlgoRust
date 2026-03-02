@@ -8,8 +8,7 @@ auto_reconnect = true
 # true: Binance USD-M futures (fapi/fstream), false: spot (api/stream)
 use_futures = true
 # Optional: API credentials (needed for private endpoints/order APIs)
-api_key = "6ghhzslbYKrjzdf0pepwHhLCpUfaFDVuHTDlZFsSJP1JJxkkkjxVal2YgBAJYKDB"
-api_secret = "mwAjVfQ9fckxHPb0cwJNo1TSL9f0rT4fMPxEIAc5hdEKC4UrrsvZwGfx97B7WXXT"
+
 # Optional URL overrides
 rest_base_url = "https://fapi.binance.com"
 ws_base_url = "wss://fstream.binance.com"
@@ -44,6 +43,12 @@ leverage = 2
 max_positions = 2
 # Canlı çıkış modu: "sl_tp" (TP/SL order koy) | "indicator_flip" (sadece market entry, çıkış = karşı sinyal)
 live_exit_mode = "indicator_flip"
+# Trailing Stop: indicator_flip modunda kâr koruma mekanizması
+# Fiyat TP mesafesinin %activation kadarına ulaşınca trailing stop aktif olur
+# callback_rate: tepeden geri çekilme yüzdesi (0.1-5.0)
+trailing_stop_enabled = true
+trailing_callback_rate = 0.4
+trailing_activation_pct = 0.35
 
 [indicators]
 ema_fast = [5, 8, 13]
@@ -57,5 +62,6 @@ meta_path = "models/lstm_meta.json"
 onnxruntime_path = "C:/Users/tunay/AppData/Roaming/Python/Python313/site-packages/onnxruntime/capi/onnxruntime.dll"
 
 [backtest.pool]
-be_threshold_candles = 8
-be_min_profit_r = 0.0
+max_trade_duration_candles = 999999
+be_threshold_candles = 7
+be_min_profit_r = 0.1
