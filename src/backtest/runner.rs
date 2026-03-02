@@ -71,6 +71,7 @@ impl SltpMode {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PoolConfigOverrides {
+    pub max_trade_duration_candles: Option<u32>,
     pub be_threshold_candles: Option<u32>,
     pub be_min_profit_r: Option<f64>,
 }
@@ -81,6 +82,11 @@ fn apply_pool_config_overrides(engine: &mut SignalEngine, overrides: Option<Pool
     };
 
     let pool_config = &mut engine.get_position_pool_mut().config;
+
+    if let Some(v) = overrides.max_trade_duration_candles {
+        pool_config.max_trade_duration_candles = v;
+        info!("T9.1 override: max_trade_duration_candles={}", v);
+    }
 
     if let Some(v) = overrides.be_threshold_candles {
         pool_config.be_threshold_candles = v;
@@ -216,6 +222,12 @@ struct SimulatedTrade {
     ema50_slope_at_entry: Option<Decimal>,
     // T9.2: BE tracking
     is_be_applied: bool,
+    // Trailing stop: peak price seen since entry (for trailing calculation)
+    #[serde(skip)]
+    peak_price: Decimal,
+    // Trailing stop: whether trailing stop has been activated
+    #[serde(skip)]
+    trailing_activated: bool,
 }
 
 pub async fn run_backtest(
@@ -441,6 +453,8 @@ pub async fn run_backtest(
                                 context_score,
                                 ema50_slope_at_entry: Some(ema50_slope),
                                 is_be_applied: false,
+                                peak_price: entry,
+                                trailing_activated: false,
                             });
                         }
 
@@ -562,6 +576,91 @@ pub async fn run_backtest(
 
                             // Normal SL/TP checks
                             if allow_sl_tp_exit && !just_closed {
+                                // ── Trailing Stop Simulation ──────────────────────────
+                                // Update peak price and check trailing stop exit
+                                // Trailing stop: 0.4% callback, activates at 35% of TP distance
+                                let trailing_callback = Decimal::new(4, 3); // 0.004 = 0.4%
+                                let trailing_activation = Decimal::new(35, 2); // 0.35
+
+                                match trade.signal.signal {
+                                    SignalType::LONG => {
+                                        // Update peak (highest price seen)
+                                        if candle.high > trade.peak_price {
+                                            trade.peak_price = candle.high;
+                                        }
+                                        // Check activation
+                                        let tp_dist = trade.tp_price - trade.entry_price;
+                                        let activation_price =
+                                            trade.entry_price + tp_dist * trailing_activation;
+                                        if !trade.trailing_activated
+                                            && trade.peak_price >= activation_price
+                                        {
+                                            trade.trailing_activated = true;
+                                        }
+                                        // Check trailing stop exit
+                                        if trade.trailing_activated {
+                                            let trail_sl =
+                                                trade.peak_price * (Decimal::ONE - trailing_callback);
+                                            if candle.low <= trail_sl {
+                                                let risk = (trade.entry_price
+                                                    - trade.original_sl_price)
+                                                    .abs();
+                                                let exit_price = trail_sl;
+                                                let pnl_r = if risk.is_zero() {
+                                                    Decimal::ZERO
+                                                } else {
+                                                    (exit_price - trade.entry_price) / risk
+                                                };
+                                                trade.outcome = Some("TRAIL_TP".to_string());
+                                                trade.exit_price = Some(exit_price);
+                                                trade.pnl_r = Some(pnl_r);
+                                                trade.exit_candle_idx = Some(candle_idx);
+                                                trade.duration_candles = Some(current_duration);
+                                                just_closed = true;
+                                            }
+                                        }
+                                    }
+                                    SignalType::SHORT => {
+                                        // Update peak (lowest price seen)
+                                        if candle.low < trade.peak_price {
+                                            trade.peak_price = candle.low;
+                                        }
+                                        // Check activation
+                                        let tp_dist = trade.entry_price - trade.tp_price;
+                                        let activation_price =
+                                            trade.entry_price - tp_dist * trailing_activation;
+                                        if !trade.trailing_activated
+                                            && trade.peak_price <= activation_price
+                                        {
+                                            trade.trailing_activated = true;
+                                        }
+                                        // Check trailing stop exit
+                                        if trade.trailing_activated {
+                                            let trail_sl =
+                                                trade.peak_price * (Decimal::ONE + trailing_callback);
+                                            if candle.high >= trail_sl {
+                                                let risk = (trade.entry_price
+                                                    - trade.original_sl_price)
+                                                    .abs();
+                                                let exit_price = trail_sl;
+                                                let pnl_r = if risk.is_zero() {
+                                                    Decimal::ZERO
+                                                } else {
+                                                    (trade.entry_price - exit_price) / risk
+                                                };
+                                                trade.outcome = Some("TRAIL_TP".to_string());
+                                                trade.exit_price = Some(exit_price);
+                                                trade.pnl_r = Some(pnl_r);
+                                                trade.exit_candle_idx = Some(candle_idx);
+                                                trade.duration_candles = Some(current_duration);
+                                                just_closed = true;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // ── Normal SL/TP checks (skip if trailing already closed) ─
+                                if !just_closed {
                                 match trade.signal.signal {
                                     SignalType::LONG => {
                                         if candle.low <= trade.sl_price {
@@ -628,6 +727,7 @@ pub async fn run_backtest(
                                         }
                                     }
                                 }
+                                } // end if !just_closed (normal SL/TP)
                             }
 
                             // T1.5: Record trade close - cooldown starts here
@@ -637,7 +737,7 @@ pub async fn run_backtest(
                                 // T11: Record trade result for kill switch (per symbol+TF, STICKY)
                                 // PHASE A: Only count towards kill switch if bootstrap is complete
                                 if ctx.bootstrap.is_complete() {
-                                    let is_win = trade.outcome.as_deref() == Some("WIN");
+                                    let is_win = matches!(trade.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP"));
                                     let ema50_slope = Some(ctx.get_ema50_slope());
                                     let current_atr = ctx.atr_14.current_value;
                                     engine.record_trade_result(
@@ -718,6 +818,8 @@ pub async fn run_backtest(
                                 context_score: ctx_score,
                                 ema50_slope_at_entry: Some(ema50_slope),
                                 is_be_applied: false,
+                                peak_price: entry_price,
+                                trailing_activated: false,
                             });
                         }
 
@@ -733,7 +835,7 @@ pub async fn run_backtest(
                 let opened_count = trades.len();
                 let wins = trades
                     .iter()
-                    .filter(|t| t.outcome.as_deref() == Some("WIN"))
+                    .filter(|t| matches!(t.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP")))
                     .count();
                 let losses = trades
                     .iter()
@@ -758,11 +860,11 @@ pub async fn run_backtest(
                 let trade_records: Vec<TradeRecord> = trades
                     .iter()
                     .filter(|t| {
-                        t.outcome.as_deref() == Some("WIN") || t.outcome.as_deref() == Some("LOSS")
+                        matches!(t.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP") | Some("LOSS"))
                     })
                     .map(|t| TradeRecord {
                         pnl_r: t.pnl_r.map(|d| d.to_f64().unwrap_or(0.0)).unwrap_or(0.0),
-                        is_win: t.outcome.as_deref() == Some("WIN"),
+                        is_win: matches!(t.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP")),
                         duration_candles: t.duration_candles.unwrap_or(0),
                         regime: t.signal.regime_context.clone(),
                         confidence_tier: t.signal.confidence_tier.clone(),
@@ -784,7 +886,7 @@ pub async fn run_backtest(
                 // Compute gross wins/losses R for correct overall Profit Factor
                 let gross_wins_r: f64 = trades
                     .iter()
-                    .filter(|t| t.outcome.as_deref() == Some("WIN"))
+                    .filter(|t| matches!(t.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP")))
                     .map(|t| t.pnl_r.unwrap_or_default().to_f64().unwrap_or(0.0))
                     .sum();
                 let gross_losses_r: f64 = trades
@@ -1522,6 +1624,8 @@ pub async fn run_csv_backtest(
                 context_score,
                 ema50_slope_at_entry: Some(ema50_slope),
                 is_be_applied: false,
+                peak_price: entry,
+                trailing_activated: false,
             });
         }
 
@@ -1617,6 +1721,83 @@ pub async fn run_csv_backtest(
 
             // Normal SL/TP checks (if not already closed)
             if allow_sl_tp_exit && !just_closed {
+                // ── Trailing Stop Simulation ──────────────────────────
+                let trailing_callback = Decimal::new(4, 3); // 0.004 = 0.4%
+                let trailing_activation = Decimal::new(35, 2); // 0.35
+
+                match trade.signal.signal {
+                    SignalType::LONG => {
+                        if candle.high > trade.peak_price {
+                            trade.peak_price = candle.high;
+                        }
+                        let tp_dist = trade.tp_price - trade.entry_price;
+                        let activation_price =
+                            trade.entry_price + tp_dist * trailing_activation;
+                        if !trade.trailing_activated
+                            && trade.peak_price >= activation_price
+                        {
+                            trade.trailing_activated = true;
+                        }
+                        if trade.trailing_activated {
+                            let trail_sl =
+                                trade.peak_price * (Decimal::ONE - trailing_callback);
+                            if candle.low <= trail_sl {
+                                let risk = (trade.entry_price
+                                    - trade.original_sl_price)
+                                    .abs();
+                                let exit_price = trail_sl;
+                                let pnl_r = if risk.is_zero() {
+                                    Decimal::ZERO
+                                } else {
+                                    (exit_price - trade.entry_price) / risk
+                                };
+                                trade.outcome = Some("TRAIL_TP".to_string());
+                                trade.exit_price = Some(exit_price);
+                                trade.pnl_r = Some(pnl_r);
+                                trade.exit_candle_idx = Some(candle_idx);
+                                trade.duration_candles = Some(current_duration);
+                                just_closed = true;
+                            }
+                        }
+                    }
+                    SignalType::SHORT => {
+                        if candle.low < trade.peak_price {
+                            trade.peak_price = candle.low;
+                        }
+                        let tp_dist = trade.entry_price - trade.tp_price;
+                        let activation_price =
+                            trade.entry_price - tp_dist * trailing_activation;
+                        if !trade.trailing_activated
+                            && trade.peak_price <= activation_price
+                        {
+                            trade.trailing_activated = true;
+                        }
+                        if trade.trailing_activated {
+                            let trail_sl =
+                                trade.peak_price * (Decimal::ONE + trailing_callback);
+                            if candle.high >= trail_sl {
+                                let risk = (trade.entry_price
+                                    - trade.original_sl_price)
+                                    .abs();
+                                let exit_price = trail_sl;
+                                let pnl_r = if risk.is_zero() {
+                                    Decimal::ZERO
+                                } else {
+                                    (trade.entry_price - exit_price) / risk
+                                };
+                                trade.outcome = Some("TRAIL_TP".to_string());
+                                trade.exit_price = Some(exit_price);
+                                trade.pnl_r = Some(pnl_r);
+                                trade.exit_candle_idx = Some(candle_idx);
+                                trade.duration_candles = Some(current_duration);
+                                just_closed = true;
+                            }
+                        }
+                    }
+                }
+
+                // ── Normal SL/TP checks (skip if trailing already closed) ─
+                if !just_closed {
                 match trade.signal.signal {
                     SignalType::LONG => {
                         if candle.low <= trade.sl_price {
@@ -1666,6 +1847,7 @@ pub async fn run_csv_backtest(
                         }
                     }
                 }
+                } // end if !just_closed (normal SL/TP)
             }
 
             // T1.5: Record trade close - THIS IS WHERE COOLDOWN STARTS
@@ -1675,7 +1857,7 @@ pub async fn run_csv_backtest(
                 // T11: Record trade result for kill switch (per symbol+TF, STICKY)
                 // PHASE A: Only count towards kill switch if bootstrap is complete
                 if ctx.bootstrap.is_complete() {
-                    let is_win = trade.outcome.as_deref() == Some("WIN");
+                    let is_win = matches!(trade.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP"));
                     let ema50_slope = Some(ctx.get_ema50_slope());
                     let current_atr = ctx.atr_14.current_value;
                     engine.record_trade_result(
@@ -1715,7 +1897,7 @@ pub async fn run_csv_backtest(
     let completed_count = completed_trades.len();
     let wins = completed_trades
         .iter()
-        .filter(|t| t.outcome.as_deref() == Some("WIN"))
+        .filter(|t| matches!(t.outcome.as_deref(), Some("WIN") | Some("TRAIL_TP")))
         .count();
     let losses = completed_trades
         .iter()

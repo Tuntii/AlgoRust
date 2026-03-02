@@ -56,13 +56,27 @@ pub struct BinanceFuturesTrader {
     /// Margin cap hesabında bakiye bu sayıya bölünür; böylece
     /// farklı semboller için yeterli teminat rezerve edilir.
     pub max_positions: u32,
+    /// Trailing stop aktif mi? (indicator_flip modunda kâr koruma)
+    pub trailing_stop_enabled: bool,
+    /// Trailing stop callback oranı (% — 0.1–5.0)
+    pub trailing_callback_rate: Decimal,
+    /// TP mesafesinin yüzde kaçında trailing stop aktif olacak (0.0–1.0)
+    pub trailing_activation_pct: Decimal,
 }
 
 impl BinanceFuturesTrader {
     /// Load credentials from .env:
     ///   BINANCE_API_KEY, BINANCE_API_SECRET
     ///   BINANCE_TESTNET=true  (optional, uses testnet if set)
-    pub fn new(risk_amount: Decimal, leverage: u32, live_exit_mode: String, max_positions: u32) -> Result<Self> {
+    pub fn new(
+        risk_amount: Decimal,
+        leverage: u32,
+        live_exit_mode: String,
+        max_positions: u32,
+        trailing_stop_enabled: bool,
+        trailing_callback_rate: f64,
+        trailing_activation_pct: f64,
+    ) -> Result<Self> {
         let api_key = env::var("BINANCE_API_KEY").context("BINANCE_API_KEY must be set in .env")?;
         let api_secret =
             env::var("BINANCE_API_SECRET").context("BINANCE_API_SECRET must be set in .env")?;
@@ -97,6 +111,11 @@ impl BinanceFuturesTrader {
             leverage,
             live_exit_mode,
             max_positions: max_positions.max(1),
+            trailing_stop_enabled,
+            trailing_callback_rate: Decimal::from_f64(trailing_callback_rate)
+                .unwrap_or(Decimal::new(4, 1)), // 0.4%
+            trailing_activation_pct: Decimal::from_f64(trailing_activation_pct)
+                .unwrap_or(Decimal::new(35, 2)), // 0.35
         })
     }
 
@@ -434,10 +453,25 @@ impl BinanceFuturesTrader {
                 side, signal.symbol, qty_str, entry, sl_str, tp_str
             );
         } else {
-            info!(
-                "Binance Futures signal: {} {} qty={} entry={} SL={} (indicator_flip: no TP)",
-                side, signal.symbol, qty_str, entry, sl_str
-            );
+            if self.trailing_stop_enabled {
+                let tp_distance = (tp - entry).abs();
+                let act_offset = tp_distance * self.trailing_activation_pct;
+                let act_price = match signal.signal {
+                    SignalType::LONG => entry + act_offset,
+                    SignalType::SHORT => entry - act_offset,
+                };
+                info!(
+                    "Binance Futures signal: {} {} qty={} entry={} SL={} (trailing: act={} cb={}%)",
+                    side, signal.symbol, qty_str, entry, sl_str,
+                    format!("{:.1$}", act_price, price_prec as usize),
+                    self.trailing_callback_rate
+                );
+            } else {
+                info!(
+                    "Binance Futures signal: {} {} qty={} entry={} SL={} (indicator_flip: no TP)",
+                    side, signal.symbol, qty_str, entry, sl_str
+                );
+            }
         }
 
         // 1. Market entry
@@ -451,6 +485,8 @@ impl BinanceFuturesTrader {
                 stop_price: None,
                 close_position: false,
                 reduce_only: false,
+                callback_rate: None,
+                activation_price: None,
             })
             .await?;
         info!("Market entry placed - orderId={}", entry_id);
@@ -466,6 +502,8 @@ impl BinanceFuturesTrader {
                 stop_price: Some(&sl_str),
                 close_position: true,
                 reduce_only: false,
+                callback_rate: None,
+                activation_price: None,
             })
             .await?;
         info!("Stop-loss placed @ {} - id={}", sl_str, sl_id);
@@ -483,9 +521,61 @@ impl BinanceFuturesTrader {
                     stop_price: Some(&tp_str),
                     close_position: true,
                     reduce_only: false,
+                    callback_rate: None,
+                    activation_price: None,
                 })
                 .await?;
             info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+        }
+
+        // 4. Trailing stop — indicator_flip modunda kâr koruması
+        // Fiyat TP mesafesinin %activation'una ulaşınca trailing stop aktif olur.
+        // Böylece KAMA flip'ini beklemeden kâr otomatik kilitlenir.
+        if !use_tp && self.trailing_stop_enabled {
+            // Activation price = entry + (tp - entry) * activation_pct
+            let tp_distance = (tp - entry).abs();
+            let activation_offset = tp_distance * self.trailing_activation_pct;
+            let activation_price = match signal.signal {
+                SignalType::LONG => entry + activation_offset,
+                SignalType::SHORT => entry - activation_offset,
+            };
+            let activation_str = format!("{:.1$}", activation_price, price_prec as usize);
+            let callback_str = format!("{}", self.trailing_callback_rate);
+
+            info!(
+                "Trailing stop config: TP_dist={} activation_offset={} activation_price={} callback={}%",
+                tp_distance, activation_offset, activation_str, callback_str
+            );
+
+            match self
+                .place_order(OrderParams {
+                    symbol: &signal.symbol,
+                    side: sl_side,
+                    order_type: "TRAILING_STOP_MARKET",
+                    qty: &qty_str,
+                    price: None,
+                    stop_price: None,
+                    close_position: true,
+                    reduce_only: false,
+                    callback_rate: Some(&callback_str),
+                    activation_price: Some(&activation_str),
+                })
+                .await
+            {
+                Ok(trail_id) => {
+                    info!(
+                        "Trailing stop placed: activation={} callback={}% - id={}",
+                        activation_str, callback_str, trail_id
+                    );
+                }
+                Err(e) => {
+                    // Trailing stop hatası pozisyonu iptal etmemeli, sadece uyarı ver
+                    warn!(
+                        "⚠️ Trailing stop order failed (position still protected by SL): {}",
+                        e
+                    );
+                }
+            }
         }
 
         Ok(if was_flip {
@@ -529,6 +619,8 @@ impl BinanceFuturesTrader {
             stop_price: None,
             close_position: false,
             reduce_only: false,
+            callback_rate: None,
+            activation_price: None,
         })
         .await
     }
@@ -674,6 +766,8 @@ impl BinanceFuturesTrader {
                 stop_price: None,
                 close_position: false,
                 reduce_only: true,
+                callback_rate: None,
+                activation_price: None,
             })
             .await?;
 
@@ -728,6 +822,12 @@ impl BinanceFuturesTrader {
             };
             params.push((trigger_key, sp.to_string()));
         }
+        if let Some(cb) = p.callback_rate {
+            params.push(("callbackRate", cb.to_string()));
+        }
+        if let Some(ap) = p.activation_price {
+            params.push(("activationPrice", ap.to_string()));
+        }
         if p.close_position {
             params.push(("closePosition", "true".to_string()));
             // closePosition=true means Binance ignores quantity - remove it to avoid -1102
@@ -777,6 +877,10 @@ struct OrderParams<'a> {
     stop_price: Option<&'a str>,
     close_position: bool,
     reduce_only: bool,
+    /// TRAILING_STOP_MARKET: callback rate in % (e.g. "0.4" = 0.4%)
+    callback_rate: Option<&'a str>,
+    /// TRAILING_STOP_MARKET: activation price (trailing starts when price reaches this)
+    activation_price: Option<&'a str>,
 }
 
 #[derive(Deserialize)]
