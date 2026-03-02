@@ -230,7 +230,7 @@ impl CooldownManager {
             0
         } else {
             match timeframe {
-                "1m" => 1,
+                "1m" => 0,
                 "5m" => 1,
                 "15m" => 1,
                 "30m" => 1,
