@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     // Using 5.0 risk amount and 1x leverage to match your config
     let risk_amount = Decimal::from_f64(5.0).unwrap();
     let leverage = 1;
-    let trader = BinanceFuturesTrader::new(risk_amount, leverage, "sl_tp".to_string())?;
+    let trader = BinanceFuturesTrader::new(risk_amount, leverage, "sl_tp".to_string(), 1, false, 0.4, 0.35)?;
 
     tracing::info!("Trader initialized successfully. Fetching current BTC price...");
 

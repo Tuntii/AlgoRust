@@ -73,6 +73,8 @@ struct BacktestConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 struct BacktestPoolConfig {
     #[serde(default)]
+    max_trade_duration_candles: Option<u32>,
+    #[serde(default)]
     be_threshold_candles: Option<u32>,
     #[serde(default)]
     be_min_profit_r: Option<f64>,
@@ -119,10 +121,27 @@ struct TradingConfig {
     /// Margin cap hesaplanırken bakiye bu sayıya bölünür.
     #[serde(default = "default_max_positions")]
     max_positions: u32,
+    /// Trailing stop aktif mi? (indicator_flip modunda kâr koruma)
+    #[serde(default)]
+    trailing_stop_enabled: bool,
+    /// Trailing stop callback oranı (% — 0.1-5.0)
+    #[serde(default = "default_trailing_callback_rate")]
+    trailing_callback_rate: f64,
+    /// TP mesafesinin yüzde kaçında trailing stop aktif olacak (0.0-1.0)
+    #[serde(default = "default_trailing_activation_pct")]
+    trailing_activation_pct: f64,
 }
 
 fn default_max_positions() -> u32 {
     1
+}
+
+fn default_trailing_callback_rate() -> f64 {
+    0.4
+}
+
+fn default_trailing_activation_pct() -> f64 {
+    0.35
 }
 
 fn default_live_exit_mode() -> String {
@@ -187,7 +206,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
         // Init trader (requires env vars to be present)
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1, false, 0.4, 0.35) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -219,7 +238,7 @@ async fn main() -> anyhow::Result<()> {
             symbol, amount
         );
 
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1, false, 0.4, 0.35) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -297,6 +316,7 @@ async fn main() -> anyhow::Result<()> {
                     .pool
                     .as_ref()
                     .map(|pool| backtest::runner::PoolConfigOverrides {
+                        max_trade_duration_candles: pool.max_trade_duration_candles,
                         be_threshold_candles: pool.be_threshold_candles,
                         be_min_profit_r: pool.be_min_profit_r,
                     });
@@ -353,11 +373,20 @@ async fn main() -> anyhow::Result<()> {
     let binance_trader = if conf.trading.execute_trades && !conf.trading.use_paper_trader {
         let risk_amount = rust_decimal::Decimal::from_f64(conf.trading.risk_amount_usdt)
             .unwrap_or(rust_decimal::Decimal::new(5, 0));
-        match binance_trader::BinanceFuturesTrader::new(risk_amount, conf.trading.leverage, conf.trading.live_exit_mode.clone(), conf.trading.max_positions) {
+        match binance_trader::BinanceFuturesTrader::new(
+            risk_amount,
+            conf.trading.leverage,
+            conf.trading.live_exit_mode.clone(),
+            conf.trading.max_positions,
+            conf.trading.trailing_stop_enabled,
+            conf.trading.trailing_callback_rate,
+            conf.trading.trailing_activation_pct,
+        ) {
             Ok(trader) => {
                 info!(
-                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage, max {} positions)",
-                    risk_amount, conf.trading.leverage, conf.trading.max_positions
+                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage, max {} positions, trailing={})",
+                    risk_amount, conf.trading.leverage, conf.trading.max_positions,
+                    if conf.trading.trailing_stop_enabled { format!("{}% callback", conf.trading.trailing_callback_rate) } else { "off".to_string() }
                 );
                 Some(trader)
             }
