@@ -51,9 +51,27 @@ trailing_callback_rate = 0.4
 trailing_activation_pct = 0.35
 
 [indicators]
-ema_fast = [5, 8, 13]
-ema_trend = 50
-ema_macro = 200
+# Attached scalper/Pine parity values
+ema_fast = 20
+ema_slow = 50
+rsi_len = 14
+rsi_long_min = 56
+rsi_short_max = 44
+vwap_pullback_atr = 0.45
+ob_filter = true
+
+# Order Block
+swing_pivot_len = 4
+ob_lookback = 25
+ob_extend_bars = 100
+
+# SL / TP
+atr_len = 14
+ob_buffer_atr = 0.20
+tp1_mode = "rr"
+tp1_rr = 1.0
+tp2_rr = 2.0
+tp1_partial_pct = 60
 
 [ml]
 enabled = true

@@ -15,19 +15,20 @@ const SUPERKAMA_FAST_PERIOD: usize = 55;  // Pine: kama_fast = 55
 const SUPERKAMA_SLOW_PERIOD: usize = 89;  // Pine: kama_slow = 89
 const SUPERKAMA_ATR_PERIOD: usize = 33;
 const MIN_CANDLE_BUFFER: usize = 30_000;
-const SCALPER_EMA_FAST_PERIOD: usize = 9;
-const SCALPER_EMA_SLOW_PERIOD: usize = 21;
-const SCALPER_PULLBACK_ATR_X: &str = "0.35";
-const SCALPER_RSI_LONG_MIN: u32 = 52;
-const SCALPER_RSI_SHORT_MAX: u32 = 48;
-const SCALPER_OB_LOOKBACK: usize = 20;
-const SCALPER_OB_BUFFER_ATR_X: &str = "0.15";
+const SCALPER_EMA_FAST_PERIOD: usize = 20;
+const SCALPER_EMA_SLOW_PERIOD: usize = 50;
+const SCALPER_PULLBACK_ATR_X: &str = "0.45";
+const SCALPER_RSI_LONG_MIN: u32 = 56;
+const SCALPER_RSI_SHORT_MAX: u32 = 44;
+const SCALPER_SWING_PIVOT_LEN: usize = 4;
+const SCALPER_OB_LOOKBACK: usize = 25;
+const SCALPER_OB_BUFFER_ATR_X: &str = "0.20";
 const SCALPER_REACTION_LOOKBACK: usize = 300;
 const SCALPER_REACTION_K: usize = 4;
 const SCALPER_REACTION_TOL_ATR_X: &str = "0.35";
 const SCALPER_REACTION_MIN_TOUCHES: usize = 2;
 const SCALPER_TP1_RR: &str = "1.0";
-const SCALPER_TP2_RR: &str = "1.8";
+const SCALPER_TP2_RR: &str = "2.0";
 
 #[derive(Debug, Clone, Copy)]
 pub struct TradeLevels {
@@ -512,12 +513,14 @@ impl SymbolContext {
     }
 
     fn update_structure(&mut self) {
-        if self.candles.len() < 7 {
+        if self.candles.len() < (SCALPER_SWING_PIVOT_LEN * 2 + 1) {
             return;
         }
 
-        // Check Pivot at index len - 4
-        let idx = self.candles.len().saturating_sub(4);
+        let idx = self
+            .candles
+            .len()
+            .saturating_sub(SCALPER_SWING_PIVOT_LEN + 1);
         // Index conversion to total_processed (approximate for history, precise for current candle)
         // Correct index relative to history start is tricky with popping.
         // Better to use total_candles_processed offset.
@@ -526,16 +529,16 @@ impl SymbolContext {
         // Let's simplify:
         // `total_candles_processed` is the index of the JUST ADDED candle (last one).
         // `idx` is `len - 4`. So it is 3 candles ago properly.
-        let pivot_real_idx = self.total_candles_processed - 3;
+        let pivot_real_idx = self.total_candles_processed - SCALPER_SWING_PIVOT_LEN;
 
-        if idx < 3 {
+        if idx < SCALPER_SWING_PIVOT_LEN {
             return;
         }
 
         let highs: Vec<_> = self.candles.iter().map(|c| c.high).collect();
         let lows: Vec<_> = self.candles.iter().map(|c| c.low).collect();
 
-        if is_pivot_high(&highs, idx) {
+        if is_pivot_high(&highs, idx, SCALPER_SWING_PIVOT_LEN) {
             let pivot_val = highs[idx];
             self.structure.last_pivot_high = Some(pivot_val);
             self.just_confirmed_pivot_high = true;
@@ -568,7 +571,7 @@ impl SymbolContext {
             }
         }
 
-        if is_pivot_low(&lows, idx) {
+        if is_pivot_low(&lows, idx, SCALPER_SWING_PIVOT_LEN) {
             let pivot_val = lows[idx];
             self.structure.last_pivot_low = Some(pivot_val);
             self.just_confirmed_pivot_low = true;
