@@ -256,6 +256,10 @@ pub struct PositionPoolConfig {
     pub kill_switch_min_duration: u32,
     /// T11.2: Consecutive wins needed to reset kill switch
     pub kill_switch_reset_wins: u32,
+    /// T12.1: Consecutive BE kill switch threshold
+    pub be_kill_switch_threshold: u32,
+    /// T12.1: BE kill switch duration (candles to block after trigger)
+    pub be_kill_switch_duration: u32,
 }
 
 // =============================================================================
@@ -277,6 +281,12 @@ pub struct KillSwitchState {
     pub ema50_slope_at_activation: Option<Decimal>,
     /// ATR when kill switch was activated
     pub atr_at_activation: Option<Decimal>,
+    /// T12.1: Consecutive BE count (resets on WIN/LOSS)
+    pub consecutive_bes: u32,
+    /// T12.1: BE kill switch active?
+    pub be_kill_active: bool,
+    /// T12.1: Candle when BE kill switch was activated
+    pub be_kill_activated_at: Option<usize>,
 }
 
 impl KillSwitchState {
@@ -376,6 +386,8 @@ impl Default for PositionPoolConfig {
             kill_switch_consec_losses: 9, // T10.2: Pause after 9 consecutive losses
             kill_switch_min_duration: 20, // T11.1: DEFAULT - use get_kill_switch_duration_for_tf()
             kill_switch_reset_wins: 1,    // T11.2: Need 1 consecutive win to reset
+            be_kill_switch_threshold: 3,  // T12.1: Pause after 3 consecutive BE trades
+            be_kill_switch_duration: 30,  // T12.1: Block for 30 candles after BE kill switch
         }
     }
 }

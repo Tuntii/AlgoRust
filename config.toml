@@ -27,7 +27,7 @@ send_alpaca_signals = false
 
 [trading]
 # 1m only mode
-symbols = ["SOLUSDT", "ETHUSDT"]
+symbols = ["ETHUSDT"]
 timeframes = ["1m"]
 # Live trade execution control
 execute_trades = true

@@ -1,202 +1,558 @@
 //@version=5
-indicator("SuperKAMA - Kaufman Adaptive Moving Average", overlay=true, max_labels_count=500, max_lines_count=500)
+indicator("1m Scalper + Order Block (OB SL + TP1/TP2 + Partial) + Reaction Avg Target [FIXED]", overlay=true, max_labels_count=500, max_boxes_count=50, max_lines_count=500)
 
-// =============================================================================
-// INPUT PARAMETERS
-// =============================================================================
+//====================
+// INPUTS
+//====================
+grpSig = "Sinyal"
+emaFastLen = input.int(9,  "EMA Fast", group=grpSig, minval=1)
+emaSlowLen = input.int(21, "EMA Slow", group=grpSig, minval=1)
+rsiLen     = input.int(14, "RSI Len",  group=grpSig, minval=1)
+rsiLongMin = input.int(52, "RSI Long Min", group=grpSig, minval=1, maxval=99)
+rsiShortMax= input.int(48, "RSI Short Max", group=grpSig, minval=1, maxval=99)
+pullbackATR= input.float(0.35, "VWAP'e Yakınlık (ATR x)", group=grpSig, step=0.05)
+useOBFilter= input.bool(true, "OB Filtresi (sinyal OB ile uyumlu olsun)", group=grpSig)
 
-// SuperKAMA Settings
-kama_length      = input.int(2584, "KAMA Length",       minval=1, group="SuperKAMA Settings")
-kama_fast        = input.int(55,   "Fast EMA Period",   minval=1, group="SuperKAMA Settings")
-kama_slow        = input.int(89,   "Slow EMA Period",   minval=1, group="SuperKAMA Settings")
-atr_multiplier   = input.float(2.5, "ATR Çarpanı",       minval=0.1, maxval=10, step=0.1, group="SuperKAMA Settings")
-atr_period       = input.int(33,   "ATR Period",        minval=1, group="SuperKAMA Settings")
-show_bands       = input.bool(true, "Show Bands",        group="SuperKAMA Settings")
-show_signals     = input.bool(true, "Show Buy/Sell Signals", group="SuperKAMA Settings")
+grpOB = "Order Block"
+pivotLen   = input.int(3, "Swing Pivot Len", group=grpOB, minval=1)
+obLookback = input.int(20, "OB Arama Lookback", group=grpOB, minval=5, maxval=100)
+obExtend   = input.int(120, "OB Uzatma (bar)", group=grpOB, minval=10, maxval=500)
 
-// Color Settings
-bullish_color = input.color(color.new(color.green, 0), "Bullish Color", group="Colors")
-bearish_color = input.color(color.new(color.red, 0), "Bearish Color", group="Colors")
-neutral_color = input.color(color.new(color.gray, 0), "Neutral Color", group="Colors")
+grpRisk = "SL/TP (OB tabanlı)"
+atrLen   = input.int(14, "ATR Len", group=grpRisk, minval=1)
+obBufATR = input.float(0.15, "OB Buffer (ATR x)", group=grpRisk, step=0.05)
 
-// =============================================================================
-// KAMA CALCULATION (Kaufman Adaptive Moving Average)
-// =============================================================================
+tp1Mode  = input.string("SWING", "TP1 Mode", options=["SWING","RR"], group=grpRisk)
+tp1RR    = input.float(1.0, "TP1 RR (TP1 Mode=RR)", group=grpRisk, step=0.1)
+tp2RR    = input.float(1.8, "TP2 RR", group=grpRisk, step=0.1)
 
-// Calculate price change and volatility
-mom = math.abs(close - close[kama_length])
-volatility = math.sum(math.abs(close - close[1]), kama_length)
+partial1 = input.int(50, "TP1 Partial %", group=grpRisk, minval=1, maxval=99)
 
-// Efficiency Ratio (ER)
-er = volatility != 0 ? mom / volatility : 0
+// --- Reaction-based levels
+grpReact = "Reaction Target/Stop (Pivot kümeleri)"
+useReactionLevels = input.bool(true, "TP1/SL'yi reaksiyon kümelerinden hesapla", group=grpReact)
+reactLookback     = input.int(300, "Reaksiyon Lookback (bar)", group=grpReact, minval=50, maxval=2000)
+reactK            = input.int(4, "Ortalama için nokta sayısı (3-4)", group=grpReact, minval=3, maxval=4)
+reactTolATR       = input.float(0.35, "Küme toleransı (ATR x)", group=grpReact, step=0.05)
+reactMinTouches   = input.int(2, "Min tepki sayısı (touch)", group=grpReact, minval=1, maxval=10)
 
-// Smoothing Constant (SC)
-fastest = 2.0 / (kama_fast + 1)
-slowest = 2.0 / (kama_slow + 1)
-sc = math.pow(er * (fastest - slowest) + slowest, 2)
+grpUI = "Görsel"
+showVWAP   = input.bool(true, "VWAP Göster", group=grpUI)
+showEMAs   = input.bool(true, "EMAlar Göster", group=grpUI)
+showOB     = input.bool(true, "Order Block Göster", group=grpUI)
+showLevels = input.bool(true, "SL/TP Çizgileri Göster", group=grpUI)
 
-// KAMA calculation
-var float kama = na
-kama := na(kama[1]) ? close : kama[1] + sc * (close - kama[1])
+//====================
+// CORE CALCS
+//====================
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+vwapVal = ta.vwap(hlc3)
+rsiVal  = ta.rsi(close, rsiLen)
+atrVal  = ta.atr(atrLen)
+minTick = syminfo.mintick
 
-// =============================================================================
-// ATR BANDS
-// =============================================================================
+bullTrend = emaFast > emaSlow
+bearTrend = emaFast < emaSlow
+nearVWAP  = math.abs(close - vwapVal) <= atrVal * pullbackATR
+momLong   = rsiVal >= rsiLongMin
+momShort  = rsiVal <= rsiShortMax
 
-atr = ta.atr(atr_period)
-upper_band = kama + (atr * atr_multiplier)
-lower_band = kama - (atr * atr_multiplier)
+//====================
+// SWINGS
+//====================
+ph = ta.pivothigh(high, pivotLen, pivotLen)
+pl = ta.pivotlow(low, pivotLen, pivotLen)
 
-// =============================================================================
-// TREND DETECTION
-// =============================================================================
+var float lastSwingHigh = na
+var float lastSwingLow  = na
 
-// KAMA direction (simple comparison — quality gate handles noise filtering)
-kama_rising = kama > kama[1]
-kama_falling = kama < kama[1]
-price_above_kama = close > kama
-price_below_kama = close < kama
+if not na(ph)
+    lastSwingHigh := ph
+if not na(pl)
+    lastSwingLow := pl
 
-// Trend states
-bullish_trend = kama_rising and price_above_kama
-bearish_trend = kama_falling and price_below_kama
-neutral_trend = not bullish_trend and not bearish_trend
+//====================
+// ORDER BLOCK (BOS based)
+//====================
+var float lastStructHigh = na
+var float lastStructLow  = na
 
-// Trend color
-kama_color = bullish_trend ? bullish_color : (bearish_trend ? bearish_color : neutral_color)
+if not na(ph)
+    lastStructHigh := ph
+if not na(pl)
+    lastStructLow := pl
 
-// =============================================================================
-// SIGNAL FILTERS
-// =============================================================================
+// FIX: BOS sadece gerçek kırılımda tetiklensin
+bosUp   = not na(lastStructHigh) and ta.crossover(close, lastStructHigh)
+bosDown = not na(lastStructLow)  and ta.crossunder(close, lastStructLow)
 
-signal_cooldown = input.int(10,   "Signal Cooldown (bars)",  minval=1, maxval=50, step=1,   group="SuperKAMA Settings")
-er_filter       = input.float(0.26, "Min ER(10) for Signals",  minval=0.0, maxval=1.0, step=0.01, group="SuperKAMA Settings")
-atr_exp_ratio   = input.float(1.10, "Min ATR Expansion Ratio", minval=1.0, maxval=3.0, step=0.05, group="SuperKAMA Settings")
+var box bullOB = na
+var box bearOB = na
+var float bullOBTop = na
+var float bullOBBot = na
+var float bearOBTop = na
+var float bearOBBot = na
 
-// Short-term ER for signal quality
-er_10 = ta.change(close, 10) != 0 ? math.abs(ta.change(close, 10)) / math.sum(math.abs(ta.change(close)), 10) : 0.0
+if showOB and bosUp
+    int foundUp = na
+    for i = 1 to obLookback
+        if close[i] < open[i]
+            foundUp := i
+            break
+    if not na(foundUp)
+        if not na(bullOB)
+            box.delete(bullOB)
+        bullOBTop := open[foundUp]
+        bullOBBot := low[foundUp]
+        bullOB := box.new(bar_index - foundUp, bullOBTop, bar_index + obExtend, bullOBBot, bgcolor=color.new(color.green, 85), border_color=color.new(color.green, 20))
 
-// ATR expansion filter: current ATR >= atr_exp_ratio * 14-bar SMA of ATR
-// Ensures volatility is expanding (momentum) at signal time, not contracting (chop)
-atr_avg14        = ta.sma(atr, 14)
-atr_expanding    = atr >= atr_avg14 * atr_exp_ratio
+if showOB and bosDown
+    int foundDn = na
+    for i = 1 to obLookback
+        if close[i] > open[i]
+            foundDn := i
+            break
+    if not na(foundDn)
+        if not na(bearOB)
+            box.delete(bearOB)
+        bearOBTop := high[foundDn]
+        bearOBBot := open[foundDn]
+        bearOB := box.new(bar_index - foundDn, bearOBTop, bar_index + obExtend, bearOBBot, bgcolor=color.new(color.red, 85), border_color=color.new(color.red, 20))
 
-// Cooldown tracking
-var int last_buy_bar = -999
-var int last_sell_bar = -999
+hasBullOB = not na(bullOBTop) and not na(bullOBBot)
+hasBearOB = not na(bearOBTop) and not na(bearOBBot)
 
-buy_cooldown_ok  = (bar_index - last_buy_bar)  > signal_cooldown
-sell_cooldown_ok = (bar_index - last_sell_bar) > signal_cooldown
-er_ok = er_10 >= er_filter
+inBullOB    = hasBullOB and close >= bullOBBot and close <= bullOBTop
+aboveBullOB = hasBullOB and close > bullOBTop
+inBearOB    = hasBearOB and close <= bearOBTop and close >= bearOBBot
+belowBearOB = hasBearOB and close < bearOBBot
 
-// Raw signals (aynı kalıyor)
-raw_buy         = ta.crossover(close, kama)         and kama_rising
-raw_sell        = ta.crossunder(close, kama)        and kama_falling
-raw_strong_buy  = ta.crossover(close, lower_band)   and kama_rising
-raw_strong_sell = ta.crossunder(close, upper_band)  and kama_falling
+longOBok  = (not useOBFilter) or inBullOB or aboveBullOB
+shortOBok = (not useOBFilter) or inBearOB or belowBearOB
 
-// Filtered signals — ER + cooldown + ATR expansion
-buy_signal    = raw_buy         and buy_cooldown_ok  and er_ok and atr_expanding
-sell_signal   = raw_sell        and sell_cooldown_ok and er_ok and atr_expanding
-strong_buy    = raw_strong_buy  and buy_cooldown_ok  and er_ok and atr_expanding
-strong_sell   = raw_strong_sell and sell_cooldown_ok and er_ok and atr_expanding
+//====================
+// SIGNALS
+//====================
+longSignal  = bullTrend and nearVWAP and close > open and momLong and longOBok
+shortSignal = bearTrend and nearVWAP and close < open and momShort and shortOBok
 
-// Cooldown güncelle
-if buy_signal or strong_buy
-    last_buy_bar := bar_index
-if sell_signal or strong_sell
-    last_sell_bar := bar_index
+//====================
+// PLOTS
+//====================
+plot(showEMAs ? emaFast : na, "EMA Fast", color=color.new(color.aqua, 0), linewidth=2)
+plot(showEMAs ? emaSlow : na, "EMA Slow", color=color.new(color.orange, 0), linewidth=2)
+plot(showVWAP ? vwapVal : na, "VWAP", color=color.new(color.fuchsia, 0), linewidth=2)
 
-// =============================================================================
-// VISUALIZATION
-// =============================================================================
+plotshape(longSignal,  title="LONG",  style=shape.labelup,   location=location.belowbar, color=color.new(color.green, 0), text="LONG",  textcolor=color.white, size=size.tiny)
+plotshape(shortSignal, title="SHORT", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0),   text="SHORT", textcolor=color.white, size=size.tiny)
 
-// Plot KAMA line
-plot(kama, "KAMA", color=kama_color, linewidth=3)
+//====================
+// HELPERS
+//====================
+f_safe_risk(_entry, _sl, _isLong) =>
+    float slOut = _sl
+    if _isLong and (na(slOut) or slOut >= _entry)
+        slOut := _entry - math.max(atrVal * 0.5, minTick)
+    if (not _isLong) and (na(slOut) or slOut <= _entry)
+        slOut := _entry + math.max(atrVal * 0.5, minTick)
+    slOut
 
-// Plot ATR Bands
-plot(show_bands ? upper_band : na, "Upper Band", color=color.new(bullish_color, 70), linewidth=1, style=plot.style_stepline)
-plot(show_bands ? lower_band : na, "Lower Band", color=color.new(bearish_color, 70), linewidth=1, style=plot.style_stepline)
+f_safe_tp(_entry, _tp, _isLong, _fallbackR, _rrMult) =>
+    float tpOut = _tp
+    if _isLong and (na(tpOut) or tpOut <= _entry)
+        tpOut := _entry + _fallbackR * _rrMult
+    if (not _isLong) and (na(tpOut) or tpOut >= _entry)
+        tpOut := _entry - _fallbackR * _rrMult
+    tpOut
 
-// Fill between bands
-band_fill = show_bands ? kama_color : na
-fill_transparency = bullish_trend ? 95 : (bearish_trend ? 95 : 97)
-p1 = plot(show_bands ? upper_band : na, display=display.none)
-p2 = plot(show_bands ? lower_band : na, display=display.none)
-fill(p1, p2, color=color.new(kama_color, fill_transparency))
+//====================
+// REACTION CLUSTERING HELPERS
+//====================
+f_reaction_avg(_useHigh, _needAboveEntry, _entry, _k, _lookback, _tol, _minTouches) =>
+    float entry = _entry
+    float tolAbs = atrVal * _tol
 
-// Plot buy/sell signals
-plotshape(show_signals and buy_signal, "Buy Signal", shape.labelup, location.belowbar, color=color.new(color.green, 0), text="BUY", textcolor=color.white, size=size.normal)
-plotshape(show_signals and sell_signal, "Sell Signal", shape.labeldown, location.abovebar, color=color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.normal)
+    float[] cLevel = array.new_float()
+    int[]   cCount = array.new_int()
 
-// Plot strong signals
-plotshape(show_signals and strong_buy, "Strong Buy", shape.triangleup, location.belowbar, color=color.new(color.lime, 0), size=size.small)
-plotshape(show_signals and strong_sell, "Strong Sell", shape.triangledown, location.abovebar, color=color.new(color.maroon, 0), size=size.small)
+    for i = 0 to _lookback - 1
+        float pv = na
+        pv := _useHigh ? ph[i] : pl[i]
 
-// Background coloring
-bgcolor(bullish_trend ? color.new(color.green, 97) : (bearish_trend ? color.new(color.red, 97) : na))
+        if not na(pv)
+            bool clustered = false
+            int n = array.size(cLevel)
+            if n > 0
+                for j = 0 to n - 1
+                    float lv = array.get(cLevel, j)
+                    if math.abs(pv - lv) <= tolAbs
+                        int cc = array.get(cCount, j)
+                        float newLv = (lv * cc + pv) / (cc + 1)
+                        array.set(cLevel, j, newLv)
+                        array.set(cCount, j, cc + 1)
+                        clustered := true
+                        break
+            if not clustered
+                array.push(cLevel, pv)
+                array.push(cCount, 1)
 
-// =============================================================================
-// INFO TABLE
-// =============================================================================
+    int n2 = array.size(cLevel)
+    if n2 == 0
+        na
+    else
+        float sumPicked = 0.0
+        int   cntPicked = 0
+        bool[] picked = array.new_bool(n2, false)
 
-if barstate.islast
-    var table info_table = table.new(position.top_right, 2, 9, bgcolor=color.new(color.black, 85), frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
-    
-    // Header
-    table.cell(info_table, 0, 0, "SuperKAMA", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.normal)
-    table.cell(info_table, 1, 0, "Value", text_color=color.white, bgcolor=color.new(color.gray, 70), text_size=size.normal)
-    
-    // KAMA Value
-    table.cell(info_table, 0, 1, "KAMA", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 1, str.tostring(kama, "#.##"), text_color=kama_color, text_size=size.small)
-    
-    // Efficiency Ratio
-    table.cell(info_table, 0, 2, "ER", text_color=color.white, text_size=size.small)
-    er_color = er > 0.5 ? color.green : (er > 0.3 ? color.yellow : (er > 0.15 ? color.orange : color.red))
-    table.cell(info_table, 1, 2, str.tostring(er, "#.###"), text_color=er_color, text_size=size.small)
-    
-    // Short-term ER (10 bar) — visual quality indicator
-    er_10 = ta.change(close, 10) != 0 ? math.abs(ta.change(close, 10)) / math.sum(math.abs(ta.change(close)), 10) : 0.0
-    er10_text = str.tostring(er_10, "#.###")
-    er10_color = er_10 >= 0.26 ? color.green : (er_10 > 0.10 ? color.yellow : color.red)
-    table.cell(info_table, 0, 3, "ER(10)", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 3, er10_text, text_color=er10_color, text_size=size.small)
+        for pick = 0 to _k - 1
+            int bestIdx = na
+            int bestCnt = -1
 
-    // ATR vs ATR-Average (expansion gauge)
-    atr_now  = ta.atr(atr_period)
-    atr_avg_ = ta.sma(atr_now, 14)
-    atr_ratio_val  = atr_avg_ != 0 ? atr_now / atr_avg_ : 0.0
-    atr_ratio_text = str.tostring(atr_ratio_val, "#.###") + "x"
-    atr_exp_color  = atr_ratio_val >= atr_exp_ratio ? color.green : (atr_ratio_val >= 1.0 ? color.yellow : color.red)
-    table.cell(info_table, 0, 4, "ATR/Avg", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 4, atr_ratio_text, text_color=atr_exp_color, text_size=size.small)
+            for j = 0 to n2 - 1
+                if not array.get(picked, j)
+                    float lv = array.get(cLevel, j)
+                    int cc = array.get(cCount, j)
 
-    // Trend
-    trend_text = bullish_trend ? "Bullish" : (bearish_trend ? "Bearish" : "Neutral")
-    table.cell(info_table, 0, 5, "Trend", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 5, trend_text, text_color=kama_color, text_size=size.small)
+                    bool sideOk  = _needAboveEntry ? (lv > entry) : (lv < entry)
+                    bool touchOk = cc >= _minTouches
 
-    // KAMA Direction
-    dir_text = kama_rising ? "Rising" : (kama_falling ? "Falling" : "Flat")
-    dir_color = kama_rising ? color.green : (kama_falling ? color.red : color.gray)
-    table.cell(info_table, 0, 6, "Direction", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 6, dir_text, text_color=dir_color, text_size=size.small)
-    
-    // Upper Band
-    table.cell(info_table, 0, 7, "Upper", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 7, str.tostring(upper_band, "#.##"), text_color=bullish_color, text_size=size.small)
-    
-    // Lower Band
-    table.cell(info_table, 0, 8, "Lower", text_color=color.white, text_size=size.small)
-    table.cell(info_table, 1, 8, str.tostring(lower_band, "#.##"), text_color=bearish_color, text_size=size.small)
+                    if sideOk and touchOk and cc > bestCnt
+                        bestCnt := cc
+                        bestIdx := j
 
-// =============================================================================
+            if not na(bestIdx)
+                array.set(picked, bestIdx, true)
+                sumPicked += array.get(cLevel, bestIdx)
+                cntPicked += 1
+
+        cntPicked > 0 ? (sumPicked / cntPicked) : na
+
+//====================
+// OB-BASED SL / TP1 / TP2
+//====================
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var label slLab  = na
+var label tp1Lab = na
+var label tp2Lab = na
+
+f_clear_drawings() =>
+    if not na(slLine)
+        line.delete(slLine)
+    if not na(tp1Line)
+        line.delete(tp1Line)
+    if not na(tp2Line)
+        line.delete(tp2Line)
+    if not na(slLab)
+        label.delete(slLab)
+    if not na(tp1Lab)
+        label.delete(tp1Lab)
+    if not na(tp2Lab)
+        label.delete(tp2Lab)
+
+f_calc_levels(_isLong) =>
+    float entry = close
+    float buffer = atrVal * obBufATR
+
+    float sl = na
+    float tp1 = na
+    float tp2 = na
+
+    if _isLong
+        float slReact = useReactionLevels ? f_reaction_avg(false, false, entry, reactK, reactLookback, reactTolATR, reactMinTouches) : na
+        float tpReact = useReactionLevels ? f_reaction_avg(true,  true,  entry, reactK, reactLookback, reactTolATR, reactMinTouches) : na
+
+        sl := not na(slReact) ? (slReact - buffer) : (hasBullOB ? (bullOBBot - buffer) : (entry - atrVal))
+        sl := f_safe_risk(entry, sl, true)
+
+        float R = math.max(entry - sl, minTick)
+        float tp1_rr = entry + R * tp1RR
+        float tp1_swing = not na(lastSwingHigh) ? lastSwingHigh : tp1_rr
+
+        tp1 := not na(tpReact) ? tpReact : ((tp1Mode == "RR") ? tp1_rr : tp1_swing)
+        tp1 := f_safe_tp(entry, tp1, true, R, tp1RR)
+
+        tp2 := entry + R * tp2RR
+        tp2 := f_safe_tp(entry, tp2, true, R, tp2RR)
+    else
+        float slReact = useReactionLevels ? f_reaction_avg(true,  true,  entry, reactK, reactLookback, reactTolATR, reactMinTouches) : na
+        float tpReact = useReactionLevels ? f_reaction_avg(false, false, entry, reactK, reactLookback, reactTolATR, reactMinTouches) : na
+
+        sl := not na(slReact) ? (slReact + buffer) : (hasBearOB ? (bearOBTop + buffer) : (entry + atrVal))
+        sl := f_safe_risk(entry, sl, false)
+
+        float R = math.max(sl - entry, minTick)
+        float tp1_rr = entry - R * tp1RR
+        float tp1_swing = not na(lastSwingLow) ? lastSwingLow : tp1_rr
+
+        tp1 := not na(tpReact) ? tpReact : ((tp1Mode == "RR") ? tp1_rr : tp1_swing)
+        tp1 := f_safe_tp(entry, tp1, false, R, tp1RR)
+
+        tp2 := entry - R * tp2RR
+        tp2 := f_safe_tp(entry, tp2, false, R, tp2RR)
+
+    [entry, sl, tp1, tp2]
+
+[entryL, slL, tp1L, tp2L] = f_calc_levels(true)
+[entryS, slS, tp1S, tp2S] = f_calc_levels(false)
+
+if showLevels and (longSignal or shortSignal)
+    f_clear_drawings()
+
+    bool isLong = longSignal
+    float slP    = isLong ? slL    : slS
+    float tp1P   = isLong ? tp1L   : tp1S
+    float tp2P   = isLong ? tp2L   : tp2S
+
+    slLine  := line.new(bar_index, slP,  bar_index + 120, slP,  extend=extend.right, color=color.new(color.red, 0),   width=2)
+    tp1Line := line.new(bar_index, tp1P, bar_index + 120, tp1P, extend=extend.right, color=color.new(color.green, 0), width=2, style=line.style_dashed)
+    tp2Line := line.new(bar_index, tp2P, bar_index + 120, tp2P, extend=extend.right, color=color.new(color.green, 0), width=2)
+
+    int p1 = partial1
+    int p2 = 100 - partial1
+
+    string slTxt  = useReactionLevels ? "SL (dip ort.)" : "SL (OB arkası)"
+    string tp1Txt = useReactionLevels ? "HEDEF (tepe ort.)" : "TP1"
+
+    slLab  := label.new(bar_index, slP,  slTxt,  style=label.style_label_left, textcolor=color.white, color=color.new(color.red, 0), size=size.tiny)
+    tp1Lab := label.new(bar_index, tp1P, tp1Txt + " (" + str.tostring(p1) + "%)", style=label.style_label_left, textcolor=color.white, color=color.new(color.green, 0), size=size.tiny)
+    tp2Lab := label.new(bar_index, tp2P, "TP2 (" + str.tostring(p2) + "%)", style=label.style_label_left, textcolor=color.white, color=color.new(color.green, 0), size=size.tiny)
+
+//====================
 // ALERTS
-// =============================================================================
+//====================
+alertcondition(longSignal,  title="1m LONG",  message="1m Scalper LONG: EMA trend + VWAP yakın + RSI + OB | Reaction TP1/SL aktif (varsa), TP2 RR")
+alertcondition(shortSignal, title="1m SHORT", message="1m Scalper SHORT: EMA trend + VWAP yakın + RSI + OB | Reaction TP1/SL aktif (varsa), TP2 RR")
 
-alertcondition(buy_signal, "Buy Signal", "SuperKAMA: Buy signal detected!")
-alertcondition(sell_signal, "Sell Signal", "SuperKAMA: Sell signal detected!")
-alertcondition(strong_buy, "Strong Buy", "SuperKAMA: Strong buy signal at lower band!")
-alertcondition(strong_sell, "Strong Sell", "SuperKAMA: Strong sell signal at upper band!")
-alertcondition(ta.cross(close, kama), "KAMA Cross", "SuperKAMA: Price crossed KAMA!")
+//====================
+// DEBUG / LOGGING
+//====================
+grpDbg = "Debug / Log"
+dbgEnabled      = input.bool(true, "Debug aktif", group=grpDbg)
+dbgOnSignals    = input.bool(true, "Sadece sinyalde logla", group=grpDbg)
+dbgMaxLogs      = input.int(30, "Maks log (label) sayısı", group=grpDbg, minval=5, maxval=200)
+dbgShowTable    = input.bool(true, "Debug table göster", group=grpDbg)
+dbgTableRows    = input.int(12, "Table satır sayısı", group=grpDbg, minval=5, maxval=40)
+dbgCompact      = input.bool(true, "Kompakt metin", group=grpDbg)
+
+var label[]  dbgLabels = array.new_label()
+var string[] dbgRows   = array.new_string()
+
+var table dbgTbl = na
+if dbgEnabled and dbgShowTable and na(dbgTbl)
+    dbgTbl := table.new(position.top_right, 1, dbgTableRows + 1, border_width=1)
+
+f_bool(_b) => _b ? "1" : "0"
+
+f_reason(_isLong) =>
+    string dir   = _isLong ? "L" : "S"
+    string tr    = _isLong ? (bullTrend ? "trend" : "NOTtrend") : (bearTrend ? "trend" : "NOTtrend")
+    string vwp   = nearVWAP ? "vwap" : "noVwap"
+    string mom   = _isLong ? (momLong ? "rsi" : "noRsi") : (momShort ? "rsi" : "noRsi")
+    string obok  = _isLong ? (longOBok ? "obOK" : "obNO") : (shortOBok ? "obOK" : "obNO")
+    dir + "|" + tr + "|" + vwp + "|" + mom + "|" + obok
+
+f_tbl_render() =>
+    if dbgEnabled and dbgShowTable and not na(dbgTbl)
+        table.clear(dbgTbl, 0, 0)
+        table.cell(dbgTbl, 0, 0, "DEBUG LOG (en yeni en üstte)", text_size=size.small)
+        int n = array.size(dbgRows)
+        int lim = math.min(n, dbgTableRows)
+        for i = 0 to lim - 1
+            table.cell(dbgTbl, 0, i + 1, array.get(dbgRows, i), text_size=size.tiny)
+
+f_tbl_push(_text) =>
+    if dbgEnabled and dbgShowTable and not na(dbgTbl)
+        array.unshift(dbgRows, _text)
+        if array.size(dbgRows) > dbgTableRows
+            array.pop(dbgRows)
+        f_tbl_render()
+
+f_debug_emit(_isLong, _entry, _sl, _tp1, _tp2) =>
+    if not dbgEnabled
+        na
+    else
+        float R   = _isLong ? math.max(_entry - _sl, minTick) : math.max(_sl - _entry, minTick)
+        float RR1 = _isLong ? ((_tp1 - _entry) / R) : ((_entry - _tp1) / R)
+        float RR2 = _isLong ? ((_tp2 - _entry) / R) : ((_entry - _tp2) / R)
+
+        string id = "bar=" + str.tostring(bar_index) + " t=" + str.tostring(time)
+        string rs = f_reason(_isLong)
+
+        string txt = ""
+        if dbgCompact
+            txt := "#" + id + " " + (_isLong ? "LONG" : "SHORT") +
+                 " | " + rs +
+                 " | RSI=" + str.tostring(rsiVal, format.mintick) +
+                 " | dVWAP=" + str.tostring(math.abs(close - vwapVal), format.mintick) +
+                 " | ATR=" + str.tostring(atrVal, format.mintick) +
+                 " | E=" + str.tostring(_entry, format.mintick) +
+                 " SL=" + str.tostring(_sl, format.mintick) +
+                 " TP1=" + str.tostring(_tp1, format.mintick) +
+                 " TP2=" + str.tostring(_tp2, format.mintick) +
+                 " | RR1=" + str.tostring(RR1, "#.##") +
+                 " RR2=" + str.tostring(RR2, "#.##")
+        else
+            txt := "ID: " + id + "\n" +
+                 "DIR: " + (_isLong ? "LONG" : "SHORT") + " | " + rs + "\n" +
+                 "trend(bull/bear): " + f_bool(bullTrend) + "/" + f_bool(bearTrend) + "\n" +
+                 "nearVWAP: " + f_bool(nearVWAP) + " (|C-VWAP|=" + str.tostring(math.abs(close - vwapVal), format.mintick) + ")\n" +
+                 "RSI: " + str.tostring(rsiVal, format.mintick) + " | momL/momS: " + f_bool(momLong) + "/" + f_bool(momShort) + "\n" +
+                 "OB: hasBull/hasBear=" + f_bool(hasBullOB) + "/" + f_bool(hasBearOB) +
+                 " inBull/inBear=" + f_bool(inBullOB) + "/" + f_bool(inBearOB) + "\n" +
+                 "ENTRY=" + str.tostring(_entry, format.mintick) +
+                 " SL=" + str.tostring(_sl, format.mintick) +
+                 " TP1=" + str.tostring(_tp1, format.mintick) +
+                 " TP2=" + str.tostring(_tp2, format.mintick) + "\n" +
+                 "R=" + str.tostring(R, format.mintick) +
+                 " RR1=" + str.tostring(RR1, "#.##") +
+                 " RR2=" + str.tostring(RR2, "#.##")
+
+        float lbY = _isLong ? low : high
+        label lb = label.new(bar_index, lbY, txt)
+        label.set_style(lb, _isLong ? label.style_label_up : label.style_label_down)
+        label.set_textcolor(lb, color.white)
+        label.set_color(lb, _isLong ? color.new(color.green, 0) : color.new(color.red, 0))
+        label.set_size(lb, size.tiny)
+
+        array.push(dbgLabels, lb)
+
+        int sz = array.size(dbgLabels)
+        if sz > dbgMaxLogs
+            label old = array.shift(dbgLabels)
+            if not na(old)
+                label.delete(old)
+
+        f_tbl_push(txt)
+
+// FIX: sinyal yokken isLong=false diye SHORT loglama hatası giderildi
+bool dbgShouldLog = dbgEnabled and (dbgOnSignals ? (longSignal or shortSignal) : true)
+
+if dbgShouldLog
+    bool hasSig = longSignal or shortSignal
+    bool isL = hasSig ? longSignal : bullTrend
+    float e  = hasSig ? (isL ? entryL : entryS) : close
+    float sl = hasSig ? (isL ? slL    : slS)    : (isL ? close - atrVal : close + atrVal)
+    float t1 = hasSig ? (isL ? tp1L   : tp1S)   : (isL ? close + atrVal : close - atrVal)
+    float t2 = hasSig ? (isL ? tp2L   : tp2S)   : (isL ? close + atrVal * 2.0 : close - atrVal * 2.0)
+    f_debug_emit(isL, e, sl, t1, t2)
+
+//====================
+// OUTCOME TRACKER
+//====================
+grpOut = "Outcome Tracker"
+outEnabled   = input.bool(true, "TP/SL outcome log aktif", group=grpOut)
+outMaxBars   = input.int(250, "Trade max takip barı", group=grpOut, minval=20, maxval=5000)
+outLabelHits = input.bool(true, "TP/SL vurunca label bas", group=grpOut)
+
+var bool  inTrade   = false
+var bool  tIsLong   = false
+var float tEntry    = na
+var float tSL       = na
+var float tTP1      = na
+var float tTP2      = na
+var int   tStartBar = na
+var bool  tHitTP1   = false
+
+var int statTrades   = 0
+var int statSL       = 0
+var int statTP2      = 0
+var int statTP1Touch = 0
+var int statTimeout  = 0
+
+f_out_log(_txt) =>
+    if dbgEnabled and dbgShowTable
+        f_tbl_push(_txt)
+
+f_hit_label(_y, _txt, _isGood) =>
+    if outLabelHits
+        label lb2 = label.new(bar_index, _y, _txt)
+        label.set_textcolor(lb2, color.white)
+        label.set_color(lb2, _isGood ? color.new(color.green, 0) : color.new(color.red, 0))
+        label.set_size(lb2, size.tiny)
+        label.set_style(lb2, _isGood ? label.style_label_up : label.style_label_down)
+
+// FIX: açık trade varken yeni trade başlatma
+if outEnabled and (longSignal or shortSignal) and not inTrade
+    inTrade   := true
+    tIsLong   := longSignal
+    tEntry    := tIsLong ? entryL : entryS
+    tSL       := tIsLong ? slL    : slS
+    tTP1      := tIsLong ? tp1L   : tp1S
+    tTP2      := tIsLong ? tp2L   : tp2S
+    tStartBar := bar_index
+    tHitTP1   := false
+
+    statTrades += 1
+
+    string startTxt = "START " + (tIsLong ? "LONG" : "SHORT") +
+         " | bar=" + str.tostring(bar_index) +
+         " E=" + str.tostring(tEntry, format.mintick) +
+         " SL=" + str.tostring(tSL, format.mintick) +
+         " TP1=" + str.tostring(tTP1, format.mintick) +
+         " TP2=" + str.tostring(tTP2, format.mintick)
+    f_out_log(startTxt)
+
+if outEnabled and inTrade
+    bool timeout = (bar_index - tStartBar) > outMaxBars
+
+    if tIsLong
+        bool slHit  = low  <= tSL
+        bool tp1Hit = high >= tTP1
+        bool tp2Hit = high >= tTP2
+
+        if slHit
+            statSL += 1
+            f_out_log("HIT SL | bar=" + str.tostring(bar_index) + " | E=" + str.tostring(tEntry, format.mintick) + " SL=" + str.tostring(tSL, format.mintick))
+            f_hit_label(tSL, "SL HIT", false)
+            inTrade := false
+        else
+            if (not tHitTP1) and tp1Hit
+                tHitTP1 := true
+                statTP1Touch += 1
+                f_out_log("HIT TP1 | bar=" + str.tostring(bar_index) + " | TP1=" + str.tostring(tTP1, format.mintick))
+                f_hit_label(tTP1, "TP1 HIT", true)
+
+            if tp2Hit
+                statTP2 += 1
+                f_out_log("HIT TP2 | bar=" + str.tostring(bar_index) + " | TP2=" + str.tostring(tTP2, format.mintick))
+                f_hit_label(tTP2, "TP2 HIT", true)
+                inTrade := false
+
+            if timeout
+                statTimeout += 1
+                f_out_log("TIMEOUT | bar=" + str.tostring(bar_index) + " | hitTP1=" + (tHitTP1 ? "1" : "0"))
+                inTrade := false
+    else
+        bool slHit  = high >= tSL
+        bool tp1Hit = low  <= tTP1
+        bool tp2Hit = low  <= tTP2
+
+        if slHit
+            statSL += 1
+            f_out_log("HIT SL | bar=" + str.tostring(bar_index) + " | E=" + str.tostring(tEntry, format.mintick) + " SL=" + str.tostring(tSL, format.mintick))
+            f_hit_label(tSL, "SL HIT", false)
+            inTrade := false
+        else
+            if (not tHitTP1) and tp1Hit
+                tHitTP1 := true
+                statTP1Touch += 1
+                f_out_log("HIT TP1 | bar=" + str.tostring(bar_index) + " | TP1=" + str.tostring(tTP1, format.mintick))
+                f_hit_label(tTP1, "TP1 HIT", true)
+
+            if tp2Hit
+                statTP2 += 1
+                f_out_log("HIT TP2 | bar=" + str.tostring(bar_index) + " | TP2=" + str.tostring(tTP2, format.mintick))
+                f_hit_label(tTP2, "TP2 HIT", true)
+                inTrade := false
+
+            if timeout
+                statTimeout += 1
+                f_out_log("TIMEOUT | bar=" + str.tostring(bar_index) + " | hitTP1=" + (tHitTP1 ? "1" : "0"))
+                inTrade := false
+
+if outEnabled and dbgEnabled and dbgShowTable and not na(dbgTbl)
+    string st = "STATS | trades=" + str.tostring(statTrades) + " sl=" + str.tostring(statSL) + " tp1Touch=" + str.tostring(statTP1Touch) + " tp2=" + str.tostring(statTP2) + " timeout=" + str.tostring(statTimeout)
+    table.cell(dbgTbl, 0, 0, st, text_size=size.small)

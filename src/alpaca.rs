@@ -460,16 +460,8 @@ pub fn calculate_sl_tp_pub(
     ctx: &SymbolContext,
     entry: Decimal,
 ) -> (Decimal, Decimal) {
-    let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
-    ctx.ob_tracker.calculate_ob_sl_tp(
-        &signal.signal,
-        entry,
-        atr,
-        ctx.structure.last_pivot_low,
-        ctx.structure.last_pivot_high,
-        &ctx.pivot_high_history,
-        &ctx.pivot_low_history,
-    )
+    let levels = ctx.calculate_trade_levels(&signal.signal, entry);
+    (levels.sl, levels.tp2)
 }
 
 fn calculate_sl_tp(

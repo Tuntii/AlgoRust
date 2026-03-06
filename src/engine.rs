@@ -182,24 +182,54 @@ impl SignalEngine {
         self.position_pool.add_trade(trade);
     }
 
+    /// T12.1: Record BE result for consecutive BE kill switch
+    pub fn record_be_result(
+        &mut self,
+        symbol: &str,
+        timeframe: &str,
+        is_be: bool,
+        current_candle: usize,
+    ) {
+        let key = format!("{}_{}", symbol, timeframe);
+        let config = &self.position_pool.config;
+        let threshold = config.be_kill_switch_threshold;
+
+        let state = self
+            .kill_switch_states
+            .entry(key.clone())
+            .or_insert_with(KillSwitchState::new);
+
+        if is_be {
+            state.consecutive_bes += 1;
+            if !state.be_kill_active && state.consecutive_bes >= threshold {
+                state.be_kill_active = true;
+                state.be_kill_activated_at = Some(current_candle);
+                warn!(
+                    "🟡 BE KILL SWITCH ACTIVATED for {} — {} consecutive BEs (blocking {} candles)",
+                    key, state.consecutive_bes, config.be_kill_switch_duration
+                );
+            }
+        } else {
+            // WIN or LOSS resets consecutive BE counter
+            state.consecutive_bes = 0;
+            if state.be_kill_active {
+                state.be_kill_active = false;
+                state.be_kill_activated_at = None;
+                warn!("🟢 BE KILL SWITCH RESET for {} — decisive trade occurred", key);
+            }
+        }
+    }
+
     pub fn evaluate(&mut self, ctx: &mut SymbolContext) -> Option<TradeSignal> {
-        // All filter guards are active. Set to true only for raw indicator debugging.
         let indicator_only_mode = false;
         self.block_stats.total_evaluations += 1;
 
         let last_candle = ctx.candles.back()?.clone();
         let last_close = last_candle.close;
-        let candle_count = ctx.candles.len();
-        // Use total_candles_processed for cooldown (tracks absolute candle index)
         let absolute_candle_idx = ctx.total_candles_processed;
         let context_key = format!("{}_{}", ctx.symbol, ctx.timeframe);
 
         if !indicator_only_mode {
-            // ============================================================
-            // PHASE 0: Foundation Checks
-            // ============================================================
-
-            // T0.1 — Timeframe Policy Enforcement
             if !self
                 .policy
                 .timeframe_policy
@@ -216,11 +246,9 @@ impl SignalEngine {
                 return None;
             }
 
-            // T0.2 — Bootstrap Integrity Gate
             if !ctx.bootstrap.is_complete() {
                 if let Some(ref reason) = ctx.bootstrap.suppression_reason {
-                    // Log only occasionally to avoid spam
-                    if candle_count % 50 == 0 {
+                    if absolute_candle_idx % 50 == 0 {
                         warn!("⏳ {} {} - {}", ctx.symbol, ctx.timeframe, reason);
                     }
                 }
@@ -228,92 +256,36 @@ impl SignalEngine {
                 return None;
             }
 
-            // ============================================================
-            // PHASE 0.3: Market Quality Filters
-            // These prevent trading in ranging/compressed/sideways markets
-            // which are the primary cause of BE trades.
-            // ============================================================
-
-            // Filter 1: Flat EMA — EMA50 slope too flat = sideways market
-            // Threshold: |slope| < 0.0001 (0.01% change over 6 bars)
-            // 1m context: BTC@95k → blocks only if EMA moved < ~9.5 USDT in 6 minutes
-            // Doubled from 0.00005 to aggressively filter ranging / sideways markets.
-            let ema50_slope = ctx.get_ema50_slope();
-            let slope_threshold =
-                rust_decimal::Decimal::from_str("0.0001").unwrap_or(rust_decimal::Decimal::ZERO);
-            if ema50_slope.abs() < slope_threshold {
-                self.block_stats.flat_ema_blocks += 1;
-                return None;
-            }
-
-            // Filter 2: Low ATR — volatility too compressed = ranging market
-            // Skip if current ATR < 50% of median ATR (last 200 bars)
-            if let Some(current_atr) = ctx.atr_14.current_value {
-                let median_atr_ratio = ctx.get_median_atr_ratio();
-                if !median_atr_ratio.is_zero() && !current_atr.is_zero() {
-                    // current_atr / close gives ratio; compare to median ratio
-                    let current_ratio = if !ctx
-                        .candles
-                        .back()
-                        .map(|c| c.close)
-                        .unwrap_or_default()
-                        .is_zero()
-                    {
-                        current_atr / ctx.candles.back().unwrap().close
-                    } else {
-                        rust_decimal::Decimal::ZERO
-                    };
-                    let atr_ratio_threshold = median_atr_ratio
-                        * rust_decimal::Decimal::from_str("0.5")
-                            .unwrap_or(rust_decimal::Decimal::ONE);
-                    if current_ratio < atr_ratio_threshold {
-                        self.block_stats.low_atr_blocks += 1;
-                        return None;
-                    }
-                }
-            }
-
-            // Filter 3: Neutral Trend — EMA stack not aligned = no clear direction
-            // Requires EMA5 > EMA8 > EMA13 > EMA50 (bull) or reverse (bear)
-            use crate::types::TrendState;
-            if ctx.structure.trend == TrendState::Neutral {
-                self.block_stats.neutral_trend_blocks += 1;
-                return None;
-            }
-
-            // Filter 4: Low ADX — directional strength too weak = ranging market
-            // Hard block when ADX < 18 on any timeframe.
-            // ADX < 20 is widely considered a non-trending (sideways) condition.
-            {
-                let adx_min = rust_decimal::Decimal::from(18u32);
-                if let Some(adx_val) = ctx.adx_10_10.adx {
-                    if adx_val < adx_min {
-                        self.block_stats.neutral_trend_blocks += 1;
-                        return None;
+            let key = format!("{}_{}", ctx.symbol, ctx.timeframe);
+            let be_duration = self.position_pool.config.be_kill_switch_duration;
+            if let Some(state) = self.kill_switch_states.get_mut(&key) {
+                if state.be_kill_active {
+                    if let Some(activated_at) = state.be_kill_activated_at {
+                        let elapsed = (ctx.total_candles_processed.saturating_sub(activated_at)) as u32;
+                        if elapsed < be_duration {
+                            self.block_stats.be_kill_switch_blocks += 1;
+                            return None;
+                        }
+                        state.be_kill_active = false;
+                        state.be_kill_activated_at = None;
+                        state.consecutive_bes = 0;
+                        warn!("🟢 BE KILL SWITCH AUTO-RESET for {} — {} candles elapsed", key, elapsed);
                     }
                 }
             }
         }
 
-        // Generate context ID for this potential signal
         let context_id = ctx.generate_context_id();
-
-        // Get current EMA50 slope for T8.3 trend saturation check
         let current_slope = ctx.get_ema50_slope();
-
         let lstm_only = self.lstm_mode == LstmMode::LstmOnly;
-        // Require SuperKAMA trend alignment: only take longs when KAMA is rising
-        // and price is above KAMA (pine_trend == 1), and shorts when falling / below
-        // (pine_trend == -1). This eliminates counter-trend KAMA crossovers that
-        // are the primary cause of sideways chop trades on 1m.
-        let long_signal = (ctx.pine_buy_signal || ctx.pine_strong_buy) && ctx.pine_trend == 1;
-        let short_signal = (ctx.pine_sell_signal || ctx.pine_strong_sell) && ctx.pine_trend == -1;
-        let is_strong_signal = ctx.pine_strong_buy || ctx.pine_strong_sell;
+
+        let long_signal = ctx.scalp_long_signal;
+        let short_signal = ctx.scalp_short_signal;
 
         let direction = if lstm_only {
-            if ctx.pine_trend == 1 && ctx.pine_kama_long_filter {
+            if ctx.scalp_bull_trend && ctx.scalp_long_ob_ok {
                 SignalType::LONG
-            } else if ctx.pine_trend == -1 && ctx.pine_kama_short_filter {
+            } else if ctx.scalp_bear_trend && ctx.scalp_short_ob_ok {
                 SignalType::SHORT
             } else {
                 return None;
@@ -332,24 +304,6 @@ impl SignalEngine {
                 SignalType::SHORT
             }
         };
-
-        // ============================================================
-        // WHIPSAW QUALITY GATE — Multi-Factor Signal Quality Filter
-        // Distinguishes noisy KAMA crossovers (ranging) from real
-        // breakouts/breakdowns. NOT time-based — big moves pass instantly.
-        // ============================================================
-        if !indicator_only_mode && !lstm_only {
-            let quality = self.compute_signal_quality(ctx, is_strong_signal);
-            // Raised from 2 → 3 to require at least one strong confirming factor
-            // (ER > 0.25 gives +3, ADX > 30 gives +2, vol spike bypasses entirely).
-            // Borderline sideways signals that scraped past with 2 points are now blocked.
-            let min_quality = 3i32;
-
-            if quality < min_quality {
-                self.block_stats.whipsaw_filtered += 1;
-                return None;
-            }
-        }
 
         let mut lstm_score: Option<f32> = None;
         if !indicator_only_mode {
@@ -384,11 +338,7 @@ impl SignalEngine {
         }
 
         if !indicator_only_mode {
-            // ============================================================
-            // MULTI-POSITION GUARDS (TASK 2 + PHASE 8)
-            // ============================================================
             if self.multi_position_enabled {
-                // Guard 1: Check if we can open a new trade in the position pool
                 let (can_open, block_reason) = self.position_pool.can_open_trade(
                     &ctx.symbol,
                     &ctx.timeframe,
@@ -409,7 +359,6 @@ impl SignalEngine {
                     return None;
                 }
 
-                // Guard 2: Context-based cooldown check
                 if self.policy.cooldown_manager.is_context_on_cooldown(
                     &context_id,
                     &ctx.timeframe,
@@ -419,7 +368,6 @@ impl SignalEngine {
                     return None;
                 }
 
-                // T8.3: Trend Saturation Guard
                 if self.position_pool.is_trend_saturated(
                     &ctx.symbol,
                     &ctx.timeframe,
@@ -430,9 +378,7 @@ impl SignalEngine {
                     return None;
                 }
             } else {
-                // LEGACY: Single position mode
-                let has_open = self.policy.cooldown_manager.has_open_trade(&context_key);
-                if has_open {
+                if self.policy.cooldown_manager.has_open_trade(&context_key) {
                     self.block_stats.open_trade_blocks += 1;
                     return None;
                 }
@@ -448,43 +394,46 @@ impl SignalEngine {
             }
         }
 
+        let levels = ctx.calculate_trade_levels(&direction, last_close);
         let mut reasons = Vec::new();
-        if lstm_only {
-            reasons.push("LSTM-only: direction from SuperKAMA trend".to_string());
-        } else if ctx.pine_strong_buy || ctx.pine_strong_sell {
-            reasons.push("SuperKAMA strong signal: close crossed ATR band".to_string());
-        } else {
-            reasons.push("SuperKAMA signal: close crossed KAMA".to_string());
-        }
-
-        let trend_label = match ctx.pine_trend {
-            1 => "bullish",
-            -1 => "bearish",
-            _ => "neutral",
+        let direction_label = match direction {
+            SignalType::LONG => "LONG",
+            SignalType::SHORT => "SHORT",
         };
-        if let (Some(kama), Some(upper), Some(lower)) = (
-            ctx.kama_10.current_value,
-            ctx.pine_upper_band,
-            ctx.pine_lower_band,
+        reasons.push(format!(
+            "1m scalper {}: EMA9/21 trend + VWAP pullback + RSI14 + OB filter",
+            direction_label
+        ));
+
+        if let (Some(ema_fast), Some(ema_slow), Some(vwap), Some(rsi)) = (
+            ctx.ema_9.current_value,
+            ctx.ema_21.current_value,
+            ctx.vwap_current,
+            ctx.rsi_14.current_value,
         ) {
             reasons.push(format!(
-                "SuperKAMA state: trend={}, KAMA={}, upper={}, lower={}",
-                trend_label, kama, upper, lower
+                "EMA9={} EMA21={} VWAP={} RSI14={}",
+                ema_fast, ema_slow, vwap, rsi
             ));
-        } else {
-            reasons.push(format!("SuperKAMA state: trend={}", trend_label));
         }
+
+        reasons.push(format!(
+            "Filters: nearVWAP={} momL/momS={}/{} obL/obS={}/{}",
+            ctx.scalp_near_vwap,
+            ctx.scalp_mom_long,
+            ctx.scalp_mom_short,
+            ctx.scalp_long_ob_ok,
+            ctx.scalp_short_ob_ok
+        ));
+        reasons.push(format!(
+            "Levels: entry={} SL={} TP1={} TP2={}",
+            levels.entry, levels.sl, levels.tp1, levels.tp2
+        ));
         if let Some(score) = lstm_score {
             reasons.push(format!("LSTM score: {:.3}", score));
         }
 
-        let base_confidence: u8 = if lstm_only {
-            70
-        } else if ctx.pine_strong_buy || ctx.pine_strong_sell {
-            85
-        } else {
-            75
-        };
+        let base_confidence: u8 = if lstm_only { 70 } else { 82 };
         let adjusted_confidence = if self.multi_position_enabled {
             self.position_pool.calculate_adjusted_confidence(
                 &ctx.symbol,
@@ -503,18 +452,14 @@ impl SignalEngine {
             ));
         }
 
-        // Store context ID in context for later use
         ctx.current_context_id = Some(context_id.clone());
 
-        // Record cooldown only when guard stack is active.
         if !indicator_only_mode {
             self.policy
                 .cooldown_manager
-                .record_signal(&context_key, candle_count);
+                .record_signal(&context_key, absolute_candle_idx);
         }
-        ctx.last_signal_candle = Some(candle_count);
-
-        // Track signal generation
+        ctx.last_signal_candle = Some(absolute_candle_idx);
         self.block_stats.total_signals_generated += 1;
 
         let mut signal = TradeSignal::new(
@@ -534,6 +479,7 @@ impl SignalEngine {
             _ => "low",
         }
         .to_string();
+        signal.context_id = Some(context_id.to_string());
 
         Some(signal)
     }
@@ -543,6 +489,7 @@ impl SignalEngine {
     ///
     /// Strong signals (ATR band crosses) and volume spikes bypass the gate
     /// so we NEVER miss a big market move on 1m scalping.
+    #[allow(dead_code)]
     fn compute_signal_quality(&self, ctx: &SymbolContext, is_strong_signal: bool) -> i32 {
         // ── Override: strong signals always pass ──────────────────────
         if is_strong_signal {

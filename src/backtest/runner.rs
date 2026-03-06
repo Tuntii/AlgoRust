@@ -199,29 +199,27 @@ struct BacktestResult {
 
 #[derive(Serialize, Clone)]
 struct SimulatedTrade {
-    #[serde(flatten)]
     signal: TradeSignal,
     entry_price: Decimal,
     sl_price: Decimal,
-    original_sl_price: Decimal, // T9.2: For BE tracking
+    original_sl_price: Decimal,
     tp_price: Decimal,
     exit_price: Option<Decimal>,
     pnl_r: Option<Decimal>,
     outcome: Option<String>,
-    // T5.1: Trade duration tracking
     entry_candle_idx: usize,
     exit_candle_idx: Option<usize>,
     duration_candles: Option<u32>,
-    // MULTI-POSITION: Context tracking
     context_id: Option<ContextId>,
     adjusted_confidence: u8,
-    was_concurrent: bool, // True if overlapped with another trade
-    // T8.2: Context score for ranking
+    was_concurrent: bool,
     context_score: i32,
-    // T8.3: EMA50 slope at entry
     ema50_slope_at_entry: Option<Decimal>,
     // T9.2: BE tracking
     is_be_applied: bool,
+    // T9.3: Partial TP tracking
+    partial_tp_taken: bool,
+    partial_pnl_locked: Decimal, // Locked profit from partial close (e.g., 0.5R)
     // Trailing stop: peak price seen since entry (for trailing calculation)
     #[serde(skip)]
     peak_price: Decimal,
@@ -453,6 +451,8 @@ pub async fn run_backtest(
                                 context_score,
                                 ema50_slope_at_entry: Some(ema50_slope),
                                 is_be_applied: false,
+                                partial_tp_taken: false,
+                                partial_pnl_locked: Decimal::ZERO,
                                 peak_price: entry,
                                 trailing_activated: false,
                             });
@@ -502,10 +502,7 @@ pub async fn run_backtest(
                             }
 
                             if !just_closed && allow_supertrend_exit {
-                                let reversal = match trade.signal.signal {
-                                    SignalType::LONG => ctx.pine_trend_changed_bearish,
-                                    SignalType::SHORT => ctx.pine_trend_changed_bullish,
-                                };
+                                let reversal = ctx.indicator_reversal_for(&trade.signal.signal);
 
                                 if reversal {
                                     let risk = (trade.entry_price - trade.original_sl_price).abs();
@@ -571,6 +568,35 @@ pub async fn run_backtest(
                                     trade.sl_price = trade.entry_price;
                                     trade.is_be_applied = true;
                                     engine.block_stats.be_applied_count += 1;
+                                }
+                            }
+
+                            // T9.3: Partial TP — close 50% at 1R, move SL to BE
+                            if allow_sl_tp_exit
+                                && !just_closed
+                                && !trade.partial_tp_taken
+                                && pool_config.partial_tp_enabled
+                            {
+                                let risk = (trade.entry_price - trade.original_sl_price).abs();
+                                if !risk.is_zero() {
+                                    let unrealized_r = match trade.signal.signal {
+                                        SignalType::LONG => (candle.high - trade.entry_price) / risk,
+                                        SignalType::SHORT => (trade.entry_price - candle.low) / risk,
+                                    };
+                                    // Trigger at 1R profit
+                                    if unrealized_r >= Decimal::ONE {
+                                        let partial_ratio = Decimal::from_f64(pool_config.partial_tp_ratio)
+                                            .unwrap_or(Decimal::new(5, 1));
+                                        // Lock partial_ratio * 1R profit (e.g., 0.5 * 1R = 0.5R)
+                                        trade.partial_pnl_locked = partial_ratio * Decimal::ONE;
+                                        trade.partial_tp_taken = true;
+                                        // Move SL to break-even for remaining portion
+                                        if !trade.is_be_applied {
+                                            trade.sl_price = trade.entry_price;
+                                            trade.is_be_applied = true;
+                                        }
+                                        engine.block_stats.partial_tp_count += 1;
+                                    }
                                 }
                             }
 
@@ -730,6 +756,27 @@ pub async fn run_backtest(
                                 } // end if !just_closed (normal SL/TP)
                             }
 
+                            // ── Partial TP PnL Adjustment ─────────────────────────
+                            // If partial TP was taken, adjust final PnL:
+                            //   final = locked_profit + remaining_pnl * remaining_ratio
+                            // And upgrade BE outcomes to WIN if locked profit > 0
+                            if just_closed && trade.partial_tp_taken {
+                                let remaining_ratio = Decimal::ONE
+                                    - Decimal::from_f64(pool_config.partial_tp_ratio)
+                                        .unwrap_or(Decimal::new(5, 1));
+                                if let Some(raw_pnl) = trade.pnl_r {
+                                    let adjusted_pnl =
+                                        trade.partial_pnl_locked + raw_pnl * remaining_ratio;
+                                    trade.pnl_r = Some(adjusted_pnl);
+                                    // Upgrade outcome: if we locked profit and remaining hit BE, it's a WIN
+                                    if trade.outcome.as_deref() == Some("BE")
+                                        && adjusted_pnl > Decimal::ZERO
+                                    {
+                                        trade.outcome = Some("WIN".to_string());
+                                    }
+                                }
+                            }
+
                             // T1.5: Record trade close - cooldown starts here
                             if just_closed {
                                 engine.record_trade_close(symbol, interval, candle_idx);
@@ -748,6 +795,10 @@ pub async fn run_backtest(
                                         ema50_slope,
                                         current_atr,
                                     );
+
+                                    // T12.1: Record BE result for consecutive BE kill switch
+                                    let is_be = trade.outcome.as_deref() == Some("BE");
+                                    engine.record_be_result(symbol, interval, is_be, candle_idx);
                                 }
 
                                 // Also record context-based close for multi-position
@@ -818,6 +869,8 @@ pub async fn run_backtest(
                                 context_score: ctx_score,
                                 ema50_slope_at_entry: Some(ema50_slope),
                                 is_be_applied: false,
+                                partial_tp_taken: false,
+                                partial_pnl_locked: Decimal::ZERO,
                                 peak_price: entry_price,
                                 trailing_activated: false,
                             });
@@ -1224,6 +1277,16 @@ fn print_summary(summary: &BacktestSummary) {
         "      Kill Switch:      {:>6} triggers (consec losses)",
         bs.kill_switch_triggered
     );
+    info!(
+        "      BE Kill Switch:   {:>6} blocks (consec BE trades)",
+        bs.be_kill_switch_blocks
+    );
+    info!("");
+    info!("   📍 Phase 12 Market Quality:");
+    info!(
+        "      Range Bound:      {:>6} blocks (consolidation detected)",
+        bs.range_bound_blocks
+    );
     info!("");
 
     // Results by pair table
@@ -1357,10 +1420,32 @@ fn calculate_sl_tp(
     entry: Decimal,
     sltp_mode: SltpMode,
 ) -> (Decimal, Decimal) {
+    // ── Dynamic R:R scaling based on ATR ratio ──────────────────────
+    // When volatility is above median, expand TP; when below, compress.
+    // This ensures TP targets are achievable in current market conditions.
+    let atr_scale = {
+        let median_ratio = ctx.get_median_atr_ratio();
+        if let Some(current_atr) = ctx.atr_14.current_value {
+            let current_close = ctx.candles.back().map(|c| c.close).unwrap_or(entry);
+            if !current_close.is_zero() && !median_ratio.is_zero() {
+                let current_ratio = current_atr / current_close;
+                let raw_scale = current_ratio / median_ratio;
+                // Clamp between 0.8x and 1.2x to prevent extreme scaling
+                let min_scale = Decimal::from_str("0.8").unwrap_or(Decimal::ONE);
+                let max_scale = Decimal::from_str("1.2").unwrap_or(Decimal::ONE);
+                raw_scale.max(min_scale).min(max_scale)
+            } else {
+                Decimal::ONE
+            }
+        } else {
+            Decimal::ONE
+        }
+    };
+
     // Order Block tabanlı SL/TP
     if sltp_mode == SltpMode::OrderBlock {
         let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
-        return ctx.ob_tracker.calculate_ob_sl_tp(
+        let (sl, tp) = ctx.ob_tracker.calculate_ob_sl_tp(
             &signal.signal,
             entry,
             atr,
@@ -1369,6 +1454,14 @@ fn calculate_sl_tp(
             &ctx.pivot_high_history,
             &ctx.pivot_low_history,
         );
+        // Apply dynamic R:R to TP only (SL stays at structural level)
+        let tp_distance = (tp - entry).abs();
+        let scaled_distance = tp_distance * atr_scale;
+        let scaled_tp = match signal.signal {
+            SignalType::LONG => entry + scaled_distance,
+            SignalType::SHORT => entry - scaled_distance,
+        };
+        return (sl, scaled_tp);
     }
 
     // Pivot tabanlı SL/TP (varsayılan)
@@ -1395,7 +1488,7 @@ fn calculate_sl_tp(
             let risk = (entry - sl).max(min_risk);
 
             // TP = entry üzerindeki en yakın pivot high
-            let tp = ctx
+            let base_tp = ctx
                 .pivot_high_history
                 .iter()
                 .filter(|&&p| p > entry * (Decimal::ONE + min_profit_pct))
@@ -1403,9 +1496,13 @@ fn calculate_sl_tp(
                 .copied()
                 .unwrap_or_else(|| entry + risk * min_rr);
 
+            // Apply dynamic R:R scaling to TP distance
+            let tp_dist = base_tp - entry;
+            let scaled_tp = entry + tp_dist * atr_scale;
+
             // Minimum RR garantisi
             let min_tp = entry + risk * min_rr;
-            (sl, tp.max(min_tp))
+            (sl, scaled_tp.max(min_tp))
         }
         SignalType::SHORT => {
             // SL = entry üzerindeki en son pivot high + buffer
@@ -1419,7 +1516,7 @@ fn calculate_sl_tp(
             let risk = (sl - entry).max(min_risk);
 
             // TP = entry altındaki en yakın pivot low
-            let tp = ctx
+            let base_tp = ctx
                 .pivot_low_history
                 .iter()
                 .filter(|&&p| p < entry * (Decimal::ONE - min_profit_pct))
@@ -1427,9 +1524,13 @@ fn calculate_sl_tp(
                 .copied()
                 .unwrap_or_else(|| entry - risk * min_rr);
 
+            // Apply dynamic R:R scaling to TP distance
+            let tp_dist = entry - base_tp;
+            let scaled_tp = entry - tp_dist * atr_scale;
+
             // Minimum RR garantisi
             let min_tp = entry - risk * min_rr;
-            (sl, tp.min(min_tp))
+            (sl, scaled_tp.min(min_tp))
         }
     }
 }
@@ -1624,6 +1725,8 @@ pub async fn run_csv_backtest(
                 context_score,
                 ema50_slope_at_entry: Some(ema50_slope),
                 is_be_applied: false,
+                partial_tp_taken: false,
+                partial_pnl_locked: Decimal::ZERO,
                 peak_price: entry,
                 trailing_activated: false,
             });
@@ -1665,10 +1768,7 @@ pub async fn run_csv_backtest(
             }
 
             if !just_closed && allow_supertrend_exit {
-                let reversal = match trade.signal.signal {
-                    SignalType::LONG => ctx.pine_trend_changed_bearish,
-                    SignalType::SHORT => ctx.pine_trend_changed_bullish,
-                };
+                let reversal = ctx.indicator_reversal_for(&trade.signal.signal);
 
                 if reversal {
                     let risk = (trade.entry_price - trade.original_sl_price).abs();
@@ -1716,6 +1816,32 @@ pub async fn run_csv_backtest(
                     trade.sl_price = trade.entry_price; // Move SL to entry (break-even)
                     trade.is_be_applied = true;
                     engine.block_stats.be_applied_count += 1;
+                }
+            }
+
+            // T9.3: Partial TP — close 50% at 1R, move SL to BE
+            if allow_sl_tp_exit
+                && !just_closed
+                && !trade.partial_tp_taken
+                && pool_config.partial_tp_enabled
+            {
+                let risk = (trade.entry_price - trade.original_sl_price).abs();
+                if !risk.is_zero() {
+                    let unrealized_r = match trade.signal.signal {
+                        SignalType::LONG => (candle.high - trade.entry_price) / risk,
+                        SignalType::SHORT => (trade.entry_price - candle.low) / risk,
+                    };
+                    if unrealized_r >= Decimal::ONE {
+                        let partial_ratio = Decimal::from_f64(pool_config.partial_tp_ratio)
+                            .unwrap_or(Decimal::new(5, 1));
+                        trade.partial_pnl_locked = partial_ratio * Decimal::ONE;
+                        trade.partial_tp_taken = true;
+                        if !trade.is_be_applied {
+                            trade.sl_price = trade.entry_price;
+                            trade.is_be_applied = true;
+                        }
+                        engine.block_stats.partial_tp_count += 1;
+                    }
                 }
             }
 
@@ -1850,6 +1976,23 @@ pub async fn run_csv_backtest(
                 } // end if !just_closed (normal SL/TP)
             }
 
+            // ── Partial TP PnL Adjustment (CSV backtest) ──────────────
+            if just_closed && trade.partial_tp_taken {
+                let remaining_ratio = Decimal::ONE
+                    - Decimal::from_f64(pool_config.partial_tp_ratio)
+                        .unwrap_or(Decimal::new(5, 1));
+                if let Some(raw_pnl) = trade.pnl_r {
+                    let adjusted_pnl =
+                        trade.partial_pnl_locked + raw_pnl * remaining_ratio;
+                    trade.pnl_r = Some(adjusted_pnl);
+                    if trade.outcome.as_deref() == Some("BE")
+                        && adjusted_pnl > Decimal::ZERO
+                    {
+                        trade.outcome = Some("WIN".to_string());
+                    }
+                }
+            }
+
             // T1.5: Record trade close - THIS IS WHERE COOLDOWN STARTS
             if just_closed {
                 engine.record_trade_close(symbol, timeframe, candle_idx);
@@ -1868,6 +2011,10 @@ pub async fn run_csv_backtest(
                         ema50_slope,
                         current_atr,
                     );
+
+                    // T12.1: Record BE result for consecutive BE kill switch
+                    let is_be = trade.outcome.as_deref() == Some("BE");
+                    engine.record_be_result(symbol, timeframe, is_be, candle_idx);
                 }
 
                 // Also record context-based close for multi-position

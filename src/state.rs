@@ -4,7 +4,8 @@ use crate::indicators::{
 };
 use crate::order_block::OrderBlockTracker;
 use crate::policy::BootstrapState;
-use crate::types::{Candle, ContextId, MarketStructure, TradeSignal, TrendState};
+use crate::types::{Candle, ContextId, MarketStructure, SignalType, TradeSignal, TrendState};
+use chrono::Datelike;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
@@ -14,6 +15,27 @@ const SUPERKAMA_FAST_PERIOD: usize = 55;  // Pine: kama_fast = 55
 const SUPERKAMA_SLOW_PERIOD: usize = 89;  // Pine: kama_slow = 89
 const SUPERKAMA_ATR_PERIOD: usize = 33;
 const MIN_CANDLE_BUFFER: usize = 30_000;
+const SCALPER_EMA_FAST_PERIOD: usize = 9;
+const SCALPER_EMA_SLOW_PERIOD: usize = 21;
+const SCALPER_PULLBACK_ATR_X: &str = "0.35";
+const SCALPER_RSI_LONG_MIN: u32 = 52;
+const SCALPER_RSI_SHORT_MAX: u32 = 48;
+const SCALPER_OB_LOOKBACK: usize = 20;
+const SCALPER_OB_BUFFER_ATR_X: &str = "0.15";
+const SCALPER_REACTION_LOOKBACK: usize = 300;
+const SCALPER_REACTION_K: usize = 4;
+const SCALPER_REACTION_TOL_ATR_X: &str = "0.35";
+const SCALPER_REACTION_MIN_TOUCHES: usize = 2;
+const SCALPER_TP1_RR: &str = "1.0";
+const SCALPER_TP2_RR: &str = "1.8";
+
+#[derive(Debug, Clone, Copy)]
+pub struct TradeLevels {
+    pub entry: Decimal,
+    pub sl: Decimal,
+    pub tp1: Decimal,
+    pub tp2: Decimal,
+}
 
 pub struct SymbolContext {
     pub symbol: String,
@@ -22,6 +44,8 @@ pub struct SymbolContext {
     pub structure: MarketStructure,
 
     // Indicators
+    pub ema_9: Ema,
+    pub ema_21: Ema,
     pub ema_5: Ema,
     pub ema_8: Ema,
     pub ema_13: Ema,
@@ -71,6 +95,25 @@ pub struct SymbolContext {
     pub pine_rsi_bearish_div: bool,
     pub pine_stoch_bullish_div: bool,
     pub pine_stoch_bearish_div: bool,
+
+    // Session VWAP + attached Pine scalper state
+    pub vwap_current: Option<Decimal>,
+    vwap_session_pv: Decimal,
+    vwap_session_volume: Decimal,
+    vwap_session_day_key: Option<i32>,
+    pub scalp_bull_trend: bool,
+    pub scalp_bear_trend: bool,
+    pub scalp_near_vwap: bool,
+    pub scalp_mom_long: bool,
+    pub scalp_mom_short: bool,
+    pub scalp_long_ob_ok: bool,
+    pub scalp_short_ob_ok: bool,
+    pub scalp_long_signal: bool,
+    pub scalp_short_signal: bool,
+    pub scalp_bull_ob_top: Option<Decimal>,
+    pub scalp_bull_ob_bottom: Option<Decimal>,
+    pub scalp_bear_ob_top: Option<Decimal>,
+    pub scalp_bear_ob_bottom: Option<Decimal>,
 
     pub atr_ratio_history: VecDeque<Decimal>, // Median ATR hesaplamak için tarihçe
     pub ema_50_slope_history: VecDeque<Decimal>, // EMA50 tarihçesi eğim hesabı için
@@ -126,6 +169,8 @@ impl SymbolContext {
             pivot_highs_with_idx: Vec::new(),
             pivot_lows_with_idx: Vec::new(),
             rsi_history: VecDeque::new(),
+            ema_9: Ema::new(SCALPER_EMA_FAST_PERIOD),
+            ema_21: Ema::new(SCALPER_EMA_SLOW_PERIOD),
             ema_5: Ema::new(5),
             ema_8: Ema::new(8),
             ema_13: Ema::new(13),
@@ -172,6 +217,23 @@ impl SymbolContext {
             pine_rsi_bearish_div: false,
             pine_stoch_bullish_div: false,
             pine_stoch_bearish_div: false,
+            vwap_current: None,
+            vwap_session_pv: Decimal::ZERO,
+            vwap_session_volume: Decimal::ZERO,
+            vwap_session_day_key: None,
+            scalp_bull_trend: false,
+            scalp_bear_trend: false,
+            scalp_near_vwap: false,
+            scalp_mom_long: false,
+            scalp_mom_short: false,
+            scalp_long_ob_ok: false,
+            scalp_short_ob_ok: false,
+            scalp_long_signal: false,
+            scalp_short_signal: false,
+            scalp_bull_ob_top: None,
+            scalp_bull_ob_bottom: None,
+            scalp_bear_ob_top: None,
+            scalp_bear_ob_bottom: None,
             just_confirmed_pivot_high: false,
             just_confirmed_pivot_low: false,
             current_divergence: DivergenceType::None,
@@ -283,14 +345,40 @@ impl SymbolContext {
         self.pine_rsi_bearish_div = false;
         self.pine_stoch_bullish_div = false;
         self.pine_stoch_bearish_div = false;
+        self.scalp_bull_trend = false;
+        self.scalp_bear_trend = false;
+        self.scalp_near_vwap = false;
+        self.scalp_mom_long = false;
+        self.scalp_mom_short = false;
+        self.scalp_long_ob_ok = false;
+        self.scalp_short_ob_ok = false;
+        self.scalp_long_signal = false;
+        self.scalp_short_signal = false;
 
         // Update EMAs
         let close = candle.close;
+        self.ema_9.update(close);
+        self.ema_21.update(close);
         self.ema_5.update(close);
         self.ema_8.update(close);
         self.ema_13.update(close);
         let cur_ema50 = self.ema_50.update(close);
         self.ema_200.update(close);
+
+        let session_day_key = candle.open_time.date_naive().num_days_from_ce();
+        if self.vwap_session_day_key != Some(session_day_key) {
+            self.vwap_session_day_key = Some(session_day_key);
+            self.vwap_session_pv = Decimal::ZERO;
+            self.vwap_session_volume = Decimal::ZERO;
+        }
+        let typical_price = (candle.high + candle.low + candle.close) / Decimal::from(3);
+        self.vwap_session_pv += typical_price * candle.volume;
+        self.vwap_session_volume += candle.volume;
+        self.vwap_current = if self.vwap_session_volume.is_zero() {
+            None
+        } else {
+            Some(self.vwap_session_pv / self.vwap_session_volume)
+        };
 
         // Pine indicators
         let cur_kama = self.kama_10.update(close);
@@ -338,40 +426,6 @@ impl SymbolContext {
             }
         }
 
-        // BOS Detection: Check if current candle broke previous swing
-        let candle_range = candle.high - candle.low;
-        let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
-        let displacement_threshold = atr * Decimal::from_f64(1.2).unwrap(); // BOS candle > 1.2*ATR = displacement
-
-        if let Some(prev_high) = self.structure.last_pivot_high {
-            if candle.close > prev_high {
-                self.just_broke_high = true;
-                self.structure.bos_confirmed = true;
-                self.structure.bos_candle_range = Some(candle_range);
-                self.structure.last_bos_displacement = candle_range > displacement_threshold;
-                self.last_bos_candle_idx = Some(self.total_candles_processed); // Track BOS index
-            }
-        }
-
-        if let Some(prev_low) = self.structure.last_pivot_low {
-            if candle.close < prev_low {
-                self.just_broke_low = true;
-                self.structure.bos_confirmed = true;
-                self.structure.bos_candle_range = Some(candle_range);
-                self.structure.last_bos_displacement = candle_range > displacement_threshold;
-                self.last_bos_candle_idx = Some(self.total_candles_processed); // Track BOS index
-            }
-        }
-
-        // ORDER BLOCK: BOS tespitinden sonra OB tracker'ı güncelle
-        self.ob_tracker.update(
-            &candle,
-            self.total_candles_processed,
-            self.atr_14.current_value,
-            self.just_broke_high, // Yukarı BOS
-            self.just_broke_low,  // Aşağı BOS
-        );
-
         // Track EMA50 history - EMA update() returns Decimal directly
         self.ema_50_slope_history.push_back(cur_ema50);
         if self.ema_50_slope_history.len() > 20 {
@@ -388,6 +442,8 @@ impl SymbolContext {
             }
         }
 
+        let prev_close = self.candles.back().map(|c| c.close);
+
         // Store Candle - HTF needs more history
         self.candles.push_back(candle);
         let max_candles =
@@ -396,9 +452,46 @@ impl SymbolContext {
             self.candles.pop_front();
         }
 
+        // BOS Detection: attached Pine uses real close crossover/crossunder
+        let active_candle = self.candles.back().cloned().unwrap();
+        let candle_range = active_candle.high - active_candle.low;
+        let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
+        let displacement_threshold = atr * Decimal::from_f64(1.2).unwrap();
+
+        let bos_up = if let (Some(prev_high), Some(prev_close)) = (self.structure.last_pivot_high, prev_close) {
+            prev_close <= prev_high && active_candle.close > prev_high
+        } else {
+            false
+        };
+        let bos_down = if let (Some(prev_low), Some(prev_close)) = (self.structure.last_pivot_low, prev_close) {
+            prev_close >= prev_low && active_candle.close < prev_low
+        } else {
+            false
+        };
+
+        self.just_broke_high = bos_up;
+        self.just_broke_low = bos_down;
+        self.structure.bos_confirmed = bos_up || bos_down;
+        if bos_up || bos_down {
+            self.structure.bos_candle_range = Some(candle_range);
+            self.structure.last_bos_displacement = candle_range > displacement_threshold;
+            self.last_bos_candle_idx = Some(self.total_candles_processed);
+        }
+
+        self.update_scalper_order_blocks(bos_up, bos_down);
+
+        // ORDER BLOCK: mevcut tracker'ı da güncel tut (legacy TP/SL / analiz uyumu)
+        self.ob_tracker.update(
+            &active_candle,
+            self.total_candles_processed,
+            self.atr_14.current_value,
+            bos_up,
+            bos_down,
+        );
+
         self.update_structure();
 
-        // SuperKAMA state (trend + crossover + band signals)
+        // Attached Pine scalper state (EMA/VWAP/RSI/OB)
         self.update_pine_state(close, cur_kama);
 
         // Expose KAMA Efficiency Ratio for quality gate
@@ -509,18 +602,10 @@ impl SymbolContext {
         }
 
         // Update Trend
-        let e5 = self.ema_5.current_value;
-        let e8 = self.ema_8.current_value;
-        let e13 = self.ema_13.current_value;
-        let e50 = self.ema_50.current_value;
-        let e200 = self.ema_200.current_value;
-
-        let last_close = self.candles.back().map(|c| c.close).unwrap_or_default();
-
-        if let (Some(v5), Some(v8), Some(v13), Some(v50), Some(v200)) = (e5, e8, e13, e50, e200) {
-            if v5 > v8 && v8 > v13 && last_close > v50 && v50 > v200 {
+        if let (Some(fast), Some(slow)) = (self.ema_9.current_value, self.ema_21.current_value) {
+            if fast > slow {
                 self.structure.trend = TrendState::Bullish;
-            } else if v5 < v8 && v8 < v13 && last_close < v50 && v50 < v200 {
+            } else if fast < slow {
                 self.structure.trend = TrendState::Bearish;
             } else {
                 self.structure.trend = TrendState::Neutral;
@@ -529,58 +614,51 @@ impl SymbolContext {
     }
 
     fn update_pine_state(&mut self, close: Decimal, kama: Decimal) {
-        // indicator.pine parity:
-        // upper/lower bands = KAMA +/- ATR(33) * 1.0
-        let atr = match self.superkama_atr.current_value {
+        let atr = match self.atr_14.current_value {
             Some(val) => val,
             None => return,
         };
-        // Pine: atr_multiplier = 2.5  (synced with indicator.pine)
-        let atr_multiplier = Decimal::new(25, 1); // 2.5 = 25 × 10^-1
-        let upper_band = kama + atr * atr_multiplier;
-        let lower_band = kama - atr * atr_multiplier;
-
-        self.pine_upper_band = Some(upper_band);
-        self.pine_lower_band = Some(lower_band);
-        // Keep legacy field populated for compatibility with existing report/exit plumbing.
-        self.pine_supertrend = Some(kama);
-
-        let prev_close = if self.candles.len() >= 2 {
-            self.candles.get(self.candles.len() - 2).map(|c| c.close)
-        } else {
-            None
+        let vwap = match self.vwap_current {
+            Some(val) => val,
+            None => return,
         };
-        let prev_kama = if self.kama_10_series.len() >= 2 {
-            self.kama_10_series
-                .get(self.kama_10_series.len() - 2)
-                .copied()
-        } else {
-            None
+        let ema_fast = match self.ema_9.current_value {
+            Some(val) => val,
+            None => return,
         };
-        let prev_atr = if self.superkama_atr_series.len() >= 2 {
-            self.superkama_atr_series
-                .get(self.superkama_atr_series.len() - 2)
-                .copied()
-        } else {
-            None
+        let ema_slow = match self.ema_21.current_value {
+            Some(val) => val,
+            None => return,
         };
+        let rsi = match self.rsi_14.current_value {
+            Some(val) => val,
+            None => return,
+        };
+        let last_open = self.candles.back().map(|c| c.open).unwrap_or(close);
 
-        let kama_rising = prev_kama.as_ref().map(|prev| {
-            kama > *prev
-        }).unwrap_or(false);
-        let kama_falling = prev_kama.as_ref().map(|prev| {
-            kama < *prev
-        }).unwrap_or(false);
-        let price_above_kama = close > kama;
-        let price_below_kama = close < kama;
+        let pullback_atr = Decimal::from_str_exact(SCALPER_PULLBACK_ATR_X).unwrap();
+        let bull_trend = ema_fast > ema_slow;
+        let bear_trend = ema_fast < ema_slow;
+        let near_vwap = (close - vwap).abs() <= atr * pullback_atr;
+        let mom_long = rsi >= Decimal::from(SCALPER_RSI_LONG_MIN);
+        let mom_short = rsi <= Decimal::from(SCALPER_RSI_SHORT_MAX);
 
-        let bullish_trend = kama_rising && price_above_kama;
-        let bearish_trend = kama_falling && price_below_kama;
+        let in_bull_ob = matches!((self.scalp_bull_ob_bottom, self.scalp_bull_ob_top),
+            (Some(bottom), Some(top)) if close >= bottom && close <= top);
+        let above_bull_ob = matches!(self.scalp_bull_ob_top, Some(top) if close > top);
+        let in_bear_ob = matches!((self.scalp_bear_ob_bottom, self.scalp_bear_ob_top),
+            (Some(bottom), Some(top)) if close >= bottom && close <= top);
+        let below_bear_ob = matches!(self.scalp_bear_ob_bottom, Some(bottom) if close < bottom);
+
+        let long_ob_ok = in_bull_ob || above_bull_ob;
+        let short_ob_ok = in_bear_ob || below_bear_ob;
+        let long_signal = bull_trend && near_vwap && close > last_open && mom_long && long_ob_ok;
+        let short_signal = bear_trend && near_vwap && close < last_open && mom_short && short_ob_ok;
 
         let prev_trend = self.pine_trend;
-        self.pine_trend = if bullish_trend {
+        self.pine_trend = if bull_trend {
             1
-        } else if bearish_trend {
+        } else if bear_trend {
             -1
         } else {
             0
@@ -588,61 +666,37 @@ impl SymbolContext {
         self.pine_trend_changed_bullish = self.pine_trend == 1 && prev_trend != 1;
         self.pine_trend_changed_bearish = self.pine_trend == -1 && prev_trend != -1;
 
-        let buy_signal =
-            if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
-                close > kama && *prev_c <= *prev_k
-            } else {
-                false
-            };
-        let sell_signal =
-            if let (Some(prev_c), Some(prev_k)) = (prev_close.as_ref(), prev_kama.as_ref()) {
-                close < kama && *prev_c >= *prev_k
-            } else {
-                false
-            };
+        self.scalp_bull_trend = bull_trend;
+        self.scalp_bear_trend = bear_trend;
+        self.scalp_near_vwap = near_vwap;
+        self.scalp_mom_long = mom_long;
+        self.scalp_mom_short = mom_short;
+        self.scalp_long_ob_ok = long_ob_ok;
+        self.scalp_short_ob_ok = short_ob_ok;
+        self.scalp_long_signal = long_signal;
+        self.scalp_short_signal = short_signal;
 
-        let (strong_buy, strong_sell) = if let (Some(prev_c), Some(prev_k), Some(prev_a)) =
-            (prev_close.as_ref(), prev_kama.as_ref(), prev_atr.as_ref())
-        {
-            let prev_upper = *prev_k + *prev_a * atr_multiplier;
-            let prev_lower = *prev_k - *prev_a * atr_multiplier;
-            (
-                close > lower_band && *prev_c <= prev_lower,
-                close < upper_band && *prev_c >= prev_upper,
-            )
-        } else {
-            (false, false)
-        };
+        self.pine_supertrend = Some(vwap);
+        self.pine_upper_band = self.scalp_bear_ob_top;
+        self.pine_lower_band = self.scalp_bull_ob_bottom;
+        self.pine_buy_signal = long_signal;
+        self.pine_sell_signal = short_signal;
+        self.pine_strong_buy = false;
+        self.pine_strong_sell = false;
 
-        self.pine_buy_signal = buy_signal;
-        self.pine_sell_signal = sell_signal;
-        self.pine_strong_buy = strong_buy;
-        self.pine_strong_sell = strong_sell;
-
-        // Legacy aliases consumed by existing engine wiring.
-        self.pine_ema_cross_above = buy_signal;
-        self.pine_ema_cross_below = sell_signal;
-        self.pine_ema_above_kama = Some(price_above_kama);
-        self.pine_kama_long_filter = kama_rising;
-        self.pine_kama_short_filter = kama_falling;
-
-        self.pine_kama_slope_norm = if let Some(prev) = prev_kama.as_ref() {
-            if atr.is_zero() {
-                Some(Decimal::ZERO)
-            } else {
-                Some((kama - *prev) / atr)
-            }
-        } else {
+        self.pine_ema_cross_above = self.pine_trend_changed_bullish;
+        self.pine_ema_cross_below = self.pine_trend_changed_bearish;
+        self.pine_ema_above_kama = Some(bull_trend);
+        self.pine_kama_long_filter = bull_trend;
+        self.pine_kama_short_filter = bear_trend;
+        self.pine_kama_slope_norm = if atr.is_zero() {
             Some(Decimal::ZERO)
+        } else {
+            Some((ema_fast - ema_slow) / atr)
         };
-
-        self.pine_kama_quality_score = if strong_buy {
-            2
-        } else if strong_sell {
-            -2
-        } else if buy_signal {
+        self.pine_kama_quality_score = if long_signal {
             1
-        } else if sell_signal {
+        } else if short_signal {
             -1
         } else {
             0
@@ -655,6 +709,8 @@ impl SymbolContext {
         self.pine_rsi_bearish_div = false;
         self.pine_stoch_bullish_div = false;
         self.pine_stoch_bearish_div = false;
+
+        let _ = kama;
     }
 
     /// Equal high/low tespiti: Son pivot'lar arasında %0.15 toleransla eşit seviye var mı?
@@ -680,5 +736,191 @@ impl SymbolContext {
             }
         }
         false
+    }
+
+    fn update_scalper_order_blocks(&mut self, bos_up: bool, bos_down: bool) {
+        if bos_up {
+            if let Some(found) = self
+                .candles
+                .iter()
+                .rev()
+                .skip(1)
+                .take(SCALPER_OB_LOOKBACK)
+                .find(|c| c.close < c.open)
+            {
+                self.scalp_bull_ob_top = Some(found.open);
+                self.scalp_bull_ob_bottom = Some(found.low);
+            }
+        }
+
+        if bos_down {
+            if let Some(found) = self
+                .candles
+                .iter()
+                .rev()
+                .skip(1)
+                .take(SCALPER_OB_LOOKBACK)
+                .find(|c| c.close > c.open)
+            {
+                self.scalp_bear_ob_top = Some(found.high);
+                self.scalp_bear_ob_bottom = Some(found.open);
+            }
+        }
+    }
+
+    fn reaction_avg(&self, use_highs: bool, need_above_entry: bool, entry: Decimal) -> Option<Decimal> {
+        let atr = self.atr_14.current_value?;
+        let tolerance = atr * Decimal::from_str_exact(SCALPER_REACTION_TOL_ATR_X).unwrap();
+        let min_idx = self
+            .total_candles_processed
+            .saturating_sub(SCALPER_REACTION_LOOKBACK);
+        let points = if use_highs {
+            &self.pivot_highs_with_idx
+        } else {
+            &self.pivot_lows_with_idx
+        };
+
+        let mut cluster_levels: Vec<Decimal> = Vec::new();
+        let mut cluster_counts: Vec<usize> = Vec::new();
+
+        for (idx, price) in points.iter().copied() {
+            if idx < min_idx {
+                continue;
+            }
+
+            let mut clustered = false;
+            for cluster_idx in 0..cluster_levels.len() {
+                let level = cluster_levels[cluster_idx];
+                if (price - level).abs() <= tolerance {
+                    let count = cluster_counts[cluster_idx];
+                    let new_level = (level * Decimal::from(count as u32) + price)
+                        / Decimal::from((count + 1) as u32);
+                    cluster_levels[cluster_idx] = new_level;
+                    cluster_counts[cluster_idx] = count + 1;
+                    clustered = true;
+                    break;
+                }
+            }
+
+            if !clustered {
+                cluster_levels.push(price);
+                cluster_counts.push(1);
+            }
+        }
+
+        let mut candidates: Vec<(Decimal, usize)> = cluster_levels
+            .into_iter()
+            .zip(cluster_counts.into_iter())
+            .filter(|(level, count)| {
+                let side_ok = if need_above_entry {
+                    *level > entry
+                } else {
+                    *level < entry
+                };
+                side_ok && *count >= SCALPER_REACTION_MIN_TOUCHES
+            })
+            .collect();
+
+        if candidates.is_empty() {
+            return None;
+        }
+
+        candidates.sort_by(|(level_a, count_a), (level_b, count_b)| {
+            count_b.cmp(count_a).then_with(|| {
+                let dist_a = (*level_a - entry).abs();
+                let dist_b = (*level_b - entry).abs();
+                dist_a.cmp(&dist_b)
+            })
+        });
+
+        let selected = candidates.into_iter().take(SCALPER_REACTION_K).collect::<Vec<_>>();
+        if selected.is_empty() {
+            return None;
+        }
+
+        let sum: Decimal = selected.iter().map(|(level, _)| *level).sum();
+        Some(sum / Decimal::from(selected.len() as u32))
+    }
+
+    fn safe_risk(&self, entry: Decimal, sl: Option<Decimal>, is_long: bool) -> Decimal {
+        let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
+        let fallback_step = (atr / Decimal::from(2)).max(Decimal::from_str_exact("0.00000001").unwrap());
+        let mut out = sl.unwrap_or(if is_long { entry - atr } else { entry + atr });
+
+        if is_long && out >= entry {
+            out = entry - fallback_step;
+        }
+        if !is_long && out <= entry {
+            out = entry + fallback_step;
+        }
+        out
+    }
+
+    fn safe_tp(&self, entry: Decimal, tp: Option<Decimal>, is_long: bool, fallback_r: Decimal, rr_mult: Decimal) -> Decimal {
+        let mut out = tp.unwrap_or(if is_long {
+            entry + fallback_r * rr_mult
+        } else {
+            entry - fallback_r * rr_mult
+        });
+
+        if is_long && out <= entry {
+            out = entry + fallback_r * rr_mult;
+        }
+        if !is_long && out >= entry {
+            out = entry - fallback_r * rr_mult;
+        }
+        out
+    }
+
+    pub fn calculate_trade_levels(&self, direction: &SignalType, entry: Decimal) -> TradeLevels {
+        let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
+        let buffer = atr * Decimal::from_str_exact(SCALPER_OB_BUFFER_ATR_X).unwrap();
+        let tp1_rr = Decimal::from_str_exact(SCALPER_TP1_RR).unwrap();
+        let tp2_rr = Decimal::from_str_exact(SCALPER_TP2_RR).unwrap();
+        let min_r = Decimal::from_str_exact("0.00000001").unwrap();
+
+        match direction {
+            SignalType::LONG => {
+                let sl_react = self.reaction_avg(false, false, entry);
+                let tp_react = self.reaction_avg(true, true, entry);
+                let structural_sl = self
+                    .scalp_bull_ob_bottom
+                    .map(|bottom| bottom - buffer)
+                    .or_else(|| self.structure.last_pivot_low)
+                    .or(Some(entry - atr));
+                let sl = self.safe_risk(entry, sl_react.map(|v| v - buffer).or(structural_sl), true);
+
+                let risk = (entry - sl).max(min_r);
+                let swing_tp1 = self.structure.last_pivot_high.unwrap_or(entry + risk * tp1_rr);
+                let tp1 = self.safe_tp(entry, tp_react.or(Some(swing_tp1)), true, risk, tp1_rr);
+                let tp2 = self.safe_tp(entry, Some(entry + risk * tp2_rr), true, risk, tp2_rr);
+
+                TradeLevels { entry, sl, tp1, tp2 }
+            }
+            SignalType::SHORT => {
+                let sl_react = self.reaction_avg(true, true, entry);
+                let tp_react = self.reaction_avg(false, false, entry);
+                let structural_sl = self
+                    .scalp_bear_ob_top
+                    .map(|top| top + buffer)
+                    .or_else(|| self.structure.last_pivot_high)
+                    .or(Some(entry + atr));
+                let sl = self.safe_risk(entry, sl_react.map(|v| v + buffer).or(structural_sl), false);
+
+                let risk = (sl - entry).max(min_r);
+                let swing_tp1 = self.structure.last_pivot_low.unwrap_or(entry - risk * tp1_rr);
+                let tp1 = self.safe_tp(entry, tp_react.or(Some(swing_tp1)), false, risk, tp1_rr);
+                let tp2 = self.safe_tp(entry, Some(entry - risk * tp2_rr), false, risk, tp2_rr);
+
+                TradeLevels { entry, sl, tp1, tp2 }
+            }
+        }
+    }
+
+    pub fn indicator_reversal_for(&self, direction: &SignalType) -> bool {
+        match direction {
+            SignalType::LONG => self.scalp_short_signal,
+            SignalType::SHORT => self.scalp_long_signal,
+        }
     }
 }

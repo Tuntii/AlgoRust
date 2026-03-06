@@ -42,6 +42,10 @@ pub struct BlockStats {
 
     // Phase 10 Stats
     pub kill_switch_triggered: u32, // T10.2: Times kill switch was triggered
+    pub be_kill_switch_blocks: u32, // Consecutive BE kill switch blocks
+
+    // Phase 12 Stats
+    pub range_bound_blocks: u32, // Range detection filter blocks
 
     // Whipsaw Quality Gate Stats
     pub whipsaw_filtered: u32, // Signals blocked by multi-factor quality gate
@@ -69,6 +73,10 @@ impl BlockStats {
         self.context_cooldown_blocks +
         // Phase 8 blocks
         self.trend_saturation_blocks +
+        // BE kill switch
+        self.be_kill_switch_blocks +
+        // Range detection
+        self.range_bound_blocks +
         // Whipsaw quality gate
         self.whipsaw_filtered
     }
