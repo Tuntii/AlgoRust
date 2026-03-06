@@ -1,6 +1,6 @@
 ﻿[app]
 # Startup mode: "live" or "backtest"
-mode = "backtest"
+mode = "live"
 bootstrap_limit = 70000
 auto_reconnect = true
 
@@ -19,6 +19,8 @@ days = 365
 exit_mode = "indicator_flip"
 # SL/TP mekanizması: "pivot" | "orderblock" | "compare" (her ikisini test edip karşılaştırır)
 sltp_mode = "orderblock"
+# İndikatör profili: "baseline" | "hybrid" | "compare" (iki profili de art arda test eder)
+indicator_profile = "baseline"
 send_alpaca_signals = false
 # Local CSV backtest (optional - comment out to use Binance API)
 # csv_file = "backtest_results/bitcoin_prices_all_time.csv"
@@ -32,7 +34,7 @@ timeframes = ["1m"]
 # Live trade execution control
 execute_trades = true
 # Paper trading (simulated trading without real money)
-use_paper_trader = false
+use_paper_trader = true
 paper_initial_balance = 300.0
 paper_state_file = "paper_trader_state.json"
 # Fixed risk amount per trade in USDT (Loss if SL hits = ~$5)
@@ -42,36 +44,36 @@ leverage = 2
 # Kaç pozisyon aynı anda açık olabilir?
 max_positions = 2
 # Canlı çıkış modu: "sl_tp" (TP/SL order koy) | "indicator_flip" (sadece market entry, çıkış = karşı sinyal)
-live_exit_mode = "indicator_flip"
+live_exit_mode = "sl_tp"
 # Trailing Stop: indicator_flip modunda kâr koruma mekanizması
 # Fiyat TP mesafesinin %activation kadarına ulaşınca trailing stop aktif olur
 # callback_rate: tepeden geri çekilme yüzdesi (0.1-5.0)
-trailing_stop_enabled = true
+trailing_stop_enabled = false
 trailing_callback_rate = 0.4
 trailing_activation_pct = 0.35
 
 [indicators]
 # Attached scalper/Pine parity values
-ema_fast = 20
-ema_slow = 50
+ema_fast = 9
+ema_slow = 21
 rsi_len = 14
-rsi_long_min = 56
-rsi_short_max = 44
-vwap_pullback_atr = 0.45
+rsi_long_min = 52
+rsi_short_max = 48
+vwap_pullback_atr = 0.35
 ob_filter = true
 
 # Order Block
-swing_pivot_len = 4
-ob_lookback = 25
-ob_extend_bars = 100
+swing_pivot_len = 3
+ob_lookback = 20
+ob_extend_bars = 120
 
 # SL / TP
 atr_len = 14
-ob_buffer_atr = 0.20
+ob_buffer_atr = 0.15
 tp1_mode = "rr"
 tp1_rr = 1.0
-tp2_rr = 2.0
-tp1_partial_pct = 60
+tp2_rr = 1.8
+tp1_partial_pct = 50
 
 [ml]
 enabled = true

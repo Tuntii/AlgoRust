@@ -64,6 +64,8 @@ struct BacktestConfig {
     exit_mode: String,
     #[serde(default = "default_sltp_mode")]
     sltp_mode: String,
+    #[serde(default = "default_indicator_profile")]
+    indicator_profile: String,
     #[serde(default = "default_send_alpaca_signals")]
     send_alpaca_signals: bool,
     #[serde(default)]
@@ -93,6 +95,10 @@ fn default_exit_mode() -> String {
 
 fn default_sltp_mode() -> String {
     "pivot".to_string()
+}
+
+fn default_indicator_profile() -> String {
+    "baseline".to_string()
 }
 
 fn default_send_alpaca_signals() -> bool {
@@ -329,6 +335,7 @@ async fn main() -> anyhow::Result<()> {
                     &bt_conf.csv_timeframe,
                     &bt_conf.exit_mode,
                     &bt_conf.sltp_mode,
+                    &bt_conf.indicator_profile,
                     bt_conf.send_alpaca_signals,
                     &bt_conf.output_dir,
                     lstm_filter.clone(),
@@ -345,6 +352,7 @@ async fn main() -> anyhow::Result<()> {
                 bt_conf.days,
                 &bt_conf.exit_mode,
                 &bt_conf.sltp_mode,
+                &bt_conf.indicator_profile,
                 bt_conf.send_alpaca_signals,
                 &bt_conf.output_dir,
                 &conf.binance,

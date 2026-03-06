@@ -4,7 +4,7 @@ use crate::connect::BinanceClient;
 use crate::engine::{LstmMode, SignalEngine};
 use crate::ml_filter::LstmFilter;
 use crate::policy::TimeframePolicy;
-use crate::state::SymbolContext;
+use crate::state::{ScalperParams, SymbolContext};
 use crate::types::{ActiveTrade, Candle, ContextId, SignalType, TradeSignal};
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use rust_decimal::prelude::*;
@@ -65,6 +65,46 @@ impl SltpMode {
             SltpMode::Pivot => "Pivot SL/TP",
             SltpMode::OrderBlock => "Order Block SL/TP",
             SltpMode::Compare => "Compare",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IndicatorProfileMode {
+    Baseline,
+    Hybrid,
+    Compare,
+}
+
+impl IndicatorProfileMode {
+    fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "hybrid" => IndicatorProfileMode::Hybrid,
+            "compare" | "both" => IndicatorProfileMode::Compare,
+            _ => IndicatorProfileMode::Baseline,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            IndicatorProfileMode::Baseline => "baseline",
+            IndicatorProfileMode::Hybrid => "hybrid",
+            IndicatorProfileMode::Compare => "compare",
+        }
+    }
+
+    fn display_label(self) -> &'static str {
+        match self {
+            IndicatorProfileMode::Baseline => "Baseline Profile",
+            IndicatorProfileMode::Hybrid => "Hybrid Profile",
+            IndicatorProfileMode::Compare => "Compare",
+        }
+    }
+
+    fn params(self) -> ScalperParams {
+        match self {
+            IndicatorProfileMode::Baseline | IndicatorProfileMode::Compare => ScalperParams::baseline(),
+            IndicatorProfileMode::Hybrid => ScalperParams::hybrid(),
         }
     }
 }
@@ -234,6 +274,7 @@ pub async fn run_backtest(
     days: i64,
     exit_mode: &str,
     sltp_mode: &str,
+    indicator_profile: &str,
     send_alpaca_signals: bool,
     output_dir: &str,
     binance_settings: &crate::connect::BinanceSettings,
@@ -251,17 +292,24 @@ pub async fn run_backtest(
     let policy = TimeframePolicy::new();
     let exit_mode = ExitMode::from_str(exit_mode);
     let sltp_mode_parsed = SltpMode::from_str(sltp_mode);
+    let profile_mode_parsed = IndicatorProfileMode::from_str(indicator_profile);
     let modes_to_run: Vec<SltpMode> = if sltp_mode_parsed == SltpMode::Compare {
         vec![SltpMode::Pivot, SltpMode::OrderBlock]
     } else {
         vec![sltp_mode_parsed]
     };
+    let profiles_to_run: Vec<IndicatorProfileMode> = if profile_mode_parsed == IndicatorProfileMode::Compare {
+        vec![IndicatorProfileMode::Baseline, IndicatorProfileMode::Hybrid]
+    } else {
+        vec![profile_mode_parsed]
+    };
 
     // Candle cache: compare modunda aynı veriyi iki kez çekmemek için
     let mut candle_cache: std::collections::HashMap<String, Vec<crate::types::Candle>> =
         std::collections::HashMap::new();
-    // Karşılaştırma sonuçları
-    let mut compare_results: Vec<(SltpMode, BacktestSummary)> = Vec::new();
+    // Karşılaştırma sonuçları (profil + SL/TP kombinasyonları)
+    let mut combo_compare_results: Vec<(IndicatorProfileMode, SltpMode, BacktestSummary)> =
+        Vec::new();
 
     // Alpaca Client (Optional) - .env yüklü ise aktif olur
     let alpaca_client = if send_alpaca_signals && std::env::var("ALPACA_API_KEY").is_ok() {
@@ -279,7 +327,12 @@ pub async fn run_backtest(
         None
     };
 
+    for &current_profile in &profiles_to_run {
     for &current_sltp in &modes_to_run {
+    if profiles_to_run.len() > 1 {
+        info!("");
+        info!("══ Indicator Profile: {} ═══════════════════════════════════════", current_profile.display_label());
+    }
     if modes_to_run.len() > 1 {
         info!("");
         info!("══ SL/TP Mode: {} ══════════════════════════════════════════════", current_sltp.display_label());
@@ -313,7 +366,11 @@ pub async fn run_backtest(
 
             info!("Testing {} {}...", symbol, interval);
 
-            let mut ctx = SymbolContext::new(symbol.clone(), interval.clone());
+            let mut ctx = SymbolContext::new_with_params(
+                symbol.clone(),
+                interval.clone(),
+                current_profile.params(),
+            );
             let mut trades: Vec<SimulatedTrade> = Vec::new();
             let mut candle_idx: usize = 0;
 
@@ -962,10 +1019,17 @@ pub async fn run_backtest(
                     signals: trades,
                 };
 
-                let mode_suffix = if modes_to_run.len() > 1 {
-                    format!("_{}", current_sltp.label())
-                } else {
+                let mut suffix_parts: Vec<String> = Vec::new();
+                if profiles_to_run.len() > 1 {
+                    suffix_parts.push(current_profile.label().to_string());
+                }
+                if modes_to_run.len() > 1 {
+                    suffix_parts.push(current_sltp.label().to_string());
+                }
+                let mode_suffix = if suffix_parts.is_empty() {
                     String::new()
+                } else {
+                    format!("_{}", suffix_parts.join("_"))
                 };
                 let filename = format!("{}/{}_{}{}_backtest.json", output_dir, symbol, interval, mode_suffix);
                 let mut file = File::create(&filename)?;
@@ -1123,15 +1187,22 @@ pub async fn run_backtest(
     });
 
     // Print final summary
-    if sltp_mode_parsed != SltpMode::Compare {
+    if sltp_mode_parsed != SltpMode::Compare && profile_mode_parsed != IndicatorProfileMode::Compare {
         print_summary(&summary);
     }
 
     // Save summary to file (compare modunda mode suffix ile)
-    let summary_suffix = if modes_to_run.len() > 1 {
-        format!("_{}", current_sltp.label())
-    } else {
+    let mut summary_suffix_parts: Vec<String> = Vec::new();
+    if profiles_to_run.len() > 1 {
+        summary_suffix_parts.push(current_profile.label().to_string());
+    }
+    if modes_to_run.len() > 1 {
+        summary_suffix_parts.push(current_sltp.label().to_string());
+    }
+    let summary_suffix = if summary_suffix_parts.is_empty() {
         String::new()
+    } else {
+        format!("_{}", summary_suffix_parts.join("_"))
     };
     let summary_filename = format!("{}/BACKTEST_SUMMARY{}.json", output_dir, summary_suffix);
     let mut summary_file = File::create(&summary_filename)?;
@@ -1139,11 +1210,12 @@ pub async fn run_backtest(
     summary_file.write_all(summary_json.as_bytes())?;
 
     info!("💾 Summary saved to: {}", summary_filename);
-    compare_results.push((current_sltp, summary));
+    combo_compare_results.push((current_profile, current_sltp, summary));
     } // end for current_sltp in modes_to_run
+    } // end for current_profile in profiles_to_run
 
-    if sltp_mode_parsed == SltpMode::Compare {
-        print_sltp_comparison(&compare_results);
+    if (profiles_to_run.len() > 1 || modes_to_run.len() > 1) && !combo_compare_results.is_empty() {
+        print_combo_comparison(&combo_compare_results);
     }
 
     Ok(())
@@ -1350,19 +1422,23 @@ fn print_summary(summary: &BacktestSummary) {
     info!("");
 }
 
-fn print_sltp_comparison(results: &[(SltpMode, BacktestSummary)]) {
+fn print_combo_comparison(results: &[(IndicatorProfileMode, SltpMode, BacktestSummary)]) {
     info!("");
     info!("================================================================");
-    info!("         SL/TP MEKANIZMA KARSILASTIRMA RAPORU");
+    info!("      PROFIL + SL/TP CAPRAZ KARSILASTIRMA RAPORU");
     info!("================================================================");
     info!("");
-    info!("{:<24} {:>8} {:>8} {:>10} {:>12} {:>8}",
-        "Mod", "Islem", "WR%", "PnL(R)", "Expectancy", "PF");
-    info!("{}", "-".repeat(74));
+    info!(
+        "{:<18} {:<18} {:>8} {:>8} {:>10} {:>12} {:>8}",
+        "Profil", "SL/TP", "Islem", "WR%", "PnL(R)", "Expectancy", "PF"
+    );
+    info!("{}", "-".repeat(96));
 
-    for (mode, summary) in results {
-        info!("{:<24} {:>8} {:>7.1}% {:>10} {:>12.3} {:>8.2}",
-            mode.display_label(),
+    for (profile, sltp, summary) in results {
+        info!(
+            "{:<18} {:<18} {:>8} {:>7.1}% {:>10} {:>12.3} {:>8.2}",
+            profile.display_label(),
+            sltp.display_label(),
             summary.total_trades,
             summary.overall_win_rate,
             summary.overall_pnl_r,
@@ -1371,39 +1447,46 @@ fn print_sltp_comparison(results: &[(SltpMode, BacktestSummary)]) {
         );
     }
 
-    info!("{}", "-".repeat(74));
+    info!("{}", "-".repeat(96));
 
-    if results.len() == 2 {
-        let pivot = results.iter().find(|(m, _)| *m == SltpMode::Pivot);
-        let ob = results.iter().find(|(m, _)| *m == SltpMode::OrderBlock);
+    if let Some((best_profile, best_sltp, best_summary)) = results
+        .iter()
+        .max_by(|a, b| a.2.overall_pnl_r.cmp(&b.2.overall_pnl_r))
+    {
+        info!("");
+        info!(
+            "🏆 En iyi PnL: {} + {} => {}R | WR: {:.1}% | PF: {:.2}",
+            best_profile.display_label(),
+            best_sltp.display_label(),
+            best_summary.overall_pnl_r,
+            best_summary.overall_win_rate,
+            best_summary.overall_profit_factor
+        );
+    }
 
-        if let (Some((_, ps)), Some((_, os))) = (pivot, ob) {
-            let wr_diff = ps.overall_win_rate - os.overall_win_rate;
-            let pnl_diff = ps.overall_pnl_r - os.overall_pnl_r;
-            let exp_diff = ps.overall_expectancy - os.overall_expectancy;
+    if results.len() >= 2 {
+        let mut sorted: Vec<&(IndicatorProfileMode, SltpMode, BacktestSummary)> =
+            results.iter().collect();
+        sorted.sort_by(|a, b| b.2.overall_pnl_r.cmp(&a.2.overall_pnl_r));
 
+        let best = sorted[0];
+        let second = sorted[1];
+        let pnl_gap = best.2.overall_pnl_r - second.2.overall_pnl_r;
+        let wr_gap = best.2.overall_win_rate - second.2.overall_win_rate;
+
+        info!("");
+        info!(
+            "🥈 İkinci sıraya fark: {:+}R | Win Rate farkı: {:+.1}%",
+            pnl_gap, wr_gap
+        );
+
+        if results.len() == 4 {
             info!("");
-            info!("Fark (Pivot - OrderBlock):");
-            info!("  Win Rate: {:+.1}%  |  PnL: {:+}R  |  Expectancy: {:+.3}R",
-                wr_diff, pnl_diff, exp_diff);
-
-            let better = if ps.overall_win_rate > os.overall_win_rate {
-                ">>> Pivot SL/TP kazandi (Win Rate)"
-            } else if os.overall_win_rate > ps.overall_win_rate {
-                ">>> Order Block SL/TP kazandi (Win Rate)"
-            } else {
-                ">>> Esit Win Rate"
-            };
-            info!("  {}", better);
-
-            let better_pnl = if ps.overall_pnl_r > os.overall_pnl_r {
-                ">>> Pivot SL/TP kazandi (PnL)"
-            } else if os.overall_pnl_r > ps.overall_pnl_r {
-                ">>> Order Block SL/TP kazandi (PnL)"
-            } else {
-                ">>> Esit PnL"
-            };
-            info!("  {}", better_pnl);
+            info!(
+                "📌 Lider kombinasyon: {} + {}",
+                best.0.display_label(),
+                best.1.display_label()
+            );
         }
     }
 
@@ -1597,6 +1680,7 @@ pub async fn run_csv_backtest(
     timeframe: &str,
     exit_mode: &str,
     sltp_mode: &str,
+    indicator_profile: &str,
     send_alpaca_signals: bool,
     output_dir: &str,
     lstm_filter: Option<LstmFilter>,
@@ -1633,6 +1717,7 @@ pub async fn run_csv_backtest(
     apply_pool_config_overrides(&mut engine, pool_overrides);
     let exit_mode = ExitMode::from_str(exit_mode);
     let sltp_mode_csv = SltpMode::from_str(sltp_mode);
+    let profile_mode_csv = IndicatorProfileMode::from_str(indicator_profile);
     // CSV backtest compare modunda ilk modu (Pivot) kullanir; cift calistirma icin run_backtest kullanin
     let sltp_mode_parsed = if sltp_mode_csv == SltpMode::Compare {
         info!("[WARN] CSV backtest compare modu: Pivot modu ile calistirildi");
@@ -1640,9 +1725,20 @@ pub async fn run_csv_backtest(
     } else {
         sltp_mode_csv
     };
+    let profile_mode_parsed = if profile_mode_csv == IndicatorProfileMode::Compare {
+        info!("[WARN] CSV indicator profile compare modu: Baseline profil ile calistirildi");
+        IndicatorProfileMode::Baseline
+    } else {
+        profile_mode_csv
+    };
     info!("   SL/TP Modu: {}", sltp_mode_parsed.display_label());
+    info!("   Indicator Profil: {}", profile_mode_parsed.display_label());
     let _ = send_alpaca_signals;
-    let mut ctx = SymbolContext::new(symbol.to_string(), timeframe.to_string());
+    let mut ctx = SymbolContext::new_with_params(
+        symbol.to_string(),
+        timeframe.to_string(),
+        profile_mode_parsed.params(),
+    );
     let mut trades: Vec<SimulatedTrade> = Vec::new();
     let mut candle_idx: usize = 0;
 

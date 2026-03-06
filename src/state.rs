@@ -15,20 +15,56 @@ const SUPERKAMA_FAST_PERIOD: usize = 55;  // Pine: kama_fast = 55
 const SUPERKAMA_SLOW_PERIOD: usize = 89;  // Pine: kama_slow = 89
 const SUPERKAMA_ATR_PERIOD: usize = 33;
 const MIN_CANDLE_BUFFER: usize = 30_000;
-const SCALPER_EMA_FAST_PERIOD: usize = 20;
-const SCALPER_EMA_SLOW_PERIOD: usize = 50;
-const SCALPER_PULLBACK_ATR_X: &str = "0.45";
-const SCALPER_RSI_LONG_MIN: u32 = 56;
-const SCALPER_RSI_SHORT_MAX: u32 = 44;
-const SCALPER_SWING_PIVOT_LEN: usize = 4;
-const SCALPER_OB_LOOKBACK: usize = 25;
-const SCALPER_OB_BUFFER_ATR_X: &str = "0.20";
 const SCALPER_REACTION_LOOKBACK: usize = 300;
 const SCALPER_REACTION_K: usize = 4;
 const SCALPER_REACTION_TOL_ATR_X: &str = "0.35";
 const SCALPER_REACTION_MIN_TOUCHES: usize = 2;
-const SCALPER_TP1_RR: &str = "1.0";
-const SCALPER_TP2_RR: &str = "2.0";
+
+#[derive(Debug, Clone)]
+pub struct ScalperParams {
+    pub ema_fast_period: usize,
+    pub ema_slow_period: usize,
+    pub pullback_atr_x: Decimal,
+    pub rsi_long_min: u32,
+    pub rsi_short_max: u32,
+    pub swing_pivot_len: usize,
+    pub ob_lookback: usize,
+    pub ob_buffer_atr_x: Decimal,
+    pub tp1_rr: Decimal,
+    pub tp2_rr: Decimal,
+}
+
+impl ScalperParams {
+    pub fn baseline() -> Self {
+        Self {
+            ema_fast_period: 9,
+            ema_slow_period: 21,
+            pullback_atr_x: Decimal::from_str_exact("0.35").unwrap(),
+            rsi_long_min: 52,
+            rsi_short_max: 48,
+            swing_pivot_len: 3,
+            ob_lookback: 20,
+            ob_buffer_atr_x: Decimal::from_str_exact("0.15").unwrap(),
+            tp1_rr: Decimal::from_str_exact("1.0").unwrap(),
+            tp2_rr: Decimal::from_str_exact("1.8").unwrap(),
+        }
+    }
+
+    pub fn hybrid() -> Self {
+        Self {
+            ema_fast_period: 12,
+            ema_slow_period: 30,
+            pullback_atr_x: Decimal::from_str_exact("0.40").unwrap(),
+            rsi_long_min: 54,
+            rsi_short_max: 46,
+            swing_pivot_len: 3,
+            ob_lookback: 20,
+            ob_buffer_atr_x: Decimal::from_str_exact("0.15").unwrap(),
+            tp1_rr: Decimal::from_str_exact("1.0").unwrap(),
+            tp2_rr: Decimal::from_str_exact("1.8").unwrap(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct TradeLevels {
@@ -41,6 +77,7 @@ pub struct TradeLevels {
 pub struct SymbolContext {
     pub symbol: String,
     pub timeframe: String,
+    pub scalper_params: ScalperParams,
     pub candles: VecDeque<Candle>,
     pub structure: MarketStructure,
 
@@ -158,9 +195,16 @@ pub struct SymbolContext {
 
 impl SymbolContext {
     pub fn new(symbol: String, timeframe: String) -> Self {
+        Self::new_with_params(symbol, timeframe, ScalperParams::baseline())
+    }
+
+    pub fn new_with_params(symbol: String, timeframe: String, scalper_params: ScalperParams) -> Self {
+        let ema_fast_period = scalper_params.ema_fast_period;
+        let ema_slow_period = scalper_params.ema_slow_period;
         Self {
             symbol,
             timeframe: timeframe.clone(),
+            scalper_params,
             candles: VecDeque::new(),
             structure: MarketStructure::default(),
             ema_50_slope_history: VecDeque::new(),
@@ -170,8 +214,8 @@ impl SymbolContext {
             pivot_highs_with_idx: Vec::new(),
             pivot_lows_with_idx: Vec::new(),
             rsi_history: VecDeque::new(),
-            ema_9: Ema::new(SCALPER_EMA_FAST_PERIOD),
-            ema_21: Ema::new(SCALPER_EMA_SLOW_PERIOD),
+            ema_9: Ema::new(ema_fast_period),
+            ema_21: Ema::new(ema_slow_period),
             ema_5: Ema::new(5),
             ema_8: Ema::new(8),
             ema_13: Ema::new(13),
@@ -513,14 +557,16 @@ impl SymbolContext {
     }
 
     fn update_structure(&mut self) {
-        if self.candles.len() < (SCALPER_SWING_PIVOT_LEN * 2 + 1) {
+        let pivot_len = self.scalper_params.swing_pivot_len;
+
+        if self.candles.len() < (pivot_len * 2 + 1) {
             return;
         }
 
         let idx = self
             .candles
             .len()
-            .saturating_sub(SCALPER_SWING_PIVOT_LEN + 1);
+            .saturating_sub(pivot_len + 1);
         // Index conversion to total_processed (approximate for history, precise for current candle)
         // Correct index relative to history start is tricky with popping.
         // Better to use total_candles_processed offset.
@@ -529,16 +575,16 @@ impl SymbolContext {
         // Let's simplify:
         // `total_candles_processed` is the index of the JUST ADDED candle (last one).
         // `idx` is `len - 4`. So it is 3 candles ago properly.
-        let pivot_real_idx = self.total_candles_processed - SCALPER_SWING_PIVOT_LEN;
+        let pivot_real_idx = self.total_candles_processed - pivot_len;
 
-        if idx < SCALPER_SWING_PIVOT_LEN {
+        if idx < pivot_len {
             return;
         }
 
         let highs: Vec<_> = self.candles.iter().map(|c| c.high).collect();
         let lows: Vec<_> = self.candles.iter().map(|c| c.low).collect();
 
-        if is_pivot_high(&highs, idx, SCALPER_SWING_PIVOT_LEN) {
+        if is_pivot_high(&highs, idx, pivot_len) {
             let pivot_val = highs[idx];
             self.structure.last_pivot_high = Some(pivot_val);
             self.just_confirmed_pivot_high = true;
@@ -571,7 +617,7 @@ impl SymbolContext {
             }
         }
 
-        if is_pivot_low(&lows, idx, SCALPER_SWING_PIVOT_LEN) {
+        if is_pivot_low(&lows, idx, pivot_len) {
             let pivot_val = lows[idx];
             self.structure.last_pivot_low = Some(pivot_val);
             self.just_confirmed_pivot_low = true;
@@ -639,12 +685,12 @@ impl SymbolContext {
         };
         let last_open = self.candles.back().map(|c| c.open).unwrap_or(close);
 
-        let pullback_atr = Decimal::from_str_exact(SCALPER_PULLBACK_ATR_X).unwrap();
+        let pullback_atr = self.scalper_params.pullback_atr_x;
         let bull_trend = ema_fast > ema_slow;
         let bear_trend = ema_fast < ema_slow;
         let near_vwap = (close - vwap).abs() <= atr * pullback_atr;
-        let mom_long = rsi >= Decimal::from(SCALPER_RSI_LONG_MIN);
-        let mom_short = rsi <= Decimal::from(SCALPER_RSI_SHORT_MAX);
+        let mom_long = rsi >= Decimal::from(self.scalper_params.rsi_long_min);
+        let mom_short = rsi <= Decimal::from(self.scalper_params.rsi_short_max);
 
         let in_bull_ob = matches!((self.scalp_bull_ob_bottom, self.scalp_bull_ob_top),
             (Some(bottom), Some(top)) if close >= bottom && close <= top);
@@ -742,13 +788,15 @@ impl SymbolContext {
     }
 
     fn update_scalper_order_blocks(&mut self, bos_up: bool, bos_down: bool) {
+        let ob_lookback = self.scalper_params.ob_lookback;
+
         if bos_up {
             if let Some(found) = self
                 .candles
                 .iter()
                 .rev()
                 .skip(1)
-                .take(SCALPER_OB_LOOKBACK)
+                .take(ob_lookback)
                 .find(|c| c.close < c.open)
             {
                 self.scalp_bull_ob_top = Some(found.open);
@@ -762,7 +810,7 @@ impl SymbolContext {
                 .iter()
                 .rev()
                 .skip(1)
-                .take(SCALPER_OB_LOOKBACK)
+                .take(ob_lookback)
                 .find(|c| c.close > c.open)
             {
                 self.scalp_bear_ob_top = Some(found.high);
@@ -877,9 +925,9 @@ impl SymbolContext {
 
     pub fn calculate_trade_levels(&self, direction: &SignalType, entry: Decimal) -> TradeLevels {
         let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
-        let buffer = atr * Decimal::from_str_exact(SCALPER_OB_BUFFER_ATR_X).unwrap();
-        let tp1_rr = Decimal::from_str_exact(SCALPER_TP1_RR).unwrap();
-        let tp2_rr = Decimal::from_str_exact(SCALPER_TP2_RR).unwrap();
+        let buffer = atr * self.scalper_params.ob_buffer_atr_x;
+        let tp1_rr = self.scalper_params.tp1_rr;
+        let tp2_rr = self.scalper_params.tp2_rr;
         let min_r = Decimal::from_str_exact("0.00000001").unwrap();
 
         match direction {
