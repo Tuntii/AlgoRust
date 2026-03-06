@@ -1,5 +1,4 @@
 ﻿[app]
-# Startup mode: "live" or "backtest"
 mode = "live"
 bootstrap_limit = 70000
 auto_reconnect = true
@@ -17,43 +16,26 @@ ws_base_url = "wss://fstream.binance.com"
 output_dir = "backtest_results"
 days = 365
 exit_mode = "indicator_flip"
-# SL/TP mekanizması: "pivot" | "orderblock" | "compare" (her ikisini test edip karşılaştırır)
 sltp_mode = "orderblock"
-# İndikatör profili: "baseline" | "hybrid" | "compare" (iki profili de art arda test eder)
 indicator_profile = "baseline"
 send_alpaca_signals = false
-# Local CSV backtest (optional - comment out to use Binance API)
-# csv_file = "backtest_results/bitcoin_prices_all_time.csv"
-# csv_symbol = "BTCUSDT"
-# csv_timeframe = "1m"
 
 [trading]
-# 1m only mode
 symbols = ["ETHUSDT"]
 timeframes = ["1m"]
-# Live trade execution control
 execute_trades = true
-# Paper trading (simulated trading without real money)
 use_paper_trader = true
 paper_initial_balance = 300.0
 paper_state_file = "paper_trader_state.json"
-# Fixed risk amount per trade in USDT (Loss if SL hits = ~$5)
 risk_amount_usdt = 5.0
-# Leverage applied to all positions (careful!)
 leverage = 2
-# Kaç pozisyon aynı anda açık olabilir?
 max_positions = 2
-# Canlı çıkış modu: "sl_tp" (TP/SL order koy) | "indicator_flip" (sadece market entry, çıkış = karşı sinyal)
 live_exit_mode = "sl_tp"
-# Trailing Stop: indicator_flip modunda kâr koruma mekanizması
-# Fiyat TP mesafesinin %activation kadarına ulaşınca trailing stop aktif olur
-# callback_rate: tepeden geri çekilme yüzdesi (0.1-5.0)
 trailing_stop_enabled = false
 trailing_callback_rate = 0.4
 trailing_activation_pct = 0.35
 
 [indicators]
-# Attached scalper/Pine parity values
 ema_fast = 9
 ema_slow = 21
 rsi_len = 14
@@ -62,12 +44,10 @@ rsi_short_max = 48
 vwap_pullback_atr = 0.35
 ob_filter = true
 
-# Order Block
 swing_pivot_len = 3
 ob_lookback = 20
 ob_extend_bars = 120
 
-# SL / TP
 atr_len = 14
 ob_buffer_atr = 0.15
 tp1_mode = "rr"
