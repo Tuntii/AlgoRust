@@ -2,7 +2,7 @@ use crate::state::SymbolContext;
 use crate::types::{SignalType, TradeSignal};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -204,7 +204,8 @@ impl PaperTrader {
     /// Update all positions with current price (check SL/TP)
     pub fn update_positions(&mut self, symbol: &str, current_price: Decimal) -> Result<()> {
         // Collect signal_ids for positions of this symbol that need closing
-        let mut to_close: Vec<(String, ExitReason)> = Vec::new();
+        // (signal_id, reason, actual_exit_price)
+        let mut to_close: Vec<(String, ExitReason, Decimal)> = Vec::new();
 
         for (signal_id, position) in self.positions.iter() {
             if position.symbol != symbol {
@@ -216,37 +217,37 @@ impl PaperTrader {
                     if current_price <= position.stop_loss {
                         info!(
                             "🛑 STOP LOSS HIT: {} @ ${} (sig: {})",
-                            symbol, current_price, sig_tag
+                            symbol, position.stop_loss, sig_tag
                         );
-                        to_close.push((signal_id.clone(), ExitReason::StopLoss));
+                        to_close.push((signal_id.clone(), ExitReason::StopLoss, position.stop_loss));
                     } else if current_price >= position.take_profit {
                         info!(
                             "🎯 TAKE PROFIT HIT: {} @ ${} (sig: {})",
-                            symbol, current_price, sig_tag
+                            symbol, position.take_profit, sig_tag
                         );
-                        to_close.push((signal_id.clone(), ExitReason::TakeProfit));
+                        to_close.push((signal_id.clone(), ExitReason::TakeProfit, position.take_profit));
                     }
                 }
                 PositionSide::Short => {
                     if current_price >= position.stop_loss {
                         info!(
                             "🛑 STOP LOSS HIT: {} @ ${} (sig: {})",
-                            symbol, current_price, sig_tag
+                            symbol, position.stop_loss, sig_tag
                         );
-                        to_close.push((signal_id.clone(), ExitReason::StopLoss));
+                        to_close.push((signal_id.clone(), ExitReason::StopLoss, position.stop_loss));
                     } else if current_price <= position.take_profit {
                         info!(
                             "🎯 TAKE PROFIT HIT: {} @ ${} (sig: {})",
-                            symbol, current_price, sig_tag
+                            symbol, position.take_profit, sig_tag
                         );
-                        to_close.push((signal_id.clone(), ExitReason::TakeProfit));
+                        to_close.push((signal_id.clone(), ExitReason::TakeProfit, position.take_profit));
                     }
                 }
             }
         }
 
-        for (signal_id, reason) in to_close {
-            self.close_position(&signal_id, current_price, reason)?;
+        for (signal_id, reason, exit_price) in to_close {
+            self.close_position(&signal_id, exit_price, reason)?;
         }
 
         Ok(())
@@ -345,13 +346,41 @@ impl PaperTrader {
     }
 }
 
-/// Calculate SL/TP based on Order Blocks (Smart Money TP/SL)
-/// Fallback: pivot seviyeleri ve ATR tabanlı hesaplama
+/// Calculate SL/TP identical to backtest OB + ATR-scaling logic
 fn calculate_sl_tp(
     signal: &TradeSignal,
     ctx: &SymbolContext,
     entry: Decimal,
 ) -> (Decimal, Decimal) {
-    let levels = ctx.calculate_trade_levels(&signal.signal, entry);
-    (levels.sl, levels.tp2)
+    let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
+
+    let atr_scale = {
+        let median_ratio = ctx.get_median_atr_ratio();
+        let current_close = ctx.candles.back().map(|c| c.close).unwrap_or(entry);
+        if !current_close.is_zero() && !median_ratio.is_zero() {
+            let current_ratio = atr / current_close;
+            let raw_scale = current_ratio / median_ratio;
+            let min_scale = Decimal::from_str("0.8").unwrap_or(Decimal::ONE);
+            let max_scale = Decimal::from_str("1.2").unwrap_or(Decimal::ONE);
+            raw_scale.max(min_scale).min(max_scale)
+        } else {
+            Decimal::ONE
+        }
+    };
+
+    let (sl, raw_tp) = ctx.ob_tracker.calculate_ob_sl_tp(
+        &signal.signal,
+        entry,
+        atr,
+        ctx.structure.last_pivot_low,
+        ctx.structure.last_pivot_high,
+        &ctx.pivot_high_history,
+        &ctx.pivot_low_history,
+    );
+    let tp_distance = (raw_tp - entry).abs();
+    let tp = match signal.signal {
+        SignalType::LONG => entry + tp_distance * atr_scale,
+        SignalType::SHORT => entry - tp_distance * atr_scale,
+    };
+    (sl, tp)
 }

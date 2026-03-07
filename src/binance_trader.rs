@@ -423,7 +423,38 @@ impl BinanceFuturesTrader {
         self.set_leverage(&signal.symbol, self.leverage).await?;
         let entry = signal.price;
 
-        let (sl, tp) = crate::alpaca::calculate_sl_tp_pub(signal, ctx, entry);
+        // ── Backtest ile özdeş OB + ATR scaling SL/TP ────────────────────────
+        let atr = ctx.atr_14.current_value.unwrap_or(Decimal::ONE);
+
+        let atr_scale = {
+            let median_ratio = ctx.get_median_atr_ratio();
+            let current_close = ctx.candles.back().map(|c| c.close).unwrap_or(entry);
+            if !current_close.is_zero() && !median_ratio.is_zero() {
+                let current_ratio = atr / current_close;
+                let raw_scale = current_ratio / median_ratio;
+                let min_scale = Decimal::from_str("0.8").unwrap_or(Decimal::ONE);
+                let max_scale = Decimal::from_str("1.2").unwrap_or(Decimal::ONE);
+                raw_scale.max(min_scale).min(max_scale)
+            } else {
+                Decimal::ONE
+            }
+        };
+
+        let (sl, raw_tp) = ctx.ob_tracker.calculate_ob_sl_tp(
+            &signal.signal,
+            entry,
+            atr,
+            ctx.structure.last_pivot_low,
+            ctx.structure.last_pivot_high,
+            &ctx.pivot_high_history,
+            &ctx.pivot_low_history,
+        );
+        let tp_distance = (raw_tp - entry).abs();
+        let tp = match signal.signal {
+            SignalType::LONG => entry + tp_distance * atr_scale,
+            SignalType::SHORT => entry - tp_distance * atr_scale,
+        };
+        // ─────────────────────────────────────────────────────────────────────
 
         let qty = self.position_qty(entry, sl, qty_prec, min_notional).await?;
 

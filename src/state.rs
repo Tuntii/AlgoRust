@@ -895,30 +895,50 @@ impl SymbolContext {
 
     fn safe_risk(&self, entry: Decimal, sl: Option<Decimal>, is_long: bool) -> Decimal {
         let atr = self.atr_14.current_value.unwrap_or(Decimal::ONE);
-        let fallback_step = (atr / Decimal::from(2)).max(Decimal::from_str_exact("0.00000001").unwrap());
-        let mut out = sl.unwrap_or(if is_long { entry - atr } else { entry + atr });
+        // Minimum SL mesafesi: 0.5 ATR — gürültüden dolayı tetiklenmeyi önler
+        let min_dist = atr * Decimal::from_str_exact("0.5").unwrap();
+        let fallback = if is_long { entry - atr } else { entry + atr };
+        let mut out = sl.unwrap_or(fallback);
 
+        // Yanlış tarafa geçmişse düzelt
         if is_long && out >= entry {
-            out = entry - fallback_step;
+            out = entry - atr;
         }
         if !is_long && out <= entry {
-            out = entry + fallback_step;
+            out = entry + atr;
+        }
+
+        // Minimum mesafe uygula
+        if is_long && (entry - out) < min_dist {
+            out = entry - min_dist;
+        }
+        if !is_long && (out - entry) < min_dist {
+            out = entry + min_dist;
         }
         out
     }
 
     fn safe_tp(&self, entry: Decimal, tp: Option<Decimal>, is_long: bool, fallback_r: Decimal, rr_mult: Decimal) -> Decimal {
+        let rr_target = fallback_r * rr_mult;
         let mut out = tp.unwrap_or(if is_long {
-            entry + fallback_r * rr_mult
+            entry + rr_target
         } else {
-            entry - fallback_r * rr_mult
+            entry - rr_target
         });
 
         if is_long && out <= entry {
-            out = entry + fallback_r * rr_mult;
+            out = entry + rr_target;
         }
         if !is_long && out >= entry {
-            out = entry - fallback_r * rr_mult;
+            out = entry - rr_target;
+        }
+
+        // TP en az `fallback_r * rr_mult` kadar uzak olsun (RR garantisi)
+        if is_long && (out - entry) < rr_target {
+            out = entry + rr_target;
+        }
+        if !is_long && (entry - out) < rr_target {
+            out = entry - rr_target;
         }
         out
     }

@@ -282,6 +282,22 @@ impl SignalEngine {
         let long_signal = ctx.scalp_long_signal;
         let short_signal = ctx.scalp_short_signal;
 
+        // Periyodik tanı logu: her 60 mumda bir sinyal koşullarını göster
+        if ctx.total_candles_processed % 60 == 0 {
+            let last_close = ctx.candles.back().map(|c| c.close).unwrap_or_default();
+            let vwap_str = ctx.vwap_current.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "N/A".to_string());
+            warn!(
+                "📊 [{} {}] Durum | close={:.2} vwap={} bull={} bear={} nearVwap={} momL={} momS={} obL={} obS={} → longSig={} shortSig={}",
+                ctx.symbol, ctx.timeframe,
+                last_close, vwap_str,
+                ctx.scalp_bull_trend, ctx.scalp_bear_trend,
+                ctx.scalp_near_vwap,
+                ctx.scalp_mom_long, ctx.scalp_mom_short,
+                ctx.scalp_long_ob_ok, ctx.scalp_short_ob_ok,
+                long_signal, short_signal
+            );
+        }
+
         let direction = if lstm_only {
             if ctx.scalp_bull_trend && ctx.scalp_long_ob_ok {
                 SignalType::LONG
