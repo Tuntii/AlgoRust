@@ -38,6 +38,51 @@ const TESTNET_BASE: &str = "https://testnet.binancefuture.com";
 const DEFAULT_RECV_WINDOW_MS: u64 = 10_000;
 const MAX_RECV_WINDOW_MS: u64 = 60_000;
 
+#[derive(Debug, Clone, Copy)]
+struct PlannedSignalLevels {
+    entry: Decimal,
+    sl: Decimal,
+    tp1: Decimal,
+    tp2: Decimal,
+}
+
+#[derive(Debug, Clone, Default)]
+struct PositionSnapshot {
+    net_qty: Decimal,
+    long_qty: Decimal,
+    short_qty: Decimal,
+    entry_price: Option<Decimal>,
+    mark_price: Option<Decimal>,
+    unrealized_profit: Option<Decimal>,
+}
+
+impl PositionSnapshot {
+    fn describe(&self) -> String {
+        if self.net_qty.is_zero() && self.long_qty.is_zero() && self.short_qty.is_zero() {
+            return "FLAT".to_string();
+        }
+
+        let direction = if self.net_qty > Decimal::ZERO {
+            "LONG"
+        } else if self.net_qty < Decimal::ZERO {
+            "SHORT"
+        } else {
+            "HEDGE/NET-FLAT"
+        };
+
+        format!(
+            "dir={} net_qty={} long_qty={} short_qty={} entry={} mark={} unrealized_pnl={}",
+            direction,
+            self.net_qty,
+            self.long_qty,
+            self.short_qty,
+            format_opt_decimal(self.entry_price),
+            format_opt_decimal(self.mark_price),
+            format_opt_decimal(self.unrealized_profit),
+        )
+    }
+}
+
 pub struct BinanceFuturesTrader {
     client: Client,
     base_url: String,
@@ -362,6 +407,10 @@ impl BinanceFuturesTrader {
             .get_precisions(&signal.symbol)
             .await
             .unwrap_or((2, 3, Decimal::from(100)));
+        info!(
+            "📏 Exchange precision [{}]: price_prec={} qty_prec={} min_notional={}",
+            signal.symbol, price_prec, qty_prec, min_notional
+        );
 
         // Guard live exposure per symbol:
         // - same-direction signal => skip
@@ -371,33 +420,42 @@ impl BinanceFuturesTrader {
             SignalType::SHORT => -1,
         };
 
-        let net_pos_qty = self
-            .net_position_qty(&signal.symbol)
+        let position_snapshot = self
+            .fetch_position_snapshot(&signal.symbol)
             .await
             .unwrap_or_else(|e| {
                 warn!(
                     "Could not read current position for {} (continuing): {}",
                     signal.symbol, e
                 );
-                Decimal::ZERO
+                PositionSnapshot::default()
             });
+        let net_pos_qty = position_snapshot.net_qty;
+        info!(
+            "📦 Position snapshot before execution [{}]: {}",
+            signal.symbol,
+            position_snapshot.describe()
+        );
 
         if !net_pos_qty.is_zero() {
             let current_dir = if net_pos_qty > Decimal::ZERO { 1 } else { -1 };
             if current_dir == desired_dir {
                 info!(
-                    "Skipping {} {} signal: existing {} position still open (qty={}).",
+                    "Skipping {} {} signal: existing {} position still open (qty={}; snapshot={}).",
                     signal.signal,
                     signal.symbol,
                     if current_dir == 1 { "LONG" } else { "SHORT" },
-                    net_pos_qty.abs()
+                    net_pos_qty.abs(),
+                    position_snapshot.describe(),
                 );
                 return Ok(SignalExecResult::Skipped);
             }
 
             info!(
-                "Opposite signal on {} with open qty={}; closing existing position first.",
-                signal.symbol, net_pos_qty
+                "Opposite signal on {} with open qty={}; closing existing position first. snapshot={}",
+                signal.symbol,
+                net_pos_qty,
+                position_snapshot.describe(),
             );
             self.cancel_symbol_open_orders(&signal.symbol).await;
             self.close_net_position_market(&signal.symbol, net_pos_qty, qty_prec)
@@ -456,6 +514,72 @@ impl BinanceFuturesTrader {
         };
         // ─────────────────────────────────────────────────────────────────────
 
+        let runtime_reference_levels = ctx.calculate_trade_levels(&signal.signal, entry);
+        let planned_levels = parse_planned_levels(&signal.reasons);
+        let sl_distance = (entry - sl).abs();
+        let tp_distance = (tp - entry).abs();
+        let rr = if sl_distance.is_zero() {
+            Decimal::ZERO
+        } else {
+            tp_distance / sl_distance
+        };
+
+        if let Some(planned) = planned_levels {
+            let entry_gap = entry - planned.entry;
+            let entry_gap_pct = if planned.entry.is_zero() {
+                Decimal::ZERO
+            } else {
+                (entry_gap / planned.entry) * Decimal::from(100)
+            };
+
+            info!(
+                "🧪 Execution drift [{}] ctx={} planned_entry={} live_entry={} gap={} ({}%) planned_levels[sl={},tp1={},tp2={}] runtime_reference[sl={},tp1={},tp2={}] live_order[sl={},raw_tp={},scaled_tp={}] atr={} atr_scale={} sl_dist={} tp_dist={} rr={} exit_mode={} trailing_enabled={} snapshot={}",
+                signal.symbol,
+                signal.context_id.as_deref().unwrap_or("n/a"),
+                planned.entry,
+                entry,
+                entry_gap,
+                entry_gap_pct,
+                planned.sl,
+                planned.tp1,
+                planned.tp2,
+                runtime_reference_levels.sl,
+                runtime_reference_levels.tp1,
+                runtime_reference_levels.tp2,
+                sl,
+                raw_tp,
+                tp,
+                atr,
+                atr_scale,
+                sl_distance,
+                tp_distance,
+                rr,
+                self.live_exit_mode,
+                self.trailing_stop_enabled,
+                ctx.live_diagnostic_snapshot(),
+            );
+        } else {
+            info!(
+                "🧪 Live order levels [{}] ctx={} runtime_reference[sl={},tp1={},tp2={}] live_order[sl={},raw_tp={},scaled_tp={}] atr={} atr_scale={} sl_dist={} tp_dist={} rr={} exit_mode={} trailing_enabled={} snapshot={}",
+                signal.symbol,
+                signal.context_id.as_deref().unwrap_or("n/a"),
+                runtime_reference_levels.sl,
+                runtime_reference_levels.tp1,
+                runtime_reference_levels.tp2,
+                sl,
+                raw_tp,
+                tp,
+                atr,
+                atr_scale,
+                sl_distance,
+                tp_distance,
+                rr,
+                self.live_exit_mode,
+                self.trailing_stop_enabled,
+                ctx.live_diagnostic_snapshot(),
+            );
+        }
+
         let qty = self.position_qty(entry, sl, qty_prec, min_notional).await?;
 
         if qty.is_zero() {
@@ -474,8 +598,24 @@ impl BinanceFuturesTrader {
         // Format with correct precision
         let sl_str = format!("{:.1$}", sl, price_prec as usize);
         let qty_str = format!("{:.1$}", qty, qty_prec as usize);
+        let notional = qty * entry;
+        let estimated_loss = sl_distance * qty;
+        let estimated_profit = tp_distance * qty;
 
         let use_tp = self.live_exit_mode != "indicator_flip";
+        info!(
+            "🛡️ Order protection [{}]: qty={} notional={} est_loss={} est_profit={} rr={} use_tp={} exit_mode={} leverage={} risk_amount={}",
+            signal.symbol,
+            qty,
+            notional,
+            estimated_loss,
+            estimated_profit,
+            rr,
+            use_tp,
+            self.live_exit_mode,
+            self.leverage,
+            self.risk_amount,
+        );
 
         if use_tp {
             let tp_str = format!("{:.1$}", tp, price_prec as usize);
@@ -540,6 +680,7 @@ impl BinanceFuturesTrader {
         info!("Stop-loss placed @ {} - id={}", sl_str, sl_id);
 
         // 3. Take-profit (only in sl_tp mode; indicator_flip exits via opposite signal)
+        let mut tp_order_id: Option<u64> = None;
         if use_tp {
             let tp_str = format!("{:.1$}", tp, price_prec as usize);
             let tp_id = self
@@ -556,6 +697,7 @@ impl BinanceFuturesTrader {
                     activation_price: None,
                 })
                 .await?;
+            tp_order_id = Some(tp_id);
             info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
         }
 
@@ -608,6 +750,16 @@ impl BinanceFuturesTrader {
                 }
             }
         }
+
+        info!(
+            "✅ Live order bundle [{}]: entry_id={} stop_id={} tp_id={:?} was_flip={} mode={}",
+            signal.symbol,
+            entry_id,
+            sl_id,
+            tp_order_id,
+            was_flip,
+            self.live_exit_mode,
+        );
 
         Ok(if was_flip {
             SignalExecResult::Flipped
@@ -689,6 +841,10 @@ impl BinanceFuturesTrader {
     }
 
     async fn net_position_qty(&self, symbol: &str) -> Result<Decimal> {
+        Ok(self.fetch_position_snapshot(symbol).await?.net_qty)
+    }
+
+    async fn fetch_position_snapshot(&self, symbol: &str) -> Result<PositionSnapshot> {
         let params = vec![("symbol", symbol.to_string())];
 
         let resp = match self
@@ -712,30 +868,45 @@ impl BinanceFuturesTrader {
 
         let entries: Vec<PositionRiskEntry> = resp.json().await?;
 
-        let mut net_qty = Decimal::ZERO;
-        let mut long_qty = Decimal::ZERO;
-        let mut short_qty = Decimal::ZERO;
+        let mut snapshot = PositionSnapshot::default();
+        let mut unrealized_total = Decimal::ZERO;
+        let mut has_unrealized_total = false;
 
         for p in entries.into_iter().filter(|p| p.symbol == symbol) {
+            if snapshot.entry_price.is_none() && !p.position_amt.is_zero() {
+                snapshot.entry_price = p.entry_price.filter(|v| !v.is_zero());
+            }
+            if snapshot.mark_price.is_none() {
+                snapshot.mark_price = p.mark_price.filter(|v| !v.is_zero());
+            }
+            if let Some(upl) = p.unrealized_profit {
+                unrealized_total += upl;
+                has_unrealized_total = true;
+            }
+
             match p.position_side.as_str() {
-                "BOTH" => net_qty += p.position_amt,
-                "LONG" => long_qty += p.position_amt.abs(),
-                "SHORT" => short_qty += p.position_amt.abs(),
-                _ => net_qty += p.position_amt,
+                "BOTH" => snapshot.net_qty += p.position_amt,
+                "LONG" => snapshot.long_qty += p.position_amt.abs(),
+                "SHORT" => snapshot.short_qty += p.position_amt.abs(),
+                _ => snapshot.net_qty += p.position_amt,
             }
         }
 
-        if net_qty.is_zero() && (!long_qty.is_zero() || !short_qty.is_zero()) {
-            if !long_qty.is_zero() && !short_qty.is_zero() {
+        if has_unrealized_total {
+            snapshot.unrealized_profit = Some(unrealized_total);
+        }
+
+        if snapshot.net_qty.is_zero() && (!snapshot.long_qty.is_zero() || !snapshot.short_qty.is_zero()) {
+            if !snapshot.long_qty.is_zero() && !snapshot.short_qty.is_zero() {
                 warn!(
                     "Hedge-style positions detected on {} (LONG={} SHORT={}); using net.",
-                    symbol, long_qty, short_qty
+                    symbol, snapshot.long_qty, snapshot.short_qty
                 );
             }
-            net_qty = long_qty - short_qty;
+            snapshot.net_qty = snapshot.long_qty - snapshot.short_qty;
         }
 
-        Ok(net_qty)
+        Ok(snapshot)
     }
 
     async fn cancel_symbol_open_orders(&self, symbol: &str) {
@@ -948,6 +1119,41 @@ struct PositionRiskEntry {
     pub position_side: String,
     #[serde(rename = "positionAmt", deserialize_with = "de_decimal")]
     pub position_amt: Decimal,
+    #[serde(rename = "entryPrice", default, deserialize_with = "de_decimal_opt")]
+    pub entry_price: Option<Decimal>,
+    #[serde(rename = "markPrice", default, deserialize_with = "de_decimal_opt")]
+    pub mark_price: Option<Decimal>,
+    #[serde(rename = "unRealizedProfit", default, deserialize_with = "de_decimal_opt")]
+    pub unrealized_profit: Option<Decimal>,
+}
+
+fn format_opt_decimal(value: Option<Decimal>) -> String {
+    value
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "N/A".to_string())
+}
+
+fn parse_level_token(line: &str, key: &str) -> Option<Decimal> {
+    line.split_whitespace().find_map(|token| {
+        let cleaned = token.trim_end_matches(',');
+        let (token_key, token_value) = cleaned.split_once('=')?;
+        if token_key.eq_ignore_ascii_case(key) {
+            Decimal::from_str_exact(token_value).ok()
+        } else {
+            None
+        }
+    })
+}
+
+fn parse_planned_levels(reasons: &[String]) -> Option<PlannedSignalLevels> {
+    let line = reasons.iter().find(|reason| reason.starts_with("Levels:"))?;
+
+    Some(PlannedSignalLevels {
+        entry: parse_level_token(line, "entry")?,
+        sl: parse_level_token(line, "SL")?,
+        tp1: parse_level_token(line, "TP1")?,
+        tp2: parse_level_token(line, "TP2")?,
+    })
 }
 
 fn de_decimal<'de, D>(d: D) -> std::result::Result<Decimal, D::Error>
@@ -956,4 +1162,17 @@ where
 {
     let s = String::deserialize(d)?;
     Decimal::from_str(&s).map_err(serde::de::Error::custom)
+}
+
+fn de_decimal_opt<'de, D>(d: D) -> std::result::Result<Option<Decimal>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(d)?;
+    match value {
+        Some(s) => Decimal::from_str(&s)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
 }

@@ -9,7 +9,7 @@ use crate::types::{
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use tracing::warn;
+use tracing::{info, warn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LstmMode {
@@ -496,6 +496,22 @@ impl SignalEngine {
         }
         .to_string();
         signal.context_id = Some(context_id.to_string());
+
+        info!(
+            "🧠 Signal generated [{} {}] candle_idx={} context={} direction={} planned_entry={} confidence={} tier={} levels[sl={},tp1={},tp2={}] snapshot={}",
+            ctx.symbol,
+            ctx.timeframe,
+            absolute_candle_idx,
+            signal.context_id.as_deref().unwrap_or("n/a"),
+            signal.signal,
+            signal.price,
+            signal.confidence,
+            signal.confidence_tier,
+            levels.sl,
+            levels.tp1,
+            levels.tp2,
+            ctx.live_diagnostic_snapshot(),
+        );
 
         Some(signal)
     }

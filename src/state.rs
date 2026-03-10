@@ -988,6 +988,49 @@ impl SymbolContext {
         }
     }
 
+    fn fmt_opt_decimal(value: Option<Decimal>) -> String {
+        value
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "N/A".to_string())
+    }
+
+    pub fn live_diagnostic_snapshot(&self) -> String {
+        let last = self.candles.back();
+        let open = last.map(|c| c.open);
+        let high = last.map(|c| c.high);
+        let low = last.map(|c| c.low);
+        let close = last.map(|c| c.close);
+
+        format!(
+            "candle_idx={} ohlc={}/{}/{}/{} atr14={} vwap={} ema9={} ema21={} rsi14={} trend(bull/bear)={}/{} nearVWAP={} momL/momS={}/{} obL/obS={}/{} bullOB=[{} -> {}] bearOB=[{} -> {}] pivots(L/H)={}/{} bos(up/down)={}/{}",
+            self.total_candles_processed,
+            Self::fmt_opt_decimal(open),
+            Self::fmt_opt_decimal(high),
+            Self::fmt_opt_decimal(low),
+            Self::fmt_opt_decimal(close),
+            Self::fmt_opt_decimal(self.atr_14.current_value),
+            Self::fmt_opt_decimal(self.vwap_current),
+            Self::fmt_opt_decimal(self.ema_9.current_value),
+            Self::fmt_opt_decimal(self.ema_21.current_value),
+            Self::fmt_opt_decimal(self.rsi_14.current_value),
+            self.scalp_bull_trend,
+            self.scalp_bear_trend,
+            self.scalp_near_vwap,
+            self.scalp_mom_long,
+            self.scalp_mom_short,
+            self.scalp_long_ob_ok,
+            self.scalp_short_ob_ok,
+            Self::fmt_opt_decimal(self.scalp_bull_ob_bottom),
+            Self::fmt_opt_decimal(self.scalp_bull_ob_top),
+            Self::fmt_opt_decimal(self.scalp_bear_ob_bottom),
+            Self::fmt_opt_decimal(self.scalp_bear_ob_top),
+            Self::fmt_opt_decimal(self.structure.last_pivot_low),
+            Self::fmt_opt_decimal(self.structure.last_pivot_high),
+            self.just_broke_high,
+            self.just_broke_low,
+        )
+    }
+
     pub fn indicator_reversal_for(&self, direction: &SignalType) -> bool {
         match direction {
             SignalType::LONG => self.scalp_short_signal,

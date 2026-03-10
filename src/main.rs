@@ -19,12 +19,13 @@ use crate::types::WsStreamMessage;
 use config::Config;
 use dotenv::dotenv;
 use futures_util::StreamExt;
+use rust_decimal::Decimal;
 use rust_decimal::prelude::FromPrimitive;
 use serde::Deserialize;
 use std::collections::HashMap;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tracing::{error, info, warn, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[derive(Debug, Deserialize)]
 struct AppSettings {
@@ -182,6 +183,20 @@ struct MlConfig {
     mode: Option<String>,
 }
 
+fn init_logging() -> anyhow::Result<()> {
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(env_filter)
+        .with_writer(std::io::stderr)
+        .with_max_level(Level::INFO)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)?;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load .env file if it exists
@@ -193,11 +208,7 @@ async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && args[1] == "test-order" {
         // Init logging (simplified)
-        let subscriber = FmtSubscriber::builder()
-            .with_max_level(Level::INFO)
-            .with_writer(std::io::stderr)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)?;
+        init_logging()?;
 
         let symbol = args.get(2).map(|s| s.as_str()).unwrap_or("BTCUSDT");
         let amount_f64 = args
@@ -226,11 +237,7 @@ async fn main() -> anyhow::Result<()> {
         }
         return Ok(());
     } else if args.len() > 1 && args[1] == "test-signal" {
-        let subscriber = FmtSubscriber::builder()
-            .with_max_level(Level::INFO)
-            .with_writer(std::io::stderr)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)?;
+        init_logging()?;
 
         let symbol = args.get(2).map(|s| s.as_str()).unwrap_or("BTCUSDT");
         let amount_f64 = args
@@ -265,7 +272,6 @@ async fn main() -> anyhow::Result<()> {
         let mut ctx = SymbolContext::new(symbol.to_string(), "1m".to_string());
         ctx.atr_14.current_value = Some(rust_decimal::Decimal::from_f64(100.0).unwrap());
 
-        use crate::types::{SignalType, TradeSignal};
         use chrono::Utc;
         let signal = crate::types::TradeSignal {
             signal_id: "test-signal-001".to_string(),
@@ -292,11 +298,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Loglamayı başlat (stderr)
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .with_writer(std::io::stderr)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)?;
+    init_logging()?;
 
     info!("🚀 Binance Price Action Engine başlatılıyor...");
 
@@ -408,7 +410,7 @@ async fn main() -> anyhow::Result<()> {
         None
     };
     // Alpaca kept for backwards compat but not used when binance_trader is active
-    let alpaca_client: Option<alpaca::AlpacaClient> = None;
+    let _alpaca_client: Option<alpaca::AlpacaClient> = None;
 
     // Initialize Paper Trader if enabled
     let mut paper_trader = if conf.trading.use_paper_trader && conf.trading.execute_trades {
@@ -530,10 +532,36 @@ async fn main() -> anyhow::Result<()> {
                                                     // açılış fiyatıyla execute et (next-bar open)
                                                     // ─────────────────────────────────────────────
                                                     if let Some(mut pending) = ctx.pending_signal.take() {
+                                                        let planned_entry = pending.price;
                                                         pending.price = candle.open;
+                                                        let entry_gap = pending.price - planned_entry;
+                                                        let entry_gap_pct = if planned_entry.is_zero() {
+                                                            Decimal::ZERO
+                                                        } else {
+                                                            (entry_gap / planned_entry) * Decimal::from(100)
+                                                        };
                                                         info!(
                                                             "⏳ Pending sinyal execute ediliyor ({} {} @ ${}  — next-bar open)",
                                                             pending.signal, pending.symbol, pending.price
+                                                        );
+                                                        info!(
+                                                            "📝 Pending signal detail [{} {}] ctx={} planned_close_entry={} next_open_entry={} gap={} ({}%) confidence={} tier={} reasons={:?}",
+                                                            pending.symbol,
+                                                            pending.timeframe,
+                                                            pending.context_id.as_deref().unwrap_or("n/a"),
+                                                            planned_entry,
+                                                            pending.price,
+                                                            entry_gap,
+                                                            entry_gap_pct,
+                                                            pending.confidence,
+                                                            pending.confidence_tier,
+                                                            pending.reasons,
+                                                        );
+                                                        info!(
+                                                            "🧭 Live runtime snapshot before order [{} {}]: {}",
+                                                            pending.symbol,
+                                                            pending.timeframe,
+                                                            ctx.live_diagnostic_snapshot(),
                                                         );
                                                         // stdout -> pipe
                                                         println!(
