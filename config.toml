@@ -1,5 +1,5 @@
 ﻿[app]
-mode = "live"
+mode = "backtest"
 bootstrap_limit = 70000
 auto_reconnect = true
 
@@ -34,6 +34,7 @@ live_exit_mode = "sl_tp"
 trailing_stop_enabled = false
 trailing_callback_rate = 0.4
 trailing_activation_pct = 0.35
+replace_on_same_signal = true
 
 [indicators]
 ema_fast = 9

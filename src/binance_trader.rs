@@ -16,8 +16,16 @@ pub enum SignalExecResult {
     Executed,
     /// Prior opposite position closed + new one opened
     Flipped,
+    /// Prior same-direction position closed + new one opened
+    Replaced,
     /// Same direction already open — skipped
     Skipped,
+}
+
+impl SignalExecResult {
+    pub fn closed_previous_position(self) -> bool {
+        matches!(self, SignalExecResult::Flipped | SignalExecResult::Replaced)
+    }
 }
 use hmac::{Hmac, Mac};
 use reqwest::Client;
@@ -107,6 +115,8 @@ pub struct BinanceFuturesTrader {
     pub trailing_callback_rate: Decimal,
     /// TP mesafesinin yüzde kaçında trailing stop aktif olacak (0.0–1.0)
     pub trailing_activation_pct: Decimal,
+    /// Aynı yönde yeni sinyal gelirse mevcut pozu kapatıp yenisi açılsın mı?
+    pub replace_on_same_signal: bool,
 }
 
 impl BinanceFuturesTrader {
@@ -121,6 +131,7 @@ impl BinanceFuturesTrader {
         trailing_stop_enabled: bool,
         trailing_callback_rate: f64,
         trailing_activation_pct: f64,
+        replace_on_same_signal: bool,
     ) -> Result<Self> {
         let api_key = env::var("BINANCE_API_KEY").context("BINANCE_API_KEY must be set in .env")?;
         let api_secret =
@@ -161,6 +172,7 @@ impl BinanceFuturesTrader {
                 .unwrap_or(Decimal::new(4, 1)), // 0.4%
             trailing_activation_pct: Decimal::from_f64(trailing_activation_pct)
                 .unwrap_or(Decimal::new(35, 2)), // 0.35
+            replace_on_same_signal,
         })
     }
 
@@ -437,26 +449,47 @@ impl BinanceFuturesTrader {
             position_snapshot.describe()
         );
 
+        let mut same_direction_reentry = false;
+
         if !net_pos_qty.is_zero() {
             let current_dir = if net_pos_qty > Decimal::ZERO { 1 } else { -1 };
             if current_dir == desired_dir {
+                if !self.replace_on_same_signal {
+                    info!(
+                        "Skipping {} {} signal: existing {} position still open (qty={}; snapshot={}).",
+                        signal.signal,
+                        signal.symbol,
+                        if current_dir == 1 { "LONG" } else { "SHORT" },
+                        net_pos_qty.abs(),
+                        position_snapshot.describe(),
+                    );
+                    return Ok(SignalExecResult::Skipped);
+                }
+
+                same_direction_reentry = true;
                 info!(
-                    "Skipping {} {} signal: existing {} position still open (qty={}; snapshot={}).",
+                    "♻️ Replacing same-direction {} {} position with newer signal (qty={}; snapshot={}).",
                     signal.signal,
                     signal.symbol,
-                    if current_dir == 1 { "LONG" } else { "SHORT" },
                     net_pos_qty.abs(),
                     position_snapshot.describe(),
                 );
-                return Ok(SignalExecResult::Skipped);
             }
 
-            info!(
-                "Opposite signal on {} with open qty={}; closing existing position first. snapshot={}",
-                signal.symbol,
-                net_pos_qty,
-                position_snapshot.describe(),
-            );
+            if same_direction_reentry {
+                info!(
+                    "Closing existing same-direction position on {} before re-entry. snapshot={}",
+                    signal.symbol,
+                    position_snapshot.describe(),
+                );
+            } else {
+                info!(
+                    "Opposite signal on {} with open qty={}; closing existing position first. snapshot={}",
+                    signal.symbol,
+                    net_pos_qty,
+                    position_snapshot.describe(),
+                );
+            }
             self.cancel_symbol_open_orders(&signal.symbol).await;
             self.close_net_position_market(&signal.symbol, net_pos_qty, qty_prec)
                 .await?;
@@ -587,8 +620,8 @@ impl BinanceFuturesTrader {
             return Ok(SignalExecResult::Skipped);
         }
 
-        // Track whether this was a flip (opposite close + new open)
-        let was_flip = !net_pos_qty.is_zero();
+        // Track whether this entry replaced an existing position
+        let had_existing_position = !net_pos_qty.is_zero();
 
         let (side, sl_side, tp_side) = match signal.signal {
             SignalType::LONG => ("BUY", "SELL", "SELL"),
@@ -757,11 +790,13 @@ impl BinanceFuturesTrader {
             entry_id,
             sl_id,
             tp_order_id,
-            was_flip,
+            had_existing_position,
             self.live_exit_mode,
         );
 
-        Ok(if was_flip {
+        Ok(if same_direction_reentry {
+            SignalExecResult::Replaced
+        } else if had_existing_position {
             SignalExecResult::Flipped
         } else {
             SignalExecResult::Executed

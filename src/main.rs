@@ -137,6 +137,9 @@ struct TradingConfig {
     /// TP mesafesinin yüzde kaçında trailing stop aktif olacak (0.0-1.0)
     #[serde(default = "default_trailing_activation_pct")]
     trailing_activation_pct: f64,
+    /// Aynı yönde yeni sinyal gelirse mevcut pozu kapatıp yeni sinyale geç
+    #[serde(default)]
+    replace_on_same_signal: bool,
 }
 
 fn default_max_positions() -> u32 {
@@ -223,7 +226,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
         // Init trader (requires env vars to be present)
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1, false, 0.4, 0.35) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1, false, 0.4, 0.35, false) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -251,7 +254,7 @@ async fn main() -> anyhow::Result<()> {
             symbol, amount
         );
 
-        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1, false, 0.4, 0.35) {
+        let trader = match binance_trader::BinanceFuturesTrader::new(amount, 1, "sl_tp".to_string(), 1, false, 0.4, 0.35, false) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to init trader: {}", e);
@@ -391,12 +394,14 @@ async fn main() -> anyhow::Result<()> {
             conf.trading.trailing_stop_enabled,
             conf.trading.trailing_callback_rate,
             conf.trading.trailing_activation_pct,
+            conf.trading.replace_on_same_signal,
         ) {
             Ok(trader) => {
                 info!(
-                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage, max {} positions, trailing={})",
+                    "💰 Binance Futures trader initialized (${} risk/trade, {}x leverage, max {} positions, trailing={}, replace_on_same_signal={})",
                     risk_amount, conf.trading.leverage, conf.trading.max_positions,
-                    if conf.trading.trailing_stop_enabled { format!("{}% callback", conf.trading.trailing_callback_rate) } else { "off".to_string() }
+                    if conf.trading.trailing_stop_enabled { format!("{}% callback", conf.trading.trailing_callback_rate) } else { "off".to_string() },
+                    conf.trading.replace_on_same_signal,
                 );
                 Some(trader)
             }
@@ -612,8 +617,7 @@ async fn main() -> anyhow::Result<()> {
                                                                 .await
                                                             {
                                                                 Ok(result) => {
-                                                                    use crate::binance_trader::SignalExecResult;
-                                                                    if result == SignalExecResult::Flipped {
+                                                                    if result.closed_previous_position() {
                                                                         engine.record_trade_close(
                                                                             &pending.symbol,
                                                                             &pending.timeframe,
