@@ -716,7 +716,7 @@ impl BinanceFuturesTrader {
         let mut tp_order_id: Option<u64> = None;
         if use_tp {
             let tp_str = format!("{:.1$}", tp, price_prec as usize);
-            let tp_id = self
+            match self
                 .place_order(OrderParams {
                     symbol: &signal.symbol,
                     side: tp_side,
@@ -729,9 +729,28 @@ impl BinanceFuturesTrader {
                     callback_rate: None,
                     activation_price: None,
                 })
-                .await?;
-            tp_order_id = Some(tp_id);
-            info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+                .await
+            {
+                Ok(tp_id) => {
+                    tp_order_id = Some(tp_id);
+                    info!("Take-profit placed @ {} - id={}", tp_str, tp_id);
+                }
+                Err(e) => {
+                    let err_msg = format!("{}", e);
+                    if err_msg.contains("-2021") || err_msg.contains("immediately trigger") {
+                        warn!(
+                            "⚠️ TP would immediately trigger — price already past {} → closing position at market",
+                            tp_str
+                        );
+                        self.cancel_symbol_open_orders(&signal.symbol).await;
+                        let net_qty = self.net_position_qty(&signal.symbol).await?;
+                        self.close_net_position_market(&signal.symbol, net_qty, qty_prec).await?;
+                        info!("📈 Position closed at market (TP already reached) [{}]", signal.symbol);
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
         }
 
         // 4. Trailing stop — indicator_flip modunda kâr koruması
