@@ -14,7 +14,7 @@ ws_base_url = "wss://fstream.binance.com"
 
 [backtest]
 output_dir = "backtest_results"
-days = 365
+days = 7
 exit_mode = "indicator_flip"
 sltp_mode = "orderblock"
 indicator_profile = "baseline"
@@ -30,7 +30,7 @@ paper_state_file = "paper_trader_state.json"
 risk_amount_usdt = 5.0
 leverage = 2
 max_positions = 1
-live_exit_mode = "sl_tp"
+live_exit_mode = "indicator_flip"
 trailing_stop_enabled = false
 trailing_callback_rate = 0.4
 trailing_activation_pct = 0.35
