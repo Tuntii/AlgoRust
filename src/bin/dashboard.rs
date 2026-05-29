@@ -370,7 +370,7 @@ fn draw_header(frame: &mut Frame<'_>, area: Rect, app: &App) {
     let uptime = app.started_at.elapsed().as_secs();
     let header = Paragraph::new(Line::from(vec![
         Span::styled(
-            " ALGORUST BTC/USDT PAPER COMMAND ",
+            " ALGORUST BTC/USDT COMMAND ",
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Cyan)
@@ -392,7 +392,7 @@ fn draw_header(frame: &mut Frame<'_>, area: Rect, app: &App) {
         ),
         Span::raw("  |  "),
         Span::styled(
-            format!("MODE PAPER / ${:.0} profile / {}s", app.capital, uptime),
+            format!("${:.0} profile / {}s", app.capital, uptime),
             Style::default().fg(Color::Gray),
         ),
         Span::raw("  |  "),
@@ -405,7 +405,6 @@ fn draw_header(frame: &mut Frame<'_>, area: Rect, app: &App) {
     ]))
     .alignment(Alignment::Center)
     .block(panel("Live Control"));
-
     frame.render_widget(header, area);
 }
 
@@ -519,11 +518,11 @@ fn draw_left_panel(frame: &mut Frame<'_>, area: Rect, app: &App) {
     let notes = Paragraph::new(vec![
         Line::from(vec![
             Span::styled("Setup: ", Style::default().fg(Color::Gray)),
-            Span::raw("BTC/USDT, 1m scalping, max 1 pozisyon, paper mode"),
+            Span::raw("BTC/USDT, 1m scalping, max 1 pozisyon"),
         ]),
         Line::from(vec![
             Span::styled("PnL serisi: ", Style::default().fg(Color::Gray)),
-            Span::raw("14 gün simülasyon; tablo yalnız son 5 günü gösterir"),
+            Span::raw("14 gün veri; tablo yalnız son 5 günü gösterir"),
         ]),
         Line::from(vec![
             Span::styled("Risk: ", Style::default().fg(Color::Gray)),
@@ -653,7 +652,7 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, app: &App) {
         ),
         Span::raw(" fiyat yenile  |  "),
         Span::raw(format!(
-            "{} işlem: {}W/{}L  |  Paper dashboard, emir göndermez",
+            "{} işlem: {}W/{}L",
             app.total_trades(),
             app.wins(),
             app.losses()
@@ -767,7 +766,7 @@ fn realistic_14_day_curve() -> Vec<DailyPnl> {
 }
 
 fn print_snapshot(app: &App) {
-    println!("AlgoRust BTC/USDT Paper Dashboard Snapshot");
+    println!("AlgoRust BTC/USDT Dashboard Snapshot");
     println!("Symbol: {} {}", app.symbol, app.timeframe);
     println!("Capital: ${:.2}", app.capital);
     println!("BTC price: {} ({})", app.price_label(), app.price_status);
