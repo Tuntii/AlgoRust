@@ -8,6 +8,10 @@ autobins = false
 name = "ebu-algo"
 path = "src/main.rs"
 
+[[bin]]
+name = "dashboard"
+path = "src/bin/dashboard.rs"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
@@ -31,3 +35,5 @@ ort = { version = "=2.0.0-rc.11", features = ["load-dynamic", "ndarray"] }
 hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
+ratatui = "0.29"
+crossterm = "0.28"
