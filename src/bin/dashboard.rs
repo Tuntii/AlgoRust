@@ -21,7 +21,7 @@ use ratatui::{
 use reqwest::Client;
 use serde::Deserialize;
 
-const DEFAULT_CAPITAL: f64 = 200.0;
+const DEFAULT_CAPITAL: f64 = 167.0;
 const DEFAULT_SYMBOL: &str = "BTCUSDT";
 const DEFAULT_TIMEFRAME: &str = "1m";
 const DEFAULT_VISIBLE_DAYS: usize = 5;
